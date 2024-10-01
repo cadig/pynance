@@ -11,6 +11,8 @@
 - isForexMarketOpen
 - MajorCurrencyDictionary
 
+### ibkr - interactive brokers related utilities and interfacing
+
 ### indicators - indicator calculations that aren't provided by another package (namely talib)
 - KAMA: Kaufman Adaptive Moving Average
 

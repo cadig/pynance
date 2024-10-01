@@ -2,6 +2,9 @@
 
 ... In this project I am slowly migrating and cleaning up functionality from my old & messy repositories to be more cleanly imported as standalone python packages to provide better building blocks for additional trading system development.
 
+--- 
+
+### finviz - utils for retrieving data using the [finvizfinance](https://pypi.org/project/finvizfinance/) package
 
 ### forexutils - forex specific utilities
 - convertPipsToPrice and convertPriceToPips
@@ -11,9 +14,9 @@
 - isForexMarketOpen
 - MajorCurrencyDictionary
 
-### ibkr - interactive brokers related utilities and interfacing
+### [ibkr](https://www.interactivebrokers.com/) - interactive brokers related utilities and interfacing
 
-### indicators - indicator calculations that aren't provided by another package (namely talib)
+### indicators - indicator calculations that aren't provided by another package (namely [talib](https://ta-lib.org/))
 - KAMA: Kaufman Adaptive Moving Average
 
 ### moneymanagement - algorithms & functions used for calculating position sizes
@@ -21,7 +24,7 @@
 - Also has basic fixed fractional sizing, kelly sizing, and more
 - Account risk modulator to dynamically increase or decrease bet size based on the return of the account
 
-### oanda - interface for the oanda forex broker oandapyv20 API
+### [oanda](https://www.oanda.com/us-en/) - interface for the oanda forex broker oandapyv20 API
 - OandaTrader: provides methods for placing various order types against the oanda API for live trading
 - OandaClerk: provides methods for retrieving various data points from the oanda API
 

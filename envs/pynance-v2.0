@@ -1,0 +1,12 @@
+name: pynance-v2.0
+channels:
+  - defaults
+dependencies:
+  - jupyter
+  - python
+  - numpy
+  - seaborn
+  - matplotlib
+  - pandas
+prefix: /Users/johncadig/miniconda3/envs/pynance-v2.0
+

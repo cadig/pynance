@@ -7,7 +7,7 @@ class AccountRiskModulator(object):
         self.verbose = bool( verbose )
         self.isSimulation = isSimulation
         
-    def getSchemeRules(self):
+    def getModulationSchemeRules(self):
         """Return dataframe representation of scheme rules"""
         if self.scheme=='progressive':
             rules = {

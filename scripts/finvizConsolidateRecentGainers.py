@@ -45,7 +45,7 @@ def main():
         'Current Volume': 'Over 100K',
         '200-Day Simple Moving Average': 'Price above SMA200',
         'Market Cap.': '+Mid (over $2bln)',
-        # 'Performance': 'Quarter Up'
+        'Performance': 'Quarter Up'
     }
 
     # Fetch stocks sorted by different performance metrics

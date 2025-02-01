@@ -9,6 +9,17 @@
 # Lastly, it will print in a friendly format the number of total unique tickers, and create a URL that includes all of the tickers to use in finviz 
 
 from finvizfinance.screener.performance import Performance
+import subprocess
+
+def open_incognito(url):
+    apple_script = f'''
+    tell application "Google Chrome"
+        activate
+        set incognitoWindow to make new window with properties {{mode:"incognito"}}
+        tell incognitoWindow to make new tab with properties {{URL:"{url}"}}
+    end tell
+    '''
+    subprocess.run(["osascript", "-e", apple_script])
 
 # Define a function to get top 100 stocks based on specific filter
 def get_top_stocks(sort, filters):
@@ -34,7 +45,7 @@ def main():
         'Current Volume': 'Over 100K',
         '200-Day Simple Moving Average': 'Price above SMA200',
         'Market Cap.': '+Mid (over $2bln)',
-        'Performance': 'Quarter Up'
+        # 'Performance': 'Quarter Up'
     }
 
     # Fetch stocks sorted by different performance metrics
@@ -52,8 +63,10 @@ def main():
 
     # Generate Finviz URL
     tickers_list = ','.join(unique_tickers)
-    finviz_url = f"https://finviz.com/screener.ashx?v=111&t={tickers_list}"
-    print("Finviz URL:", finviz_url)
+    finviz_url = f"https://finviz.com/screener.ashx?v=311&t={tickers_list}&o=-perf13w"
+    print("\nFinviz URL:\n", finviz_url)
+    
+    open_incognito(finviz_url)
 
 if __name__ == "__main__":
     main()

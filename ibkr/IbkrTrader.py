@@ -71,7 +71,7 @@ class IbkrTrader(object):
         return util.df(bars)
     
     def getStockData(self, instrument: str, primaryExchange: str, ibGranularity: str, 
-                     durationStr: str, whatToShow: str):
+                     durationStr: str, whatToShow: str, endDateTime: str = ''):
         # TODO - better systemetize these rules instead of hardcoding
         # primaryExchange=None
         if instrument == 'BRK.B':
@@ -89,6 +89,10 @@ class IbkrTrader(object):
             primaryExchange='NYSE'
         elif instrument=='WELL':
             primaryExchange='NYSE'
+        elif instrument=='LGF-A':
+            instrument = 'LGF A'
+        elif instrument=='LGF-B':
+            instrument = 'LGF B'
             
         if primaryExchange is None:
             contract = Stock(instrument, exchange='SMART', currency='USD')
@@ -96,9 +100,9 @@ class IbkrTrader(object):
         else:
             contract = Stock(instrument, exchange='SMART', currency='USD', 
                              primaryExchange=primaryExchange)
-        
+
         bars = self.ib.reqHistoricalData(
-            contract, endDateTime='', durationStr=durationStr,
+            contract, endDateTime=endDateTime, durationStr=durationStr,
             barSizeSetting=ibGranularity, whatToShow=whatToShow, 
             keepUpToDate=False, useRTH=True, timeout=2)
         

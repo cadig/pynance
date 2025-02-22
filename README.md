@@ -1,6 +1,6 @@
 # pynance - v2
 
-... In this project I am slowly migrating and cleaning up functionality from my old & messy repositories to be more cleanly imported as standalone python packages to provide better building blocks for additional trading system development.
+... In this project I am slowly migrating and cleaning up functionality from my old & messy repositories to be more cleanly used to provide better building blocks for additional trading system development.
 
 --- 
 

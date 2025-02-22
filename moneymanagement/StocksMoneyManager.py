@@ -4,7 +4,7 @@ class StocksMoneyManager(object):
     def __init__(self, base_risk_pct):
         self.base_risk_pct = base_risk_pct
         
-    def getStockPositionSizing(self, cash, stop_distance, symbol_price):
+    def getStockPositionSizing(self, cash: float, stop_distance: float, symbol_price: float):
         """Return total units of risk per input parameters and boolean enoughCash
         in account. If first check does not have enough cash. Attempts to use half
         of the original intended position size (halves the risk)."""

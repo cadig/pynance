@@ -7,8 +7,8 @@
 from ib_insync import IB
 from datetime import datetime, timedelta
 import sys
-sys.path.append('../../ibkr')
-from IbkrTrader import IbkrTrader as IbkrClient
+sys.path.append('../..')
+from ibkr.IbkrTrader import IbkrTrader as IbkrClient
 
 def convert_date_for_ib(date_str: str) -> str:
     """

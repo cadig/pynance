@@ -11,8 +11,8 @@ from ib_insync import IB
 import pandas as pd
 import time
 import sys
-sys.path.append('../../ibkr')
-from IbkrTrader import IbkrTrader as IbkrClient
+sys.path.append('../..')
+from ibkr.IbkrTrader import IbkrTrader as IbkrClient
 
 def get_stock_data_with_retry(ibt, ticker, retries=3, delay=5):
     for attempt in range(retries):

@@ -7,9 +7,9 @@ from configparser import ConfigParser
 from ib_insync import IB, Stock
 from math import floor
 import sys
-sys.path.append('../../ibkr')
-from IbkrTrader import IbkrTrader as IbkrClient
-from orders.bracketLimitOrderWithStopLoss import bracketLimitOrderWithStopLoss
+sys.path.append('../..')
+from ibkr.IbkrTrader import IbkrTrader as IbkrClient
+from ibkr.orders.bracketLimitOrderWithStopLoss import bracketLimitOrderWithStopLoss
 # from moneymanagement.StocksMoneyManager import StocksMoneyManager as SMM
 
 def get_ibkr_account_id(whichAccount: str) -> str:

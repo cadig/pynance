@@ -2,11 +2,15 @@ import time
 from datetime import datetime
 from typing import TypedDict, Dict, Tuple
 from ib_insync import IB
-from scripts.universe.finvizConsolidateRecentGainers import gather_tickers as gather_recent_gainers
-from utils import getMarketHours
+
 import sys
-sys.path.append('../../ibkr')
-from IbkrTrader import IbkrTrader as IbkrClient
+sys.path.append('../..')
+from ibkr.IbkrTrader import IbkrTrader as IbkrClient
+
+sys.path.append('..')
+from utils import getMarketHours
+from universe.finvizConsolidateRecentGainers import gather_tickers as gather_recent_gainers
+
 
 class AnchorData(TypedDict):
     yesterday_close: float

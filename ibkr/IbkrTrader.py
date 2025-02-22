@@ -2,8 +2,9 @@ import logging
 from random import randint
 from ib_insync import util, ContFuture, Stock
 from math import floor
-from enums import IB_AssetClass
-import formatIbDataframe
+
+from .enums import IB_AssetClass
+from . import formatIbDataframe
 
 class IbkrTrader(object):
     def __init__(self, ib, logFilepath, verbose=False):

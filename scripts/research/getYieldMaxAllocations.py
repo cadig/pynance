@@ -18,7 +18,7 @@ def get_stock_data_with_retry(ibt, ticker, retries=3, delay=5):
     print(f"Failed to retrieve data for {ticker} after {retries} attempts.")
     return pd.DataFrame()
 
-def get_best_etfs() -> dict[str, str]:
+def get_best_etfs() -> dict[str, list[tuple[str, float]]]:
     ib = IB()
     ibt = IbkrClient(ib, logFilepath='System', verbose=True)
     try:
@@ -27,9 +27,8 @@ def get_best_etfs() -> dict[str, str]:
         file_path = "../universe/YieldMax_ETFs.csv"
         df = pd.read_csv(file_path)
 
-        best_etfs = {"A": "None", "B": "None", "C": "None", "D": "None"}
-
-        best_yield = {"A": float('-inf'), "B": float('-inf'), "C": float('-inf'), "D": float('-inf')}
+        # Initialize dictionaries to store all qualifying ETFs and their yields
+        qualified_etfs = {"A": [], "B": [], "C": [], "D": []}
 
         for _, row in df.iterrows():
             underlying_ticker = row["Underlying"]
@@ -49,19 +48,22 @@ def get_best_etfs() -> dict[str, str]:
             sma_50 = data["close"].rolling(window=50).mean().iloc[-1]
             
             if current_price > sma_50 and sma_21 > sma_50:
-                if yield_value > best_yield[group]:
-                    print(f'\nAdding {current_etf} to {group} because it has the highest yield of {yield_value}\n')
-                    best_yield[group] = yield_value
-                    best_etfs[group] = current_etf
+                print(f'\nAdding {current_etf} to {group} with yield {yield_value}\n')
+                qualified_etfs[group].append((current_etf, yield_value))
+
+        # Sort each group's ETFs by yield in descending order
+        for group in qualified_etfs:
+            qualified_etfs[group].sort(key=lambda x: x[1], reverse=True)
 
         print("\nResults:")
-        for group, etf in best_etfs.items():
-            print(f"Group {group}: {etf}")
+        for group, etfs in qualified_etfs.items():
+            etf_list = [f"{etf[0]} ({etf[1]:.2f}%)" for etf in etfs]
+            print(f"Group {group}: {', '.join(etf_list) if etf_list else 'None'}")
             
     finally:
         ibt.disconnectClient()
         
-    return best_etfs
+    return qualified_etfs
 
 def main():
     return get_best_etfs()

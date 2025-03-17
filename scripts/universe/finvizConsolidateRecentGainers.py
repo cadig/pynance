@@ -11,6 +11,8 @@
 from finvizfinance.screener.performance import Performance
 import subprocess
 
+banned_tickers = ['HEES', 'ITCI', 'SWI', 'PYCR', 'PTVE', 'PDCO']
+
 def open_incognito(url):
     apple_script = f'''
     tell application "Google Chrome"
@@ -57,6 +59,9 @@ def gather_tickers() -> [str]:
 
     # Combine and deduplicate tickers
     unique_tickers = set(top_perf_month + top_perf_quarter + top_perf_half) # + top_perf_year)
+
+    # Remove the banned_tickers from the unique_tickers
+    unique_tickers = [ticker for ticker in unique_tickers if ticker not in banned_tickers]
 
     return list(unique_tickers)
 

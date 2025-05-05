@@ -2,12 +2,14 @@ import pandas as pd
 import yfinance as yf
 import time
 from typing import Dict, Optional
+from curl_cffi import requests
 
 def get_weekly_data_with_retry(ticker: str, retries: int = 3, delay: int = 5) -> Optional[pd.DataFrame]:
     """Fetch weekly data for a ticker with retry logic"""
+    session = requests.Session(impersonate="chrome")
     for attempt in range(retries):
         try:
-            data = yf.download(ticker, interval='1wk', period='1y', progress=False)
+            data = yf.download(ticker, interval='1wk', period='1y', progress=False, session=session)
             if not data.empty:
                 return data
         except Exception as e:

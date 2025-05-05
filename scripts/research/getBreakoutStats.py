@@ -6,9 +6,12 @@
 #
 from ib_insync import IB
 from datetime import datetime, timedelta
+from typing import Tuple
 import sys
 sys.path.append('../..')
 from ibkr.IbkrTrader import IbkrTrader as IbkrClient
+
+VERBOSE = False
 
 def convert_date_for_ib(date_str: str) -> str:
     """
@@ -47,14 +50,12 @@ def get_day_before(ibt: IbkrClient, ticker: str, endDateTime: str) -> (float, fl
     if VERBOSE: print(df)
     return round(df['close'].iloc[-1], 2), round(df['volume'].mean(), 2), round((df['high'] - df['low']).mean(), 2)
 
-def main():
-    args = sys.argv[1:]
-    ticker = args[0]
-    endDateTime = convert_date_for_ib(args[1])
+def get_breakout_stats(ticker: str, targetDate: str) -> str:
+    endDateTime = convert_date_for_ib(targetDate)
     
     ib = IB()
     ibt = IbkrClient(ib, logFilepath='System', verbose=True)
-    csvPrintLine=ticker+','+args[1]+','
+    csvPrintLine=ticker+','+targetDate+','
     try:
         ibt.connectClient(port=7496)
         
@@ -92,11 +93,6 @@ def main():
                 
                 csvPrintLine += f'{gapUpPct/100},{lowestLowIdx},{pctBelowOpen/100},{highestHighIdx},{pctAboveOpen/100},{pctRangeUp/100},{pctVolumeUp/100}'
                 
-                print('INIT STATS: ')
-                print(f'\tgapUpPct:           {gapUpPct}%')
-                print(f'\tlowestLowIdx(1min): {lowestLowIdx}')
-                print(f'\tpctBelowOpen:       {pctBelowOpen}%')
-                # print(f'20dayRange: {prev20DayRange}')
             else:
                 csvPrintLine += f',{pctRangeUp/100},{pctVolumeUp/100}'
         
@@ -105,8 +101,15 @@ def main():
         
     print(csvPrintLine)
         
+    return csvPrintLine
+
+def main():
+    args = sys.argv[1:]
+    ticker = args[0]
+    targetDate = args[1]
+    get_breakout_stats(ticker, targetDate)
     return
+    
 
 if __name__ == "__main__":
-    VERBOSE = False
     main()

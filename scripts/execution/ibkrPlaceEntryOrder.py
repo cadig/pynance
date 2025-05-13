@@ -14,7 +14,7 @@ from ibkr.orders.bracketLimitOrderWithStopLoss import bracketLimitOrderWithStopL
 
 def get_ibkr_account_id(whichAccount: str) -> str:
     config = ConfigParser()
-    config.read('../../config/ibkr-config.ini')
+    config.read('../../../config/ibkr-config.ini')
     return config.get(whichAccount, 'accountId')
 
 def get_number_of_shares(dollarsToRisk: float, buyLimitPrice: float, stopLossPrice: float) -> int:
@@ -39,7 +39,7 @@ def main():
         print('dollarsToRisk must be greater than 0')
         return
     
-    if numStaggeredStops == 0: numStaggeredStops = 1
+    if numStaggeredStops == 0 or not numStaggeredStops: numStaggeredStops = 1
     
     # round dollarsToRisk to an integer
     dollarsToRisk = floor(dollarsToRisk)

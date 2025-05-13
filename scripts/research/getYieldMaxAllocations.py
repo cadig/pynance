@@ -1,15 +1,14 @@
 import pandas as pd
 import yfinance as yf
 import time
-from curl_cffi import requests  
 import sys
 sys.path.append('../..')
 
 def get_stock_data_with_retry(ticker, retries=3, delay=5):
-    session = requests.Session(impersonate="chrome")
     for attempt in range(retries):
         try:
-            data = yf.download(ticker, period='10y', interval='1d', progress=False, session=session)
+            ticker_obj = yf.Ticker(ticker)
+            data = ticker_obj.history(period='10y', interval='1d')
             if not data.empty:
                 return data
         except Exception as e:

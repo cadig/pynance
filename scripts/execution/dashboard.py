@@ -219,6 +219,21 @@ class YieldMaxAllocationsSection(ttk.Frame):
         except subprocess.CalledProcessError as e:
             messagebox.showerror("Execution Error", f"Error running script: {e}")
 
+class RiskAndOrdersSection(ttk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setup_ui()
+        
+    def setup_ui(self):
+        ttk.Button(self, text="Check Risk and Orders", command=self.run_script).pack(pady=2, anchor="w")
+
+    def run_script(self):
+        try:
+            script_path = Path(__file__).parent / "checkRiskAndOrders.py"
+            subprocess.run(["python", str(script_path)], check=True)
+        except subprocess.CalledProcessError as e:
+            messagebox.showerror("Execution Error", f"Error running script: {e}")
+
 class ExecutionTab(ttk.Frame):
     def __init__(self, parent, config):
         super().__init__(parent)
@@ -268,9 +283,16 @@ class ScriptsTab(ttk.Frame):
         # Add separator
         ttk.Separator(self, orient='horizontal').pack(fill=tk.X, padx=5, pady=2)
         
-        # Add Breakout Stats section last
+        # Add Breakout Stats section
         breakout_stats = BreakoutStatsSection(self)
         breakout_stats.pack(fill=tk.BOTH, expand=True, padx=10, pady=2)
+        
+        # Add separator
+        ttk.Separator(self, orient='horizontal').pack(fill=tk.X, padx=5, pady=2)
+        
+        # Add Risk and Orders section last
+        risk_and_orders = RiskAndOrdersSection(self)
+        risk_and_orders.pack(fill=tk.BOTH, expand=True, padx=10, pady=2)
 
 class Dashboard:
     def __init__(self):

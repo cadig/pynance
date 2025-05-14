@@ -123,10 +123,6 @@ class IbkrTrader(object):
     
     def getIbAccountNetLiquidation(self, ibAccId):
         accountSummary = self.ib.accountSummary(ibAccId)
-        
-        print('\naccountSummary for '+ibAccId)
-        print(accountSummary)
-        
         return [i.value for i in accountSummary if i.tag == 'NetLiquidation'][0]
     
     def getAllAccountPositions(self, account):

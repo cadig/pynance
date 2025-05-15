@@ -32,6 +32,9 @@ def check_position_risk(ib: IB, ibt: IbkrClient, account_id: str):
     # Filter trades for this specific account
     account_trades = [t for t in open_trades if t.order.account == account_id]
     
+    # Track total risk
+    total_dollar_risk = 0.0
+    
     for position in positions:
         contract = position.contract
         quantity = position.position
@@ -60,12 +63,22 @@ def check_position_risk(ib: IB, ibt: IbkrClient, account_id: str):
         dollar_risk = price_to_stop * abs(quantity)
         risk_percentage = (dollar_risk / net_liq) * 100
         
+        # Add to total risk
+        total_dollar_risk += dollar_risk
+        
         print(f"\nPosition: {contract.symbol}")
         print(f"Quantity: {quantity}")
         print(f"Current Price: ${current_price:.2f}")
         print(f"Stop Price: ${stop_price:.2f}")
         print(f"Dollar Risk: ${dollar_risk:.2f}")
         print(f"Risk as % of Account: {risk_percentage:.2f}%")
+    
+    # Print total risk summary
+    total_risk_percentage = (total_dollar_risk / net_liq) * 100
+    print("\nTotal Risk Summary:")
+    print("-" * 80)
+    print(f"Total Dollar Risk: ${total_dollar_risk:.2f}")
+    print(f"Total Risk as % of Account: {total_risk_percentage:.2f}%")
 
 def check_open_orders(ib: IB, ibt: IbkrClient, account_id: str):
     """Check open orders and verify stop losses match positions."""

@@ -199,7 +199,7 @@ class HeikinAshiSignalsSection(ttk.Frame):
 
     def run_script(self):
         try:
-            script_path = Path(__file__).parent.parent / "research" / "getWeeklyHeikinAshiSignals.py"
+            script_path = Path(__file__).parent.parent / "execution" / "getWeeklyHeikinAshiSignals.py"
             subprocess.run(["python", str(script_path)], check=True)
         except subprocess.CalledProcessError as e:
             messagebox.showerror("Execution Error", f"Error running script: {e}")
@@ -214,7 +214,7 @@ class YieldMaxAllocationsSection(ttk.Frame):
 
     def run_script(self):
         try:
-            script_path = Path(__file__).parent.parent / "research" / "getYieldMaxAllocations.py"
+            script_path = Path(__file__).parent.parent / "execution" / "getYieldMaxAllocations.py"
             subprocess.run(["python", str(script_path)], check=True)
         except subprocess.CalledProcessError as e:
             messagebox.showerror("Execution Error", f"Error running script: {e}")

@@ -5,14 +5,14 @@
             "exchange": "INDEX",
             "filename": "MMTW-20-day.csv",
             "description": "% of stocks above 20-day moving average",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "MMFI",
             "exchange": "INDEX",
             "filename": "MMFI-50-day.csv",
             "description": "% of stocks above 50-day moving average",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "MMTH",
@@ -29,6 +29,34 @@
             "shouldFetch": true
         },
         {
+            "symbol": "ADRN",
+            "exchange": "INDEX",
+            "filename": "ADRN.csv",
+            "description": "NYSE Advance Decline Ratio",
+            "shouldFetch": true
+        },
+        {
+            "symbol": "ADRQ",
+            "exchange": "INDEX",
+            "filename": "ADRQ.csv",
+            "description": "NASDAQ Advance Decline Ratio",
+            "shouldFetch": true
+        },
+        {
+            "symbol": "HIGQ",
+            "exchange": "INDEX",
+            "filename": "HIGQ.csv",
+            "description": "NASDAQ New Highs",
+            "shouldFetch": true
+        },
+        {
+            "symbol": "LOWQ",
+            "exchange": "INDEX",
+            "filename": "LOWQ.csv",
+            "description": "NASDAQ New Lows",
+            "shouldFetch": true
+        },
+        {
             "symbol": "SPX",
             "exchange": "CBOE",
             "filename": "SPX.csv",
@@ -40,7 +68,7 @@
             "exchange": "INDEX",
             "filename": "GLD.csv",
             "description": "Gold Price",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "VIX",
@@ -54,14 +82,14 @@
             "exchange": "CBOE",
             "filename": "VIX9D.csv",
             "description": "CBOE Volatility Index 9-Day",
-            "shouldFetch": false
+            "shouldFetch": true
         },
         {
             "symbol": "VIX3M",
             "exchange": "CBOE",
             "filename": "VIX3M.csv",
             "description": "CBOE Volatility Index 3-Month",
-            "shouldFetch": false
+            "shouldFetch": true
         },
         {
             "symbol": "VIX6M",
@@ -75,21 +103,21 @@
             "exchange": "CBOE",
             "filename": "VIX1Y.csv",
             "description": "CBOE Volatility Index 1-Year",
-            "shouldFetch": false
+            "shouldFetch": true
         },
         {
             "symbol": "USM2",
             "exchange": "Federal Reserve",
             "filename": "USM2.csv",
             "description": "US Money Supply M2",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "FEDFUNDS",
             "exchange": "Federal Reserve",
             "filename": "FEDFUNDS.csv",
             "description": "Effective Federal Funds Rate",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "US02Y",
@@ -124,7 +152,7 @@
             "exchange": "ICE",
             "filename": "BAMLH0A0HYM2-bofa-highyield-spread.csv",
             "description": "BOFA US High Yield Index Option-Adjusted Spread",
-            "shouldFetch": true
+            "shouldFetch": false
         }
     ]
 } 

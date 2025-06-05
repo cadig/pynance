@@ -234,6 +234,36 @@ class RiskAndOrdersSection(ttk.Frame):
         except subprocess.CalledProcessError as e:
             messagebox.showerror("Execution Error", f"Error running script: {e}")
 
+class SPXSignalsSection(ttk.Frame):
+    def __init__(self, parent, config):
+        super().__init__(parent)
+        self.config = config
+        self.setup_ui()
+        
+    def setup_ui(self):
+        # Create button
+        self.run_button = ttk.Button(
+            self,
+            text="Generate SPX Signals",
+            command=self.run_script
+        )
+        self.run_button.pack(side='left', padx=5, pady=5)
+        
+    def run_script(self):
+        try:
+            # First run fetch_data.py
+            fetch_data_path = Path(self.config.repo_root) / 'scripts' / 'data' / 'fetch_data.py'
+            subprocess.run([sys.executable, str(fetch_data_path)], check=True)
+            
+            # Then run combined-research.py that will generate the plot of latest combined research
+            research_path = Path(self.config.repo_root) / 'scripts' / 'research' / 'combined-research.py'
+            subprocess.run([sys.executable, str(research_path)], check=True)
+            
+        except subprocess.CalledProcessError as e:
+            messagebox.showerror("Error", f"Failed to generate SPX signals: {str(e)}")
+        except Exception as e:
+            messagebox.showerror("Error", f"An unexpected error occurred: {str(e)}")
+
 class ExecutionTab(ttk.Frame):
     def __init__(self, parent, config):
         super().__init__(parent)
@@ -256,43 +286,24 @@ class ScriptsTab(ttk.Frame):
         
     def setup_ui(self):
         # Add Finviz Gainers section first
-        finviz_gainers = FinvizGainersSection(self)
-        finviz_gainers.pack(fill=tk.BOTH, expand=True, padx=10, pady=2)
-        
-        # Add separator
-        ttk.Separator(self, orient='horizontal').pack(fill=tk.X, padx=5, pady=2)
-        
-        # Add Long Vol Breakouts section
-        long_vol_breakouts = LongVolBreakoutsSection(self, self.config)
-        long_vol_breakouts.pack(fill=tk.BOTH, expand=True, padx=10, pady=2)
-        
-        # Add separator
-        ttk.Separator(self, orient='horizontal').pack(fill=tk.X, padx=5, pady=2)
+        self.finviz_section = FinvizGainersSection(self)
+        self.finviz_section.pack(fill='x', padx=5, pady=5)
         
         # Add Heikin Ashi Signals section
-        heikin_ashi = HeikinAshiSignalsSection(self)
-        heikin_ashi.pack(fill=tk.BOTH, expand=True, padx=10, pady=2)
-        
-        # Add separator
-        ttk.Separator(self, orient='horizontal').pack(fill=tk.X, padx=5, pady=2)
+        self.heikin_section = HeikinAshiSignalsSection(self)
+        self.heikin_section.pack(fill='x', padx=5, pady=5)
         
         # Add YieldMax Allocations section
-        yield_max = YieldMaxAllocationsSection(self)
-        yield_max.pack(fill=tk.BOTH, expand=True, padx=10, pady=2)
+        self.yieldmax_section = YieldMaxAllocationsSection(self)
+        self.yieldmax_section.pack(fill='x', padx=5, pady=5)
         
-        # Add separator
-        ttk.Separator(self, orient='horizontal').pack(fill=tk.X, padx=5, pady=2)
+        # Add Risk and Orders section
+        self.risk_section = RiskAndOrdersSection(self)
+        self.risk_section.pack(fill='x', padx=5, pady=5)
         
-        # Add Breakout Stats section
-        breakout_stats = BreakoutStatsSection(self)
-        breakout_stats.pack(fill=tk.BOTH, expand=True, padx=10, pady=2)
-        
-        # Add separator
-        ttk.Separator(self, orient='horizontal').pack(fill=tk.X, padx=5, pady=2)
-        
-        # Add Risk and Orders section last
-        risk_and_orders = RiskAndOrdersSection(self)
-        risk_and_orders.pack(fill=tk.BOTH, expand=True, padx=10, pady=2)
+        # Add SPX Signals section
+        self.spx_signals_section = SPXSignalsSection(self, self.config)
+        self.spx_signals_section.pack(fill='x', padx=5, pady=5)
 
 class Dashboard:
     def __init__(self):

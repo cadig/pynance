@@ -5,14 +5,21 @@
             "exchange": "INDEX",
             "filename": "MMTW-20-day.csv",
             "description": "% of stocks above 20-day moving average",
-            "shouldFetch": false
+            "shouldFetch": true
+        },
+        {
+            "symbol": "R3TW",
+            "exchange": "INDEX",
+            "filename": "R3TW-20-day.csv",
+            "description": "Russell 3000 stocks above 20-day moving average",
+            "shouldFetch": true
         },
         {
             "symbol": "MMFI",
             "exchange": "INDEX",
             "filename": "MMFI-50-day.csv",
             "description": "% of stocks above 50-day moving average",
-            "shouldFetch": false
+            "shouldFetch": true
         },
         {
             "symbol": "MMTH",

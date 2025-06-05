@@ -271,12 +271,17 @@ class ExecutionTab(ttk.Frame):
         self.setup_ui()
         
     def setup_ui(self):
-        # Create sections
-        order_entry = OrderEntrySection(self, self.config)
-        order_entry.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        # Add RVOL Scanner section first
+        self.rvol_section = LongVolBreakoutsSection(self, self.config)
+        self.rvol_section.pack(fill='x', padx=5, pady=5)
         
-        # Add separator
-        ttk.Separator(self, orient='horizontal').pack(fill=tk.X, padx=5, pady=5)
+        # Add Risk and Orders section
+        self.risk_section = RiskAndOrdersSection(self)
+        self.risk_section.pack(fill='x', padx=5, pady=5)
+        
+        # Add Order Entry section
+        self.order_entry = OrderEntrySection(self, self.config)
+        self.order_entry.pack(fill='x', padx=5, pady=5)
 
 class ScriptsTab(ttk.Frame):
     def __init__(self, parent, config):
@@ -296,10 +301,6 @@ class ScriptsTab(ttk.Frame):
         # Add YieldMax Allocations section
         self.yieldmax_section = YieldMaxAllocationsSection(self)
         self.yieldmax_section.pack(fill='x', padx=5, pady=5)
-        
-        # Add Risk and Orders section
-        self.risk_section = RiskAndOrdersSection(self)
-        self.risk_section.pack(fill='x', padx=5, pady=5)
         
         # Add SPX Signals section
         self.spx_signals_section = SPXSignalsSection(self, self.config)

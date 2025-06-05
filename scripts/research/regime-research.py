@@ -69,8 +69,9 @@ MODULE_CONFIG = {
         'ma_period': 252,  # 50-week MA (252 trading days)
         'confirmation_days': 0  # Number of days the indicator must stay below MA to trigger risk-off
     },
+    # Note, this one is currently the primary regime signal used in combined-research.py
     'nyse_cumulative_ad_zscore': {
-        'enabled': True,
+        'enabled': False,
         'lookback_period': 252,  # Number of days to use for z-score calculation
         'smoothing_period': 50,  # Number of days to smooth the cumulative AD line
         'threshold': -1.0,  # Risk-off when z-score goes below this threshold
@@ -87,6 +88,48 @@ MODULE_CONFIG = {
     'two_ten_inversion': {
         'enabled': False,
         'confirmation_days': 0  # Number of days the spread must stay below 0 to trigger risk-off
+    },
+    'combined_mm_signals': {
+        'enabled': True,
+        'threshold': 50,  # Threshold for all MM signals
+        'indicators': {
+            'MMTW': {
+                'enabled': True,
+                'period': 20
+            },
+            'MMFI': {
+                'enabled': True,
+                'period': 50
+            },
+            'MMTH': {
+                'enabled': True,
+                'period': 200
+            }
+        }
+    },
+    'all_mm_signals_below_50': {
+        'enabled': True,
+        'threshold': 50,  # Threshold for all MM signals
+        'indicators': {
+            'MMTW': {
+                'enabled': True,
+                'period': 20
+            },
+            'MMFI': {
+                'enabled': True,
+                'period': 50
+            },
+            'MMTH': {
+                'enabled': True,
+                'period': 200
+            }
+        }
+    },
+    'spx_mmfi_regime': {
+        'enabled': False,
+        'spx_ma_period': 50,  # 50-day moving average for SPX
+        'mmfi_threshold': 50,  # Threshold for MMFI
+        'confirmation_days': 0  # Number of days indicators must stay below threshold
     }
 }
 
@@ -1291,6 +1334,256 @@ class SPXResearch:
         plt.tight_layout()
         plt.show()
 
+    def apply_combined_mm_signals_module(self) -> pd.Series:
+        """
+        Apply the combined MM signals module.
+        Returns a series with values:
+        0: No signals (red)
+        1: One signal (orange)
+        2: Two signals (yellow)
+        3: Three signals (green)
+        """
+        if not all(f'{name}-{config["period"]}-day.csv' in self.additional_data 
+                  for name, config in MODULE_CONFIG['combined_mm_signals']['indicators'].items() 
+                  if config['enabled']):
+            raise ValueError("Required data files not loaded")
+            
+        # Get configuration parameters
+        threshold = MODULE_CONFIG['combined_mm_signals']['threshold']
+        indicators = MODULE_CONFIG['combined_mm_signals']['indicators']
+        
+        # Initialize signal count series
+        signal_count = pd.Series(0, index=self.combined_data.index)
+        
+        # Process each enabled indicator
+        for name, config in indicators.items():
+            if config['enabled']:
+                # Get the percentage data
+                data = self.combined_data[f'{name}-{config["period"]}-day_close']
+                # Add 1 to signal count when above threshold
+                signal_count += (data >= threshold).astype(int)
+        
+        return signal_count
+
+    def plot_combined_mm_signals(self, signal_count: pd.Series) -> None:
+        """
+        Plot SPX data with combined MM signals background.
+        - Red: No signals
+        - Orange: One signal
+        - Yellow: Two signals
+        - Green: Three signals
+        """
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 8), height_ratios=[2, 1])
+        
+        # Plot SPX data
+        ax1.plot(self.combined_data.index, self.combined_data['spx_close'], 
+                label='SPX', color='black')
+        
+        # Create background shading based on signal count
+        colors = ['red', 'orange', 'yellow', 'green']
+        for i in range(4):
+            mask = signal_count == i
+            if mask.any():
+                ax1.fill_between(self.combined_data.index, 
+                               self.combined_data['spx_close'].min(),
+                               self.combined_data['spx_close'].max(),
+                               where=mask,
+                               color=colors[i], alpha=0.2, 
+                               label=f'{i} Signal{"s" if i != 1 else ""}')
+        
+        ax1.set_title('SPX with Combined MM Signals')
+        ax1.set_ylabel('SPX Price')
+        ax1.legend()
+        ax1.grid(True)
+        
+        # Plot individual indicators
+        threshold = MODULE_CONFIG['combined_mm_signals']['threshold']
+        indicators = MODULE_CONFIG['combined_mm_signals']['indicators']
+        colors = {'MMTW': 'blue', 'MMFI': 'green', 'MMTH': 'red'}
+        
+        for name, config in indicators.items():
+            if config['enabled']:
+                data = self.combined_data[f'{name}-{config["period"]}-day_close']
+                ax2.plot(data.index, data, 
+                        label=f'{name} ({config["period"]}-day)', 
+                        color=colors[name], 
+                        alpha=0.7)
+        
+        ax2.axhline(y=threshold, color='black', linestyle='--', 
+                   label=f'Threshold ({threshold}%)')
+        
+        ax2.set_ylabel('Percentage of Stocks Above MA')
+        ax2.legend()
+        ax2.grid(True)
+        
+        plt.tight_layout()
+        plt.show()
+
+    def apply_all_mm_signals_below_50_module(self) -> pd.Series:
+        """
+        Apply the all MM signals below 50 module.
+        Returns a series with values:
+        0: No signals (red background)
+        1: One signal (no background)
+        2: Two signals (no background)
+        3: Three signals (no background)
+        """
+        if not all(f'{name}-{config["period"]}-day.csv' in self.additional_data 
+                  for name, config in MODULE_CONFIG['all_mm_signals_below_50']['indicators'].items() 
+                  if config['enabled']):
+            raise ValueError("Required data files not loaded")
+            
+        # Get configuration parameters
+        threshold = MODULE_CONFIG['all_mm_signals_below_50']['threshold']
+        indicators = MODULE_CONFIG['all_mm_signals_below_50']['indicators']
+        
+        # Initialize signal count series
+        signal_count = pd.Series(0, index=self.combined_data.index)
+        
+        # Process each enabled indicator
+        for name, config in indicators.items():
+            if config['enabled']:
+                # Get the percentage data
+                data = self.combined_data[f'{name}-{config["period"]}-day_close']
+                # Add 1 to signal count when above threshold
+                signal_count += (data >= threshold).astype(int)
+        
+        return signal_count
+
+    def plot_all_mm_signals_below_50(self, signal_count: pd.Series) -> None:
+        """
+        Plot SPX price with red background shading when all MM signals are below 50%.
+        
+        Args:
+            signal_count (pd.Series): Series containing the count of signals below 50%
+        """
+        if self.combined_data is None:
+            logging.error("No data loaded. Call load_data() first.")
+            return
+            
+        # Create figure and axis
+        fig, ax = plt.subplots(figsize=(15, 8))
+        
+        # Plot SPX price
+        ax.plot(self.combined_data.index, self.combined_data['spx_close'], 
+                label='SPX', color='black', linewidth=1.5)
+        
+        # Shade background red when all signals are below 50%
+        all_signals_below_50 = signal_count == len(MODULE_CONFIG['all_mm_signals_below_50']['indicators'])
+        if all_signals_below_50.any():
+            ax.fill_between(
+                self.combined_data.index,
+                self.combined_data['spx_close'].min(),
+                self.combined_data['spx_close'].max(),
+                where=all_signals_below_50,
+                color='red',
+                alpha=0.2,
+                label='All Signals Below 50%'
+            )
+        
+        # Set labels and title
+        ax.set_xlabel('Date')
+        ax.set_ylabel('SPX Price')
+        ax.set_title('SPX with All MM Signals Below 50%')
+        
+        # Add legend
+        ax.legend(loc='upper left')
+        
+        # Rotate x-axis labels
+        plt.xticks(rotation=45)
+        
+        # Adjust layout
+        plt.tight_layout()
+        
+        # Show plot
+        plt.show()
+
+    def apply_spx_mmfi_regime_module(self) -> pd.Series:
+        """
+        Apply the combined SPX 50-day MA and MMFI regime module.
+        Returns a boolean series indicating risk-on periods.
+        Goes risk-off when either:
+        1. SPX is below its 50-day moving average
+        2. MMFI is below 50
+        """
+        if 'spx_close' not in self.combined_data.columns or 'MMFI-50-day_close' not in self.combined_data.columns:
+            raise ValueError("Required data not loaded")
+            
+        # Get configuration parameters
+        spx_ma_period = MODULE_CONFIG['spx_mmfi_regime']['spx_ma_period']
+        mmfi_threshold = MODULE_CONFIG['spx_mmfi_regime']['mmfi_threshold']
+        confirmation_days = MODULE_CONFIG['spx_mmfi_regime']['confirmation_days']
+        
+        # Calculate SPX 50-day MA
+        spx_price = self.combined_data['spx_close']
+        spx_ma = spx_price.rolling(window=spx_ma_period).mean()
+        
+        # Get MMFI data
+        mmfi_data = self.combined_data['MMFI-50-day_close']
+        
+        # Create initial signals
+        spx_signal = spx_price >= spx_ma
+        mmfi_signal = mmfi_data >= mmfi_threshold
+        
+        # Combine signals - risk-off if either signal indicates risk-off
+        initial_signal = spx_signal & mmfi_signal
+        
+        # Apply confirmation period if specified
+        if confirmation_days > 0:
+            final_signal = self._apply_confirmation_period(initial_signal, confirmation_days)
+        else:
+            final_signal = initial_signal
+        
+        return final_signal
+
+    def plot_spx_mmfi_regime_signals(self, signal: pd.Series) -> None:
+        """
+        Plot SPX data with combined SPX 50-day MA and MMFI regime signals.
+        
+        Args:
+            signal (pd.Series): Boolean series indicating risk-on periods
+        """
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 8), height_ratios=[2, 1])
+        
+        # Plot SPX data
+        ax1.plot(self.combined_data.index, self.combined_data['spx_close'], 
+                label='SPX', color='black')
+        
+        # Plot SPX 50-day MA
+        spx_ma_period = MODULE_CONFIG['spx_mmfi_regime']['spx_ma_period']
+        spx_price = self.combined_data['spx_close']
+        spx_ma = spx_price.rolling(window=spx_ma_period).mean()
+        ax1.plot(spx_ma.index, spx_ma, 
+                label=f'{spx_ma_period}-day MA', color='red', linestyle='--')
+        
+        # Shade risk-off periods
+        risk_off_periods = self.combined_data.index[~signal]
+        ax1.fill_between(self.combined_data.index, 
+                        self.combined_data['spx_close'].min(),
+                        self.combined_data['spx_close'].max(),
+                        where=~signal,
+                        color='red', alpha=0.2, label='Risk-Off Period')
+        
+        ax1.set_title('SPX with Combined SPX 50-day MA and MMFI Regime Signals')
+        ax1.set_ylabel('SPX Price')
+        ax1.legend()
+        ax1.grid(True)
+        
+        # Plot MMFI data
+        mmfi_threshold = MODULE_CONFIG['spx_mmfi_regime']['mmfi_threshold']
+        mmfi_data = self.combined_data['MMFI-50-day_close']
+        ax2.plot(mmfi_data.index, mmfi_data, 
+                label='MMFI', color='blue')
+        ax2.axhline(y=mmfi_threshold, color='red', linestyle='--', 
+                   label=f'Threshold ({mmfi_threshold})')
+        
+        ax2.set_ylabel('MMFI')
+        ax2.legend()
+        ax2.grid(True)
+        
+        plt.tight_layout()
+        plt.show()
+
 def main():
     # Initialize research
     research = SPXResearch()
@@ -1319,63 +1612,52 @@ def main():
         required_files.extend(['US10Y.csv', 'US02Y.csv'])
     
     # Add percentage of stocks data if enabled
-    if MODULE_CONFIG['pct_stocks_vs_ma']['enabled']:
-        for name, config in MODULE_CONFIG['pct_stocks_vs_ma']['indicators'].items():
-            if config['enabled']:
-                required_files.append(f'{name}-{config["period"]}-day.csv')
+    if (MODULE_CONFIG['pct_stocks_vs_ma']['enabled'] or 
+        MODULE_CONFIG['combined_mm_signals']['enabled'] or 
+        MODULE_CONFIG['all_mm_signals_below_50']['enabled'] or
+        MODULE_CONFIG['spx_mmfi_regime']['enabled']):
+        # Get all unique indicators from all MM signal modules
+        all_indicators = set()
+        for module in ['pct_stocks_vs_ma', 'combined_mm_signals', 'all_mm_signals_below_50']:
+            if MODULE_CONFIG[module]['enabled']:
+                for name, config in MODULE_CONFIG[module]['indicators'].items():
+                    if config['enabled']:
+                        all_indicators.add(f'{name}-{config["period"]}-day.csv')
+        required_files.extend(list(all_indicators))
     
     # Load all required data
     logging.info("Loading required data files: %s", required_files)
     research.load_data(required_files)
     
-    # Run percentage of stocks vs MA module
-    if MODULE_CONFIG['pct_stocks_vs_ma']['enabled']:
-        logging.info("Running percentage of stocks vs MA module")
-        pct_signal = research.apply_pct_stocks_vs_ma_module()
-        research.plot_pct_stocks_vs_ma_signals(pct_signal)
-    
-    # Run combined signals
-    if MODULE_CONFIG['adrt_zscore']['enabled'] and MODULE_CONFIG['spx_ma_crossover']['enabled']:
-        logging.info("Running combined ADRT z-score and SPX MA crossover signals")
-        combined_signal = research.apply_combined_signals()
-        research.plot_combined_signals(combined_signal)
-    
-    # Run combined pct and adrt signals
-    if MODULE_CONFIG['pct_stocks_vs_ma']['enabled'] and MODULE_CONFIG['adrt_zscore']['enabled']:
-        logging.info("Running combined percentage and ADRT signals")
-        pct_signal = research.apply_pct_stocks_vs_ma_module()
-        adrt_signal = research.apply_adrt_zscore_module()
-        research.plot_combined_pct_adrt_signals(pct_signal, adrt_signal)
-    
-    # Run NYSE cumulative AD module
-    if MODULE_CONFIG['nyse_cumulative_ad']['enabled']:
-        logging.info("Running NYSE cumulative AD module")
-        ad_signal = research.apply_nyse_cumulative_ad_module()
-        research.plot_nyse_cumulative_ad_signals(ad_signal)
-    
     # Run NYSE cumulative AD z-score module
     if MODULE_CONFIG['nyse_cumulative_ad_zscore']['enabled']:
         logging.info("Running NYSE cumulative AD z-score module")
-        ad_zscore_signal = research.apply_nyse_cumulative_ad_zscore_module()
-        research.plot_nyse_cumulative_ad_zscore_signals(ad_zscore_signal)
+        regime_signal = research.apply_nyse_cumulative_ad_zscore_module()
+        research.plot_nyse_cumulative_ad_zscore_signals(regime_signal)
     
-    # Run NASDAQ cumulative AD z-score module
-    if MODULE_CONFIG['nasdaq_cumulative_ad_zscore']['enabled']:
-        logging.info("Running NASDAQ cumulative AD z-score module")
-        nasdaq_ad_zscore_signal = research.apply_nasdaq_cumulative_ad_zscore_module()
-        research.plot_nasdaq_cumulative_ad_zscore_signals(nasdaq_ad_zscore_signal)
+    # Run two-ten inversion module
+    if MODULE_CONFIG['two_ten_inversion']['enabled']:
+        logging.info("Running two-ten inversion module")
+        regime_signal = research.apply_two_ten_inversion_module()
+        research.plot_two_ten_inversion_signals(regime_signal)
     
-    # Run Nasdaq 52-week High-Low module
-    if MODULE_CONFIG['nasdaq_52w_netnew_high_low']['enabled']:
-        logging.info("Running Nasdaq 52-week High-Low module")
-        nasdaq_signal = research.apply_nasdaq_52w_netnew_high_low_module()
-        research.plot_nasdaq_52w_netnew_high_low_signals(nasdaq_signal)
+    # Run SPX MMFI regime module
+    if MODULE_CONFIG['spx_mmfi_regime']['enabled']:
+        logging.info("Running SPX MMFI regime module")
+        regime_signal = research.apply_spx_mmfi_regime_module()
+        research.plot_spx_mmfi_regime_signals(regime_signal)
     
-    # Run SPX MA crossover module
-    if MODULE_CONFIG['spx_ma_crossover']['enabled']:
-        logging.info("Running SPX MA crossover module")
-        ma_signal = research.apply_spx_ma_crossover_module()
-        research.plot_spx_ma_signals(ma_signal)
+    # Run all MM signals below 50 module
+    if MODULE_CONFIG['all_mm_signals_below_50']['enabled']:
+        logging.info("Running all MM signals below 50 module")
+        signal_count = research.apply_all_mm_signals_below_50_module()
+        research.plot_all_mm_signals_below_50(signal_count)
+    
+    # Run combined MM signals module
+    if MODULE_CONFIG['combined_mm_signals']['enabled']:
+        logging.info("Running combined MM signals module")
+        signal_count = research.apply_combined_mm_signals_module()
+        research.plot_combined_mm_signals(signal_count)
 
 if __name__ == "__main__":
     # Configure logging

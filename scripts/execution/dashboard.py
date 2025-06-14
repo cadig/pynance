@@ -252,7 +252,7 @@ class SPXSignalsSection(ttk.Frame):
     def run_script(self):
         try:
             # First run fetch_data.py
-            fetch_data_path = Path(self.config.repo_root) / 'scripts' / 'data' / 'fetch_data.py'
+            fetch_data_path = Path(self.config.repo_root) / 'data' / 'fetch_data.py'
             subprocess.run([sys.executable, str(fetch_data_path)], check=True)
             
             # Then run combined-research.py that will generate the plot of latest combined research

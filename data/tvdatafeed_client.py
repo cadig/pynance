@@ -18,7 +18,7 @@ def get_config_path() -> Path:
     # Get the project root (parent of scripts directory)
     project_root = current_dir.parent.parent
     # Create config directory path
-    config_dir = project_root / '..' / 'config'
+    config_dir = project_root / 'config'
     # Return path to config file
     return config_dir / 'tradingview-config.ini'
 

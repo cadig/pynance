@@ -10,6 +10,10 @@ from datetime import datetime
 # Configuration for the combined research modules
 COMBINED_CONFIG = {
     'show_subplots': False,  # Whether to show MMTH and MMFI subplots
+    'plot_zoom': {
+        'enabled': True,  # Whether to show zoomed-in view by default
+        'days': 120  # Number of days to show in zoomed view
+    },
     'nyse_cumulative_ad_zscore': {
         'enabled': True,
         'type': 'regime',  # 'regime', 'entry', or 'exit'
@@ -74,7 +78,7 @@ COMBINED_CONFIG = {
 
 class CombinedResearch:
     def __init__(self):
-        self.data_dir = Path(__file__).parent.parent / 'data'
+        self.data_dir = Path(__file__).parent.parent.parent / 'data'
         self.spx_data = None
         self.additional_data = {}
         self.combined_data = None
@@ -410,24 +414,32 @@ class CombinedResearch:
             fig, axes = plt.subplots(num_subplots, 1, figsize=(15, 4 * num_subplots))
             ax1 = axes[0]
         
+        # Determine the date range for plotting
+        if COMBINED_CONFIG['plot_zoom']['enabled']:
+            end_date = self.combined_data.index[-1]
+            start_date = end_date - pd.Timedelta(days=COMBINED_CONFIG['plot_zoom']['days'])
+            plot_data = self.combined_data[start_date:end_date]
+        else:
+            plot_data = self.combined_data
+        
         # Plot SPX data and 200-day MA
-        ax1.plot(self.combined_data.index, self.combined_data['spx_close'], 
+        ax1.plot(plot_data.index, plot_data['spx_close'], 
                 label='SPX', color='black')
-        spx_200ma = self.combined_data['spx_close'].rolling(window=200).mean()
+        spx_200ma = plot_data['spx_close'].rolling(window=200).mean()
         ax1.plot(spx_200ma.index, spx_200ma, label='200-day MA', color='gray', linestyle='--')
         
         # Determine red background conditions
-        red_background = pd.Series(False, index=self.combined_data.index)
+        red_background = pd.Series(False, index=plot_data.index)
         
         # Check NYSE cumulative AD z-score for red background
-        red_background |= ~regime_signal
+        red_background |= ~regime_signal[plot_data.index]
         
         # Apply red background where needed (from NYSE AD z-score)
         if red_background.any():
             ax1.fill_between(
-                self.combined_data.index,
-                self.combined_data['spx_close'].min(),
-                self.combined_data['spx_close'].max(),
+                plot_data.index,
+                plot_data['spx_close'].min(),
+                plot_data['spx_close'].max(),
                 where=red_background,
                 color='red',
                 alpha=0.2,
@@ -443,12 +455,12 @@ class CombinedResearch:
                 0: ('green', 'All Signals Above 50%')
             }
             for count, (color, label) in mm_colors.items():
-                mask = (mm_signal_count == count) & ~red_background  # Only show where no red background
+                mask = (mm_signal_count[plot_data.index] == count) & ~red_background  # Only show where no red background
                 if mask.any():
                     ax1.fill_between(
-                        self.combined_data.index,
-                        self.combined_data['spx_close'].min(),
-                        self.combined_data['spx_close'].max(),
+                        plot_data.index,
+                        plot_data['spx_close'].min(),
+                        plot_data['spx_close'].max(),
                         where=mask,
                         color=color,
                         alpha=0.2,
@@ -456,23 +468,23 @@ class CombinedResearch:
                     )
         
         # Plot MMTH entry signals (strong)
-        mmth_entry_dates = self.combined_data.index[mmth_entry_signal]
-        mmth_entry_prices = self.combined_data.loc[mmth_entry_dates, 'spx_close']
+        mmth_entry_dates = plot_data.index[mmth_entry_signal[plot_data.index]]
+        mmth_entry_prices = plot_data.loc[mmth_entry_dates, 'spx_close']
         ax1.scatter(mmth_entry_dates, mmth_entry_prices, 
                    marker='^', color='green', s=100,
                    label='Strong Entry Signal (MMTH)')
         
         # Plot MMFI entry signals (light)
-        mmfi_entry_dates = self.combined_data.index[mmfi_entry_signal]
-        mmfi_entry_prices = self.combined_data.loc[mmfi_entry_dates, 'spx_close']
+        mmfi_entry_dates = plot_data.index[mmfi_entry_signal[plot_data.index]]
+        mmfi_entry_prices = plot_data.loc[mmfi_entry_dates, 'spx_close']
         ax1.scatter(mmfi_entry_dates, mmfi_entry_prices, 
                    marker='^', color='lightgreen', s=100,
                    label='Light Entry Signal (MMFI)')
         
         # Plot VIX Bollinger exit signals if enabled
         if COMBINED_CONFIG['vix_bollinger_exit']['enabled']:
-            vix_exit_dates = self.combined_data.index[vix_exit_signal]
-            vix_exit_prices = self.combined_data.loc[vix_exit_dates, 'spx_close']
+            vix_exit_dates = plot_data.index[vix_exit_signal[plot_data.index]]
+            vix_exit_prices = plot_data.loc[vix_exit_dates, 'spx_close']
             arrow_y_positions = vix_exit_prices * 1.01  # 1% above the price
             
             ax1.scatter(vix_exit_dates, arrow_y_positions,
@@ -482,7 +494,9 @@ class CombinedResearch:
                        s=50,  # Size of the arrows
                        label='Light Exit Signal (VIX %B)')
         
-        ax1.set_title('SPX with Combined Regime, Entry, and Exit Signals')
+        # Add zoom status to title
+        zoom_status = "Zoomed View" if COMBINED_CONFIG['plot_zoom']['enabled'] else "Full View"
+        ax1.set_title(f'SPX with Combined Regime, Entry, and Exit Signals ({zoom_status})')
         ax1.set_ylabel('SPX Price')
         ax1.legend()
         ax1.grid(True)
@@ -495,7 +509,7 @@ class CombinedResearch:
             smoothing_period = COMBINED_CONFIG['nyse_cumulative_ad_zscore']['smoothing_period']
             threshold = COMBINED_CONFIG['nyse_cumulative_ad_zscore']['threshold']
             
-            adrn_data = self.combined_data['ADRN_close']
+            adrn_data = plot_data['ADRN_close']
             normalized_data = np.tanh(np.log(adrn_data))
             cumulative_ad = normalized_data.cumsum()
             smoothed_ad = cumulative_ad.rolling(window=smoothing_period).mean()
@@ -517,7 +531,7 @@ class CombinedResearch:
             
         if COMBINED_CONFIG['mmth_cross']['show_subplot']:
             # Plot MMTH data
-            mmth_data = self.combined_data['MMTH-200-day_close']
+            mmth_data = plot_data['MMTH-200-day_close']
             mmth_threshold = COMBINED_CONFIG['mmth_cross']['threshold']
             axes[current_ax].plot(mmth_data.index, mmth_data, label='MMTH', color='blue')
             axes[current_ax].axhline(y=mmth_threshold, color='red', linestyle='--', 
@@ -529,7 +543,7 @@ class CombinedResearch:
             
         if COMBINED_CONFIG['mmfi_cross']['show_subplot']:
             # Plot MMFI data
-            mmfi_data = self.combined_data['MMFI-50-day_close']
+            mmfi_data = plot_data['MMFI-50-day_close']
             mmfi_threshold = COMBINED_CONFIG['mmfi_cross']['threshold']
             axes[current_ax].plot(mmfi_data.index, mmfi_data, label='MMFI', color='blue')
             axes[current_ax].axhline(y=mmfi_threshold, color='red', linestyle='--', 
@@ -541,7 +555,7 @@ class CombinedResearch:
             
         if COMBINED_CONFIG['vix_bollinger_exit']['show_subplot']:
             # Plot VIX %B
-            axes[current_ax].plot(percent_b.index, percent_b, label='VIX %B', color='purple')
+            axes[current_ax].plot(percent_b[plot_data.index], label='VIX %B', color='purple')
             axes[current_ax].axhline(y=threshold, color='red', linestyle='--', 
                                    label=f'Threshold ({threshold})')
             axes[current_ax].set_ylabel('VIX %B')

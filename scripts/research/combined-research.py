@@ -9,7 +9,7 @@ from typing import List
 COMBINED_CONFIG = {
     'show_subplots': False,  # Whether to show MMTH and MMFI subplots
     'outputFile': True,  # Whether to save the plot to a file
-    'showPlot': True,  # Whether to display the plot
+    'showPlot': False,  # Whether to display the plot
     'plot_zoom': {
         'enabled': True,  # Whether to show zoomed-in view by default
         'days': 120  # Number of days to show in zoomed view
@@ -566,8 +566,8 @@ class CombinedResearch:
         
         # Save the plot to file if outputFile is enabled
         if COMBINED_CONFIG['outputFile']:
-            # Get the pages directory path (two levels up from scripts/research)
-            pages_dir = Path(__file__).parent.parent.parent / 'pages'
+            # Get the docs directory path (two levels up from scripts/research)
+            pages_dir = Path(__file__).parent.parent.parent / 'docs'
             pages_dir.mkdir(exist_ok=True)  # Create the directory if it doesn't exist
             
             # Save the plot

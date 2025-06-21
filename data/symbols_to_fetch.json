@@ -12,7 +12,7 @@
             "exchange": "INDEX",
             "filename": "R3TW-20-day.csv",
             "description": "Russell 3000 stocks above 20-day moving average",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "MMFI",
@@ -33,7 +33,7 @@
             "exchange": "INDEX",
             "filename": "ADRT.csv",
             "description": "Total Advance Decline Ratio",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "ADRN",
@@ -47,21 +47,21 @@
             "exchange": "INDEX",
             "filename": "ADRQ.csv",
             "description": "NASDAQ Advance Decline Ratio",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "HIGQ",
             "exchange": "INDEX",
             "filename": "HIGQ.csv",
             "description": "NASDAQ New Highs",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "LOWQ",
             "exchange": "INDEX",
             "filename": "LOWQ.csv",
             "description": "NASDAQ New Lows",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "SPX",
@@ -78,6 +78,13 @@
             "shouldFetch": false
         },
         {
+            "symbol": "BTCUSD",
+            "exchange": "INDEX",
+            "filename": "BTCUSD.csv",
+            "description": "Bitcoin Price",
+            "shouldFetch": false
+        },
+        {
             "symbol": "VIX",
             "exchange": "CBOE",
             "filename": "VIX.csv",
@@ -89,28 +96,28 @@
             "exchange": "CBOE",
             "filename": "VIX9D.csv",
             "description": "CBOE Volatility Index 9-Day",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "VIX3M",
             "exchange": "CBOE",
             "filename": "VIX3M.csv",
             "description": "CBOE Volatility Index 3-Month",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "VIX6M",
             "exchange": "CBOE",
             "filename": "VIX6M.csv",
             "description": "CBOE Volatility Index 6-Month",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "VIX1Y",
             "exchange": "CBOE",
             "filename": "VIX1Y.csv",
             "description": "CBOE Volatility Index 1-Year",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "USM2",
@@ -131,28 +138,28 @@
             "exchange": "TVC",
             "filename": "US02Y.csv",
             "description": "2-Year US Treasury Yield",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "US10Y",
             "exchange": "TVC",
             "filename": "US10Y.csv",
             "description": "10-Year US Treasury Yield",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "US30Y",
             "exchange": "TVC",
             "filename": "US30Y.csv",
             "description": "30-Year US Treasury Yield",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "GOLD",
             "exchange": "TVC",
             "filename": "GOLD.csv",
             "description": "Gold Price",
-            "shouldFetch": true
+            "shouldFetch": false
         },
         {
             "symbol": "BAMLH0A0HYM2",

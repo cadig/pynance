@@ -1,0 +1,57 @@
+name: Run SPX Regime Analysis
+
+on:
+  push:
+    branches: [ gh-pages ]
+    paths:
+      - 'scripts/research/combined-research.py'
+      - 'data/**'
+      - 'envs/pynance-v2.0.yml'
+  workflow_dispatch:  # Allow manual triggering
+  schedule:
+    # Run once per day, Monday through Friday, at 4 PM UTC
+    - cron: '0 16 * * 1-5'
+
+jobs:
+  update-analysis:
+    runs-on: ubuntu-latest
+    
+    env:
+      TRADINGVIEW_USERNAME: ${{ secrets.TRADINGVIEW_USERNAME }}
+      TRADINGVIEW_PASSWORD: ${{ secrets.TRADINGVIEW_PASSWORD }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        ref: gh-pages
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+        
+    - name: Set up Conda
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        auto-update-conda: true
+        python-version: '3.12'
+        
+    - name: Create conda environment
+      shell: bash -l {0}
+      run: |
+        conda env create -f envs/pynance-v2.0.yml
+        
+    - name: Activate conda environment and run analysis
+      shell: bash -l {0}
+      run: |
+        conda activate pynance-v2.0
+        python scripts/research/combined-research.py
+        
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add docs/spx-regime.png
+        git diff --quiet && git diff --staged --quiet || git commit -m "Update SPX regime analysis [skip ci]"
+        git push origin gh-pages 

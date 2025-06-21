@@ -24,12 +24,21 @@ def get_config_path() -> Path:
 
 def read_tradingview_credentials() -> tuple[Optional[str], Optional[str]]:
     """
-    Reads TradingView credentials from the config file.
-    Creates the config file with a template if it doesn't exist.
+    Reads TradingView credentials from environment variables or config file.
+    Environment variables take precedence for CI/CD environments.
     
     Returns:
-        tuple[Optional[str], Optional[str]]: Username and password from config file
+        tuple[Optional[str], Optional[str]]: Username and password from environment or config file
     """
+    # Check for environment variables first (for CI/CD)
+    env_username = os.getenv('TRADINGVIEW_USERNAME')
+    env_password = os.getenv('TRADINGVIEW_PASSWORD')
+    
+    if env_username and env_password:
+        logging.info("Using credentials from environment variables")
+        return env_username, env_password
+    
+    # Fall back to config file for local development
     config_path = get_config_path()
     
     # Create config file with template if it doesn't exist

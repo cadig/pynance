@@ -40,7 +40,17 @@ jobs:
     - name: Create conda environment
       shell: bash -l {0}
       run: |
-        conda env create -f envs/pynance-v2.0.yml
+        # Create a new environment with core dependencies
+        conda create -n pynance-v2.0 python=3.12 -y
+        
+        # Install core packages via conda
+        conda install -n pynance-v2.0 -c conda-forge -c anaconda \
+          pandas numpy matplotlib jupyter ipython \
+          requests beautifulsoup4 lxml pyyaml -y
+        
+        # Install additional packages via pip
+        conda activate pynance-v2.0
+        pip install tvDatafeed
         
     - name: Activate conda environment and run analysis
       shell: bash -l {0}

@@ -8,6 +8,8 @@ from typing import List
 # Configuration for the combined research modules
 COMBINED_CONFIG = {
     'show_subplots': False,  # Whether to show MMTH and MMFI subplots
+    'outputFile': True,  # Whether to save the plot to a file
+    'showPlot': True,  # Whether to display the plot
     'plot_zoom': {
         'enabled': True,  # Whether to show zoomed-in view by default
         'days': 120  # Number of days to show in zoomed view
@@ -561,7 +563,23 @@ class CombinedResearch:
             axes[current_ax].grid(True)
         
         plt.tight_layout()
-        plt.show()
+        
+        # Save the plot to file if outputFile is enabled
+        if COMBINED_CONFIG['outputFile']:
+            # Get the pages directory path (two levels up from scripts/research)
+            pages_dir = Path(__file__).parent.parent.parent / 'pages'
+            pages_dir.mkdir(exist_ok=True)  # Create the directory if it doesn't exist
+            
+            # Save the plot
+            output_path = pages_dir / 'spx-regime.png'
+            plt.savefig(output_path, dpi=300, bbox_inches='tight')
+            logging.info(f"Plot saved to: {output_path}")
+        
+        # Show the plot if showPlot is enabled
+        if COMBINED_CONFIG['showPlot']:
+            plt.show()
+        else:
+            plt.close()  # Close the figure to free memory
 
 def main():
     # Initialize research

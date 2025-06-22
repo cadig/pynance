@@ -12,6 +12,9 @@ on:
     # Run once per day, Monday through Friday, at 4 PM UTC
     - cron: '0 16 * * 1-5'
 
+permissions:
+  contents: write
+
 jobs:
   update-analysis:
     runs-on: ubuntu-latest
@@ -59,6 +62,8 @@ jobs:
         TRADINGVIEW_PASSWORD: ${{ secrets.TRADINGVIEW_PASSWORD }}
         
     - name: Commit and push changes
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"

@@ -16,10 +16,6 @@ jobs:
   update-analysis:
     runs-on: ubuntu-latest
     
-    env:
-      TRADINGVIEW_USERNAME: ${{ secrets.TRADINGVIEW_USERNAME }}
-      TRADINGVIEW_PASSWORD: ${{ secrets.TRADINGVIEW_PASSWORD }}
-    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -58,6 +54,9 @@ jobs:
         conda activate pynance-v2.0
         python data/fetch_data.py
         python scripts/research/combined-research.py
+      env:
+        TRADINGVIEW_USERNAME: ${{ secrets.TRADINGVIEW_USERNAME }}
+        TRADINGVIEW_PASSWORD: ${{ secrets.TRADINGVIEW_PASSWORD }}
         
     - name: Commit and push changes
       run: |

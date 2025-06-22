@@ -37,33 +37,33 @@ def read_tradingview_credentials() -> tuple[Optional[str], Optional[str]]:
     if env_username and env_password:
         logging.info("Using credentials from environment variables")
         return env_username, env_password
+    else:
+        logging.info("No credentials found in environment variables, using config file")
     
     # Fall back to config file for local development
     config_path = get_config_path()
     
-    # Create config file with template if it doesn't exist
-    if not config_path.exists():
+    # Only read from existing config file, never create one
+    if config_path.exists():
         config = configparser.ConfigParser()
-        config['login'] = {
-            'username': '',
-            'password': ''
-        }
-        with open(config_path, 'w') as f:
-            config.write(f)
-        logging.info(f"Created config file template at {config_path}")
-        return None, None
+        config.read(config_path)
+        
+        try:
+            username = config.get('login', 'username')
+            password = config.get('login', 'password')
+            if username and password:
+                logging.info("Using credentials from config file")
+                return username, password
+            else:
+                logging.warning("Config file exists but credentials are empty")
+        except (configparser.NoSectionError, configparser.NoOptionError):
+            logging.warning("Login section or credentials not found in config file")
+    else:
+        logging.warning(f"Config file not found at {config_path}")
     
-    # Read existing config
-    config = configparser.ConfigParser()
-    config.read(config_path)
-    
-    try:
-        username = config.get('login', 'username')
-        password = config.get('login', 'password')
-        return username if username else None, password if password else None
-    except (configparser.NoSectionError, configparser.NoOptionError):
-        logging.warning("Login section or credentials not found in config file")
-        return None, None
+    # No credentials found
+    logging.error("No TradingView credentials found. Please set TRADINGVIEW_USERNAME and TRADINGVIEW_PASSWORD environment variables or create a config file at config/tradingview-config.ini")
+    return None, None
 
 def setup_tvdatafeed_client(username: Optional[str] = None, password: Optional[str] = None) -> TvDatafeed:
     """

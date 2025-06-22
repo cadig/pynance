@@ -50,7 +50,7 @@ jobs:
         
         # Install additional packages via pip
         conda activate pynance-v2.0
-        pip install tradingview-datafeed 2.1.0
+        pip install tradingview-datafeed
         
     - name: Activate conda environment and run analysis
       shell: bash -l {0}

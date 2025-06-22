@@ -46,11 +46,11 @@ jobs:
         # Install core packages via conda
         conda install -n pynance-v2.0 -c conda-forge -c anaconda \
           pandas numpy matplotlib jupyter ipython \
-          requests beautifulsoup4 lxml pyyaml -y
+          requests beautifulsoup4 lxml pyyaml pip -y
         
         # Install additional packages via pip
         conda activate pynance-v2.0
-        pip install tvDatafeed
+        pip install tradingview-datafeed 2.1.0
         
     - name: Activate conda environment and run analysis
       shell: bash -l {0}

@@ -56,6 +56,7 @@ jobs:
       shell: bash -l {0}
       run: |
         conda activate pynance-v2.0
+        python data/fetch_data.py
         python scripts/research/combined-research.py
         
     - name: Commit and push changes

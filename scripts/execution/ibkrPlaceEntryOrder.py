@@ -56,6 +56,15 @@ def main():
         
         df = ibt.getStockData(ticker, None, ibFormatBar, '1 D', 'ADJUSTED_LAST')
         
+        # Check if we have enough data
+        if df.empty:
+            print(f'Error: No data received for {ticker}')
+            return
+        
+        if len(df) < 2:
+            print(f'Error: Insufficient data for {ticker}. Need at least 2 rows, got {len(df)}')
+            return
+        
         print('row: ', df.iloc[-2])
         
         prevHigh = round(df['high'].iloc[-2], 2)

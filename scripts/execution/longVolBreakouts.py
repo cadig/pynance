@@ -45,6 +45,8 @@ def isVolumeSpike(currentVolume: float, avg_volume_20_days: float, minuteToCheck
         return currentVolume > avg_volume_20_days / 8, getFormattedPercent(currentVolume, avg_volume_20_days)
     elif minuteToCheck == 15:
         return currentVolume > avg_volume_20_days / 7, getFormattedPercent(currentVolume, avg_volume_20_days)
+    elif minuteToCheck == 30:
+        return currentVolume > avg_volume_20_days / 7, getFormattedPercent(currentVolume, avg_volume_20_days)
     else:
         return False, 'N/A'
 
@@ -151,7 +153,8 @@ def main():
             1: False,
             2: False,
             5: False,
-            15: False
+            15: False,
+            30: False
         }
         
         while True and not TEST_MODE:
@@ -159,7 +162,7 @@ def main():
             isHourOfMarketOpen = now.hour == marketOpen.hour
             
             if isHourOfMarketOpen:
-                for minuteToCheck in [1, 2, 5, 15]:
+                for minuteToCheck in [1, 2, 5, 15, 30]:
                     if now.minute == marketOpen.minute + minuteToCheck and not isMinuteCheckedMap[minuteToCheck]:
                         fetch_and_check(ibt, anchorData, minuteToCheck)
                         isMinuteCheckedMap[minuteToCheck] = True

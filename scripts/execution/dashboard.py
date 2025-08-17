@@ -189,35 +189,7 @@ class FinvizGainersSection(ttk.Frame):
         except subprocess.CalledProcessError as e:
             messagebox.showerror("Execution Error", f"Error running script: {e}")
 
-class HeikinAshiSignalsSection(ttk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.setup_ui()
-        
-    def setup_ui(self):
-        ttk.Button(self, text="Get Weekly HA/EMA", command=self.run_script).pack(pady=2, anchor="w")
 
-    def run_script(self):
-        try:
-            script_path = Path(__file__).parent.parent / "execution" / "getWeeklyHeikinAshiSignals.py"
-            subprocess.run(["python", str(script_path)], check=True)
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror("Execution Error", f"Error running script: {e}")
-
-class YieldMaxAllocationsSection(ttk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.setup_ui()
-        
-    def setup_ui(self):
-        ttk.Button(self, text="Get YieldMax Allocations", command=self.run_script).pack(pady=2, anchor="w")
-
-    def run_script(self):
-        try:
-            script_path = Path(__file__).parent.parent / "execution" / "getYieldMaxAllocations.py"
-            subprocess.run(["python", str(script_path)], check=True)
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror("Execution Error", f"Error running script: {e}")
 
 class RiskAndOrdersSection(ttk.Frame):
     def __init__(self, parent):
@@ -293,14 +265,6 @@ class ScriptsTab(ttk.Frame):
         # Add Finviz Gainers section first
         self.finviz_section = FinvizGainersSection(self)
         self.finviz_section.pack(fill='x', padx=5, pady=5)
-        
-        # Add Heikin Ashi Signals section
-        self.heikin_section = HeikinAshiSignalsSection(self)
-        self.heikin_section.pack(fill='x', padx=5, pady=5)
-        
-        # Add YieldMax Allocations section
-        self.yieldmax_section = YieldMaxAllocationsSection(self)
-        self.yieldmax_section.pack(fill='x', padx=5, pady=5)
         
         # Add SPX Signals section
         self.spx_signals_section = SPXSignalsSection(self, self.config)

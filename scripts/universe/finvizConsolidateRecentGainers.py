@@ -41,15 +41,20 @@ def get_top_stocks(sort, filters):
     tickers = [f'{ticker}' for ticker in df['Ticker'].values]
     return tickers
 
-def gather_tickers() -> [str]:
+def gather_tickers(additional_filters: dict = None) -> [str]:
     filters = {
         'Average Volume': 'Over 200K',
         'Current Volume': 'Over 100K', # NOTE: do not use Current Volume when mrkt is open, 
         '200-Day Simple Moving Average': 'Price above SMA200',
-        'Market Cap.': '+Mid (over $2bln)',
-        # 'Market Cap.': '+Small (over $300mln)', # NOTE: may consider small caps later, but generally too many illiquid names so filter out for now
+        'Market Cap.': '+Large (over $10bln)',
+        # 'Market Cap.': '+Mid (over $2bln)',
+        # 'Market Cap.': '+Small (over $300mln)',
         'Performance': 'Quarter Up'
     }
+    
+    # Merge additional filters if provided
+    if additional_filters:
+        filters.update(additional_filters)
 
     # Fetch stocks sorted by different performance metrics
     top_perf_month = get_top_stocks('Performance (Month)', filters)

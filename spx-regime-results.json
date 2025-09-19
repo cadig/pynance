@@ -1,0 +1,11 @@
+{
+  "datetime": "2025-09-19T23:47:31.206635",
+  "background_color": "green",
+  "above_200ma": true,
+  "nyse_cumulative_ad_zscore": true,
+  "mmth_cross": false,
+  "mmtw_cross": false,
+  "mmfi_cross": false,
+  "vix_bollinger_exit": false,
+  "combined_mm_signals": 0
+}

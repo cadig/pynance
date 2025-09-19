@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pynance - SPX Regime Analysis</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .chart-container img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .description {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .description h3 {
+            color: #495057;
+            margin-top: 0;
+        }
+        .description p {
+            color: #6c757d;
+            line-height: 1.6;
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        .current-reading {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .current-reading h4 {
+            color: #1976d2;
+            margin: 0 0 10px 0;
+            font-size: 1.1em;
+        }
+        .signal-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .signal-true {
+            background-color: #4caf50;
+            color: white;
+        }
+        .signal-false {
+            background-color: #f44336;
+            color: white;
+        }
+        .signal-neutral {
+            background-color: #ff9800;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chart-container">
+            <img src="spx-regime.png" alt="SPX Regime Analysis Chart" id="regime-chart">
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: red; opacity: 0.2;"></div>
+                <span>Risk-Off Period (NYSE AD)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: green; opacity: 0.2;"></div>
+                <span>All Signals Above 50%</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: yellow; opacity: 0.2;"></div>
+                <span>One Signal Below 50%</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: orange; opacity: 0.2;"></div>
+                <span>Two Signals Below 50%</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: red; opacity: 0.2;"></div>
+                <span>Three Signals Below 50%</span>
+            </div>
+        </div>
+
+        <div class="description">
+            <h3>Signal Types</h3>
+            <p>
+                <strong>Strong Entry Signals (MMTH):</strong> Dark green triangles indicate strong entry signals based on 200-day market momentum. 
+                Triggers when MMTH crosses above 25% threshold with no confirmation period required. These represent the most reliable entry signals to get long again after a market sell-off.<br><br>
+                
+                <strong>Light Entry Signals (MMFI & MMTW):</strong> Light green triangles indicate light entry signals based on shorter-term momentum indicators. 
+                MMFI (50-day) and MMTW (20-day) both trigger when crossing above 25% threshold, but require 3-day confirmation periods to avoid false signals. 
+                These provide earlier but less reliable entry signals compared to MMTH.<br><br>
+                
+                <strong>Exit Signals (VIX Bollinger):</strong> Light red downward triangles indicate exit signals based on VIX volatility analysis. 
+                Uses 20-day Bollinger Bands (2 standard deviations) to calculate %B indicator. Exit signal triggers when VIX %B falls below 0, 
+                indicating VIX is below its lower Bollinger Band and potentially signaling complacency or overbought conditions.
+            </p>
+            
+            <div class="current-reading">
+                <h4>CURRENT READING: Entry Signals</h4>
+                <p>
+                    <strong>MMTH (Strong Entry):</strong> <span id="mmth-status" class="signal-status">Loading...</span><br>
+                    <strong>MMFI (Light Entry):</strong> <span id="mmfi-status" class="signal-status">Loading...</span><br>
+                    <strong>MMTW (Light Entry):</strong> <span id="mmtw-status" class="signal-status">Loading...</span><br>
+                    <strong>VIX Exit Signal:</strong> <span id="vix-status" class="signal-status">Loading...</span>
+                </p>
+            </div>
+        </div>
+
+        <div class="description">
+            <h3>Market Regime Detection</h3>
+            <p>
+                <strong>Red Background (Risk-Off Regime):</strong> Generated by NYSE Advance/Decline Ratio (ADRN) z-score analysis. 
+                Uses 252-day lookback period with 50-day smoothing to calculate cumulative z-score. Risk-off regime triggers when z-score falls below -1.0 threshold, 
+                indicating broad market weakness and defensive positioning.<br><br>
+                
+                <strong>Color-Coded Momentum Backgrounds:</strong> Based on the count of momentum indicators (MMTW, MMFI, MMTH) below 50% threshold:
+                <ul>
+                    <li><strong>Green:</strong> All 3 momentum signals above 50% (strong bullish momentum)</li>
+                    <li><strong>Yellow:</strong> 1 signal below 50% (mixed momentum, caution warranted)</li>
+                    <li><strong>Orange:</strong> 2 signals below 50% (weak momentum, defensive stance)</li>
+                    <li><strong>Red:</strong> 3 signals below 50% (no momentum, high risk environment)</li>
+                </ul>
+                These breadth indicators provide a comprehensive view of market participation and momentum across multiple timeframes, 
+                helping to gauge overall market health and positioning for risk management decisions.
+            </p>
+            
+            <div class="current-reading">
+                <h4>CURRENT READING: Market Regime</h4>
+                <p>
+                    <strong>Background Color:</strong> <span id="background-color" class="signal-status">Loading...</span><br>
+                    <strong>Above 200-day MA:</strong> <span id="above-200ma" class="signal-status">Loading...</span><br>
+                    <strong>NYSE AD Z-Score (Risk-On):</strong> <span id="nyse-ad-status" class="signal-status">Loading...</span><br>
+                    <strong>MM Signals Below 50%:</strong> <span id="mm-signals-count" class="signal-status">Loading...</span>
+                </p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Generated by Pynance - Market Analysis Framework</p>
+            <p>Last updated: <span id="last-updated"></span></p>
+        </div>
+    </div>
+
+    <script>
+        // Update the last updated timestamp and current readings based on the JSON results file
+        function updateLastModified() {
+            const lastUpdatedSpan = document.getElementById('last-updated');
+            
+            // Try to get the datetime from the JSON results file
+            fetch('spx-regime-results.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('JSON file not found');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.datetime) {
+                        const date = new Date(data.datetime);
+                        lastUpdatedSpan.textContent = date.toLocaleString();
+                    } else {
+                        // Fallback to current date if datetime is not available
+                        lastUpdatedSpan.textContent = new Date().toLocaleString();
+                    }
+                    
+                    // Update current readings
+                    updateCurrentReadings(data);
+                })
+                .catch(() => {
+                    // Fallback to current date if fetch fails
+                    lastUpdatedSpan.textContent = new Date().toLocaleString();
+                    updateCurrentReadings({});
+                });
+        }
+        
+        // Update current reading displays
+        function updateCurrentReadings(data) {
+            // Update entry signals
+            updateSignalStatus('mmth-status', data.mmth_cross, 'ACTIVE', 'INACTIVE');
+            updateSignalStatus('mmfi-status', data.mmfi_cross, 'ACTIVE', 'INACTIVE');
+            updateSignalStatus('mmtw-status', data.mmtw_cross, 'ACTIVE', 'INACTIVE');
+            updateSignalStatus('vix-status', data.vix_bollinger_exit, 'EXIT SIGNAL', 'NO EXIT');
+            
+            // Update market regime
+            updateBackgroundColor('background-color', data.background_color);
+            updateSignalStatus('above-200ma', data.above_200ma, 'YES', 'NO');
+            updateSignalStatus('nyse-ad-status', data.nyse_cumulative_ad_zscore, 'RISK-ON', 'RISK-OFF');
+            
+            // Update MM signals count
+            const mmCountElement = document.getElementById('mm-signals-count');
+            if (mmCountElement && data.combined_mm_signals !== undefined) {
+                mmCountElement.textContent = data.combined_mm_signals + ' of 3';
+                mmCountElement.className = 'signal-status ' + getMMSignalsClass(data.combined_mm_signals);
+            }
+        }
+        
+        // Update individual signal status
+        function updateSignalStatus(elementId, value, trueText, falseText) {
+            const element = document.getElementById(elementId);
+            if (element && value !== undefined) {
+                element.textContent = value ? trueText : falseText;
+                element.className = 'signal-status ' + (value ? 'signal-true' : 'signal-false');
+            }
+        }
+        
+        // Update background color display
+        function updateBackgroundColor(elementId, color) {
+            const element = document.getElementById(elementId);
+            if (element && color) {
+                element.textContent = color.toUpperCase();
+                element.className = 'signal-status ' + getBackgroundColorClass(color);
+            }
+        }
+        
+        // Get CSS class for background color
+        function getBackgroundColorClass(color) {
+            switch(color.toLowerCase()) {
+                case 'red': return 'signal-false';
+                case 'green': return 'signal-true';
+                case 'yellow': return 'signal-neutral';
+                case 'orange': return 'signal-neutral';
+                default: return 'signal-neutral';
+            }
+        }
+        
+        // Get CSS class for MM signals count
+        function getMMSignalsClass(count) {
+            switch(count) {
+                case 0: return 'signal-true';
+                case 1: return 'signal-neutral';
+                case 2: return 'signal-neutral';
+                case 3: return 'signal-false';
+                default: return 'signal-neutral';
+            }
+        }
+        
+        // Update the timestamp when the page loads
+        updateLastModified();
+        
+        // Add error handling for the image
+        document.getElementById('regime-chart').onerror = function() {
+            this.style.display = 'none';
+            this.parentElement.innerHTML = '<p style="color: #dc3545;">Chart image not found. Please run the analysis to generate the visualization.</p>';
+        };
+    </script>
+</body>
+</html> 

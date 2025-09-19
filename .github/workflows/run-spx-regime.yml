@@ -9,8 +9,7 @@ on:
       - 'envs/pynance-v2.0.yml'
   workflow_dispatch:  # Allow manual triggering
   schedule:
-    # Run once per day, Monday through Friday, at 4 PM UTC
-    - cron: '0 16 * * 1-5'
+    - cron: '30 22 * * 1-5'  # 22:30 UTC Mon–Fri ((6:30 PM ET during DST, 5:30 PM ET during Standard))
 
 permissions:
   contents: write
@@ -67,6 +66,6 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add docs/spx-regime.png
+        git add docs/spx-regime.png docs/spx-regime-results.json
         git diff --quiet && git diff --staged --quiet || git commit -m "Update SPX regime analysis [skip ci]"
         git push origin gh-pages 

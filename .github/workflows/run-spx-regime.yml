@@ -60,12 +60,21 @@ jobs:
         TRADINGVIEW_USERNAME: ${{ secrets.TRADINGVIEW_USERNAME }}
         TRADINGVIEW_PASSWORD: ${{ secrets.TRADINGVIEW_PASSWORD }}
         
-    - name: Commit and push changes
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add docs/spx-regime.png docs/spx-regime-results.json
-        git diff --quiet && git diff --staged --quiet || git commit -m "Update SPX regime analysis [skip ci]"
-        git push origin gh-pages 
+    # - name: Commit and push changes
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   run: |
+    #     git config --local user.email "action@github.com"
+    #     git config --local user.name "GitHub Action"
+    #     git add docs/spx-regime.png docs/spx-regime-results.json
+    #     git diff --quiet && git diff --staged --quiet || git commit -m "Update SPX regime analysis [skip ci]"
+    #     git push origin gh-pages
+
+    # Publish output files (PNG + JSON) to gh-pages without history
+    - name: Deploy to gh-pages (force orphan)
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs
+        publish_branch: gh-pages
+        force_orphan: true

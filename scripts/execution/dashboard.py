@@ -184,7 +184,7 @@ class FinvizGainersSection(ttk.Frame):
 
     def run_script(self):
         try:
-            script_path = Path(__file__).parent.parent / "universe" / "finvizConsolidateRecentGainers.py"
+            script_path = Path(__file__).parent.parent.parent / "data" / "finvizConsolidateRecentGainers.py"
             subprocess.run(["python", str(script_path)], check=True)
         except subprocess.CalledProcessError as e:
             messagebox.showerror("Execution Error", f"Error running script: {e}")

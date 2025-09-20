@@ -9,7 +9,7 @@ from ibkr.IbkrTrader import IbkrTrader as IbkrClient
 
 sys.path.append('..')
 from utils import getMarketHours
-from universe.finvizConsolidateRecentGainers import gather_tickers as gather_recent_gainers
+from data.finvizConsolidateRecentGainers import gather_tickers as gather_recent_gainers
 
 
 class AnchorData(TypedDict):

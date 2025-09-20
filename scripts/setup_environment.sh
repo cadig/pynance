@@ -56,15 +56,39 @@ if conda env list | grep -q "pynance-v2.0"; then
     conda env remove -n pynance-v2.0 -y
 fi
 
-# Create environment from yaml file
+# Create environment from yaml file with fallback approach
 print_status "Creating environment from pynance-v2.0.yml..."
-conda env create -f envs/pynance-v2.0.yml
 
-if [ $? -eq 0 ]; then
-    print_success "Environment created successfully!"
+# First try to create from yaml file
+if conda env create -f envs/pynance-v2.0.yml; then
+    print_success "Environment created successfully from yaml file!"
 else
-    print_error "Failed to create environment from yaml file."
-    exit 1
+    print_warning "Failed to create environment from yaml file. Trying alternative approach..."
+    
+    # Create environment with core packages first
+    print_status "Creating environment with core packages..."
+    conda create -n pynance-v2.0 python=3.12 -y
+    
+    # Activate environment
+    conda activate pynance-v2.0
+    
+    # Install core packages via conda
+    print_status "Installing core packages via conda..."
+    conda install -c conda-forge -c anaconda \
+        pandas numpy matplotlib jupyter ipython \
+        requests beautifulsoup4 lxml pyyaml pip \
+        scikit-learn scipy seaborn -y
+    
+    # Install additional packages via pip
+    print_status "Installing additional packages via pip..."
+    pip install backtrader finvizfinance yfinance tradingview-datafeed alpaca-trade-api configparser
+    
+    if [ $? -eq 0 ]; then
+        print_success "Environment created successfully with alternative approach!"
+    else
+        print_error "Failed to create environment with alternative approach."
+        exit 1
+    fi
 fi
 
 # Activate environment and install additional packages that might be missing

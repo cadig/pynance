@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import logging
 from typing import List
+import json
+from datetime import datetime
 
 # Configuration for the combined research modules
 COMBINED_CONFIG = {
@@ -12,7 +14,7 @@ COMBINED_CONFIG = {
     'showPlot': False,  # Whether to display the plot
     'plot_zoom': {
         'enabled': True,  # Whether to show zoomed-in view by default
-        'days': 120  # Number of days to show in zoomed view
+        'days': 200  # Number of days to show in zoomed view
     },
     'nyse_cumulative_ad_zscore': {
         'enabled': True,
@@ -73,7 +75,8 @@ COMBINED_CONFIG = {
             }
         },
         'show_subplot': False
-    }
+    },
+    'output_json_results': True
 }
 
 class CombinedResearch:
@@ -354,6 +357,117 @@ class CombinedResearch:
         
         return signal_count
 
+    def generate_json_results(self) -> dict:
+        """
+        Generate JSON results with current datetime, background color, and signal statuses.
+        Only includes modules that are currently enabled and set to True.
+        
+        Returns:
+            dict: JSON results containing datetime, background color, and signal booleans
+        """
+        if self.combined_data is None:
+            logging.error("No data loaded. Call load_data() first.")
+            return {}
+        
+        # Get current datetime
+        current_datetime = datetime.now().isoformat()
+        
+        # Get the latest data point for analysis
+        latest_data = self.combined_data.iloc[-1]
+        
+        # Calculate 200-day MA and check if SPX is above it
+        spx_200ma = self.combined_data['spx_close'].rolling(window=200).mean().iloc[-1]
+        above_200ma = latest_data['spx_close'] > spx_200ma
+        
+        # Determine final background color based on active modules
+        background_color = "green"  # Default to green
+        
+        # Check NYSE cumulative AD z-score for risk-off regime
+        if COMBINED_CONFIG['nyse_cumulative_ad_zscore']['enabled']:
+            regime_signal = self.apply_nyse_cumulative_ad_zscore_module()
+            if not regime_signal.iloc[-1]:  # Risk-off
+                background_color = "red"
+        
+        # Check combined MM signals if enabled and no red background from NYSE AD
+        if (COMBINED_CONFIG['combined_mm_signals']['enabled'] and 
+            background_color != "red"):
+            mm_signal_count = self.apply_combined_mm_signals_module()
+            latest_mm_count = mm_signal_count.iloc[-1]
+            
+            if latest_mm_count == 3:
+                background_color = "red"
+            elif latest_mm_count == 2:
+                background_color = "orange"
+            elif latest_mm_count == 1:
+                background_color = "yellow"
+            else:  # latest_mm_count == 0
+                background_color = "green"
+        
+        # Build results dictionary
+        results = {
+            "datetime": current_datetime,
+            "background_color": background_color,
+            "above_200ma": bool(above_200ma)
+        }
+        
+        # Add signal statuses for enabled modules
+        if COMBINED_CONFIG['nyse_cumulative_ad_zscore']['enabled']:
+            regime_signal = self.apply_nyse_cumulative_ad_zscore_module()
+            results["nyse_cumulative_ad_zscore"] = bool(regime_signal.iloc[-1])
+        
+        if COMBINED_CONFIG['mmth_cross']['enabled']:
+            mmth_signal = self.apply_mmth_cross_module()
+            results["mmth_cross"] = bool(mmth_signal.iloc[-1])
+        
+        if COMBINED_CONFIG['mmtw_cross']['enabled']:
+            mmtw_signal = self.apply_mmtw_cross_module()
+            results["mmtw_cross"] = bool(mmtw_signal.iloc[-1])
+        
+        if COMBINED_CONFIG['mmfi_cross']['enabled']:
+            mmfi_signal = self.apply_mmfi_cross_module()
+            results["mmfi_cross"] = bool(mmfi_signal.iloc[-1])
+        
+        if COMBINED_CONFIG['vix_bollinger_exit']['enabled']:
+            vix_signal = self.apply_vix_bollinger_exit_module()
+            results["vix_bollinger_exit"] = bool(vix_signal.iloc[-1])
+        
+        if COMBINED_CONFIG['combined_mm_signals']['enabled']:
+            mm_signal_count = self.apply_combined_mm_signals_module()
+            results["combined_mm_signals"] = int(mm_signal_count.iloc[-1])
+        
+        return results
+
+    def save_json_results(self) -> None:
+        """
+        Save JSON results to the docs directory if output_json_results is enabled.
+        """
+        if not COMBINED_CONFIG['output_json_results']:
+            return
+        
+        try:
+            # Generate results
+            results = self.generate_json_results()
+            
+            if not results:
+                logging.warning("No results to save")
+                return
+            
+            # Get the docs directory path
+            docs_dir = Path(__file__).parent.parent.parent / 'docs'
+            docs_dir.mkdir(exist_ok=True)
+            
+            # Save JSON file with static filename (overwrites each run)
+            json_filename = "spx-regime-results.json"
+            json_path = docs_dir / json_filename
+            
+            with open(json_path, 'w') as f:
+                json.dump(results, f, indent=2)
+            
+            logging.info(f"JSON results saved to: {json_path}")
+            
+        except Exception as e:
+            logging.error(f"Failed to save JSON results: {e}")
+
     def plot_combined_signals(self) -> None:
         """
         Plot SPX data with combined regime and entry signals.
@@ -608,6 +722,9 @@ def main():
     
     # Plot combined signals (this will handle both NYSE AD z-score and combined MM signals)
     research.plot_combined_signals()
+    
+    # Save JSON results if enabled
+    research.save_json_results()
 
 if __name__ == "__main__":
     # Configure logging

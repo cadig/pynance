@@ -81,7 +81,7 @@ else
     
     # Install additional packages via pip
     print_status "Installing additional packages via pip..."
-    pip install backtrader finvizfinance yfinance tradingview-datafeed alpaca-trade-api configparser
+    pip install backtrader finvizfinance yfinance tradingview-datafeed alpaca-py configparser
     
     if [ $? -eq 0 ]; then
         print_success "Environment created successfully with alternative approach!"
@@ -98,8 +98,8 @@ conda activate pynance-v2.0
 # Install additional packages that are commonly needed but might not be in the yaml
 print_status "Installing additional packages via pip..."
 
-# Install alpaca-trade-api (the main alpaca package)
-pip install alpaca-trade-api
+# Install alpaca-py (the main alpaca package)
+pip install alpaca-py
 
 # Install any other packages that might be missing
 pip install configparser

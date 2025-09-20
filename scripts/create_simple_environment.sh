@@ -78,7 +78,7 @@ pip install \
     finvizfinance \
     yfinance \
     tradingview-datafeed \
-    alpaca-trade-api \
+    alpaca-py \
     configparser \
     peewee \
     websocket-client \

@@ -4,12 +4,12 @@ from typing import TypedDict, Dict, Tuple
 from ib_insync import IB
 
 import sys
-sys.path.append('../..')
+sys.path.append('..')
 from ibkr.IbkrTrader import IbkrTrader as IbkrClient
 
 sys.path.append('..')
-from utils import getMarketHours
-from universe.finvizConsolidateRecentGainers import gather_tickers as gather_recent_gainers
+from time_utils import getMarketHours
+from data.finvizConsolidateRecentGainers import gather_tickers as gather_recent_gainers
 
 
 class AnchorData(TypedDict):

@@ -8,7 +8,7 @@ from ib_insync import IB
 from datetime import datetime, timedelta
 from typing import Tuple
 import sys
-sys.path.append('../..')
+sys.path.append('..')
 from ibkr.IbkrTrader import IbkrTrader as IbkrClient
 
 VERBOSE = False

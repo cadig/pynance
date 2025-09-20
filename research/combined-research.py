@@ -81,7 +81,7 @@ COMBINED_CONFIG = {
 
 class CombinedResearch:
     def __init__(self):
-        self.data_dir = Path(__file__).parent.parent.parent / 'data'
+        self.data_dir = Path(__file__).parent.parent / 'data'
         self.spx_data = None
         self.additional_data = {}
         self.combined_data = None
@@ -453,7 +453,7 @@ class CombinedResearch:
                 return
             
             # Get the docs directory path
-            docs_dir = Path(__file__).parent.parent.parent / 'docs'
+            docs_dir = Path(__file__).parent.parent / 'docs'
             docs_dir.mkdir(exist_ok=True)
             
             # Save JSON file with static filename (overwrites each run)
@@ -680,8 +680,8 @@ class CombinedResearch:
         
         # Save the plot to file if outputFile is enabled
         if COMBINED_CONFIG['outputFile']:
-            # Get the docs directory path (two levels up from scripts/research)
-            pages_dir = Path(__file__).parent.parent.parent / 'docs'
+            # Get the docs directory path (one level up from research)
+            pages_dir = Path(__file__).parent.parent / 'docs'
             pages_dir.mkdir(exist_ok=True)  # Create the directory if it doesn't exist
             
             # Save the plot

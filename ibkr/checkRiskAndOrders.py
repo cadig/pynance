@@ -1,12 +1,12 @@
 from configparser import ConfigParser
 from ib_insync import IB
 import sys
-sys.path.append('../..')
+sys.path.append('..')
 from ibkr.IbkrTrader import IbkrTrader as IbkrClient
 
 def get_ibkr_account_id(whichAccount: str) -> str:
     config = ConfigParser()
-    config.read('../../../config/ibkr-config.ini')
+    config.read('../config/ibkr-config.ini')
     return config.get(whichAccount, 'accountId')
 
 def check_position_risk(ib: IB, ibt: IbkrClient, account_id: str):

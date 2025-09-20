@@ -10,7 +10,7 @@ import shlex
 class Config:
     def __init__(self):
         self.config = configparser.ConfigParser()
-        config_path = Path(__file__).parent.parent.parent / '..' / 'config' / 'dashboard-config.ini'
+        config_path = Path(__file__).parent / 'config' / 'dashboard-config.ini'
         if not config_path.exists():
             raise FileNotFoundError(f"Configuration file not found at {config_path}")
         self.config.read(config_path)
@@ -86,7 +86,7 @@ class OrderEntrySection(ttk.Frame):
             return
         
         try:
-            script_path = Path(__file__).parent / "ibkrPlaceEntryOrder.py"
+            script_path = Path(__file__).parent / "ibkr" / "ibkrPlaceEntryOrder.py"
             args = [sys.executable, str(script_path), ticker, str(minuteToUse), 
                    dollarsToRisk, str(staggeredStops)]
             subprocess.run(args, check=True)
@@ -108,7 +108,7 @@ class LongVolBreakoutsSection(ttk.Frame):
     def run_script(self):
         try:
             # Get absolute paths
-            script_path = Path(__file__).parent / "longVolBreakouts.py"
+            script_path = Path(__file__).parent / "ibkr" / "longVolBreakouts.py"
             repo_root = Path(self.config.repo_root).resolve()
             execution_dir = repo_root / "scripts" / "execution"
             
@@ -169,7 +169,7 @@ class BreakoutStatsSection(ttk.Frame):
             return
             
         try:
-            script_path = Path(__file__).parent.parent / "research" / "getBreakoutStats.py"
+            script_path = Path(__file__).parent / "research" / "getBreakoutStats.py"
             subprocess.run(["python", str(script_path), ticker, date], check=True)
         except subprocess.CalledProcessError as e:
             messagebox.showerror("Execution Error", f"Error running script: {e}")
@@ -184,7 +184,7 @@ class FinvizGainersSection(ttk.Frame):
 
     def run_script(self):
         try:
-            script_path = Path(__file__).parent.parent / "universe" / "finvizConsolidateRecentGainers.py"
+            script_path = Path(__file__).parent / "data" / "finvizConsolidateRecentGainers.py"
             subprocess.run(["python", str(script_path)], check=True)
         except subprocess.CalledProcessError as e:
             messagebox.showerror("Execution Error", f"Error running script: {e}")
@@ -201,7 +201,7 @@ class RiskAndOrdersSection(ttk.Frame):
 
     def run_script(self):
         try:
-            script_path = Path(__file__).parent / "checkRiskAndOrders.py"
+            script_path = Path(__file__).parent / "ibkr" / "checkRiskAndOrders.py"
             subprocess.run(["python", str(script_path)], check=True)
         except subprocess.CalledProcessError as e:
             messagebox.showerror("Execution Error", f"Error running script: {e}")
@@ -228,7 +228,7 @@ class SPXSignalsSection(ttk.Frame):
             subprocess.run([sys.executable, str(fetch_data_path)], check=True)
             
             # Then run combined-research.py that will generate the plot of latest combined research
-            research_path = Path(self.config.repo_root) / 'scripts' / 'research' / 'combined-research.py'
+            research_path = Path(self.config.repo_root) / 'research' / 'combined-research.py'
             subprocess.run([sys.executable, str(research_path)], check=True)
             
         except subprocess.CalledProcessError as e:

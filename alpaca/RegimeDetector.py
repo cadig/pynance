@@ -80,7 +80,7 @@ class RegimeDetector:
             time_diff = now - regime_datetime
             
             # Check if datetime is from today or yesterday (within 48 hours)
-            if time_diff > timedelta(hours=48):
+            if time_diff > timedelta(hours=96):
                 raise ValueError(f"Regime data is too old: {regime_datetime} (current time: {now})")
             
             return True

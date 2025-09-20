@@ -2,7 +2,7 @@ import pandas as pd
 import yfinance as yf
 import time
 import sys
-sys.path.append('../..')
+sys.path.append('..')
 
 def get_stock_data_with_retry(ticker, retries=3, delay=5):
     for attempt in range(retries):
@@ -19,7 +19,7 @@ def get_stock_data_with_retry(ticker, retries=3, delay=5):
     return pd.DataFrame()
 
 def get_best_etfs() -> dict[str, list[tuple[str, float]]]:
-    file_path = "../universe/YieldMax_ETFs.csv"
+    file_path = "../data/YieldMax_ETFs.csv"
     df = pd.read_csv(file_path)
 
     # Initialize dictionaries to store all qualifying ETFs and their yields

@@ -4,7 +4,7 @@ from typing import TypedDict, Dict, Tuple
 from ib_insync import IB
 
 import sys
-sys.path.append('../..')
+sys.path.append('..')
 from ibkr.IbkrTrader import IbkrTrader as IbkrClient
 
 sys.path.append('..')

@@ -53,7 +53,7 @@ jobs:
       run: |
         conda activate pynance-v2.0
         python data/fetch_data.py
-        python scripts/research/combined-research.py
+        python research/combined-research.py
       env:
         TRADINGVIEW_USERNAME: ${{ secrets.TRADINGVIEW_USERNAME }}
         TRADINGVIEW_PASSWORD: ${{ secrets.TRADINGVIEW_PASSWORD }}

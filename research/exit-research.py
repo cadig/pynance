@@ -47,7 +47,7 @@ MODULE_CONFIG = {
 
 class ExitResearch:
     def __init__(self):
-        self.data_dir = Path(__file__).parent.parent / 'data'
+        self.data_dir = Path(__file__).parent / 'data'
         self.spx_data = None
         self.additional_data = {}
         self.combined_data = None

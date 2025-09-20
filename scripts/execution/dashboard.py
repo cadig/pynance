@@ -10,7 +10,7 @@ import shlex
 class Config:
     def __init__(self):
         self.config = configparser.ConfigParser()
-        config_path = Path(__file__).parent.parent.parent / '..' / 'config' / 'dashboard-config.ini'
+        config_path = Path(__file__).parent.parent.parent / 'config' / 'dashboard-config.ini'
         if not config_path.exists():
             raise FileNotFoundError(f"Configuration file not found at {config_path}")
         self.config.read(config_path)

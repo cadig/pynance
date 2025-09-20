@@ -1,7 +1,7 @@
 import pandas as pd
 import time
 import random  # Simulating API behavior
-from getBreakoutStats import get_breakout_stats
+from .getBreakoutStats import get_breakout_stats
 
 def get_breakout_stats_with_retry(ticker, date, retries=3, delay=10):
     """

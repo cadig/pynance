@@ -58,11 +58,14 @@ fi
 print_status "Activating pynance-v2.0 environment..."
 conda activate pynance-v2.0
 
-# Check if required config file exists
-if [ ! -f "config/alpaca-config.ini" ]; then
-    print_warning "alpaca-config.ini not found. Creating template..."
-    mkdir -p config
-    cat > config/alpaca-config.ini << EOF
+# Check if required config file exists (in sibling directory)
+CONFIG_DIR="../config"
+CONFIG_FILE="$CONFIG_DIR/alpaca-config.ini"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    print_warning "alpaca-config.ini not found. Creating template in sibling config directory..."
+    mkdir -p "$CONFIG_DIR"
+    cat > "$CONFIG_FILE" << EOF
 [paper]
 API_KEY = your_api_key_here
 API_SECRET = your_api_secret_here
@@ -71,7 +74,8 @@ API_SECRET = your_api_secret_here
 API_KEY = your_live_api_key_here
 API_SECRET = your_live_api_secret_here
 EOF
-    print_warning "Please edit config/alpaca-config.ini with your actual API credentials."
+    print_warning "Please edit $CONFIG_FILE with your actual API credentials."
+    print_warning "The config directory is located outside the repository for security."
     print_warning "The script will continue but may fail without proper credentials."
 fi
 

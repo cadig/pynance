@@ -147,9 +147,12 @@ print_success "Additional packages installed!"
 
 # Step 4: Create config template
 print_status "Step 4: Creating configuration template..."
-if [ ! -f "config/alpaca-config.ini" ]; then
-    mkdir -p config
-    cat > config/alpaca-config.ini << EOF
+CONFIG_DIR="../config"
+CONFIG_FILE="$CONFIG_DIR/alpaca-config.ini"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    mkdir -p "$CONFIG_DIR"
+    cat > "$CONFIG_FILE" << EOF
 [paper]
 API_KEY = your_api_key_here
 API_SECRET = your_api_secret_here
@@ -158,9 +161,9 @@ API_SECRET = your_api_secret_here
 API_KEY = your_live_api_key_here
 API_SECRET = your_live_api_secret_here
 EOF
-    print_warning "Created config/alpaca-config.ini template. Please edit with your actual API credentials."
+    print_warning "Created $CONFIG_FILE template. Please edit with your actual API credentials."
 else
-    print_success "Configuration file already exists."
+    print_success "Configuration file already exists at $CONFIG_FILE"
 fi
 
 # Step 5: Verify installation
@@ -179,4 +182,5 @@ done
 
 print_success "Installation completed successfully!"
 print_status "To run alpacaTrend.py, use: ./scripts/run_alpaca_trend.sh"
-print_status "Make sure to configure your API credentials in config/alpaca-config.ini first!"
+print_status "Make sure to configure your API credentials in ../config/alpaca-config.ini first!"
+print_status "The config directory is located outside the repository for security."

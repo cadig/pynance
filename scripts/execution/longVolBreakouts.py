@@ -8,7 +8,7 @@ sys.path.append('../..')
 from ibkr.IbkrTrader import IbkrTrader as IbkrClient
 
 sys.path.append('..')
-from utils import getMarketHours
+from time_utils import getMarketHours
 from data.finvizConsolidateRecentGainers import gather_tickers as gather_recent_gainers
 
 

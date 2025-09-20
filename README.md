@@ -1,6 +1,6 @@
 # Pynance v2.0
 
-A comprehensive Python trading system framework that provides building blocks for algorithmic trading, market analysis, and portfolio management. This project consolidates and refactors functionality from multiple trading repositories into a clean, modular architecture.
+A comprehensive Python trading system framework that provides building blocks for algorithmic trading, market analysis, and portfolio management. This project attempts to consolidate and refactor functionality from some of my old repositories into something more reusable and modular, while still serving as my main trading/investing repository for ongoing research, tooling, and execution.
 
 ## 🚀 Quick Start
 

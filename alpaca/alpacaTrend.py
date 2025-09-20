@@ -13,7 +13,7 @@ from configparser import ConfigParser
 import sys
 
 sys.path.append('..')
-from universe.finvizScanner import scan_multiple_criteria
+from finviz.finvizScanner import scan_multiple_criteria
 from RegimeDetector import RegimeDetector
 from RiskManager import RiskManager
 
@@ -29,11 +29,11 @@ STOP_LOSS_ATR_MULT = 4.0  # ATR multiplier for stop loss
 LIMIT_PRICE_ATR_MULT = 0.1  # ATR multiplier for limit price in stop-limit orders
 TRAILING_STOP_MIN_MOVE = 0.5  # Minimum ATR move required to update trailing stop
 EXCLUDE_TICKERS = ['RUM']  # List of tickers to exclude from universe
-DRY_RUN = False  # Set to False to submit actual orders
+DRY_RUN = True  # Set to False to submit actual orders
 
 def get_alpaca_variables(whichAccount: str):
     config = ConfigParser()
-    config.read('../../../config/alpaca-config.ini')
+    config.read('../../config/alpaca-config.ini')
     return {
         'api_key': config.get(whichAccount, 'API_KEY'),
         'api_secret': config.get(whichAccount, 'API_SECRET'),

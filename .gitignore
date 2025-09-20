@@ -164,5 +164,7 @@ cython_debug/
 # data dumps
 *.csv
 
-scripts/execution/position_tracker.json
+alpaca/position_tracker.json
+alpaca/*.log
+
 scripts/execution/*.log

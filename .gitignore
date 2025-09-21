@@ -168,3 +168,5 @@ alpaca/position_tracker.json
 alpaca/*.log
 
 scripts/execution/*.log
+
+logs/*

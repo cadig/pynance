@@ -29,7 +29,7 @@ STOP_LOSS_ATR_MULT = 4.0  # ATR multiplier for stop loss
 LIMIT_PRICE_ATR_MULT = 0.1  # ATR multiplier for limit price in stop-limit orders
 TRAILING_STOP_MIN_MOVE = 0.5  # Minimum ATR move required to update trailing stop
 EXCLUDE_TICKERS = ['RUM']  # List of tickers to exclude from universe
-DRY_RUN = True  # Set to False to submit actual orders
+DRY_RUN = False  # Set to False to submit actual orders
 
 def get_alpaca_variables(whichAccount: str):
     config = ConfigParser()

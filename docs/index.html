@@ -27,6 +27,11 @@
             text-align: center;
             margin: 30px 0;
         }
+        .chart-container::after {
+            content: "";
+            display: table;
+            clear: both;
+        }
         .chart-container img {
             max-width: 100%;
             height: auto;
@@ -70,6 +75,22 @@
             color: #6c757d;
             font-size: 0.9em;
         }
+        .screener-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 20px;
+            transition: background-color 0.3s ease;
+            float: left;
+        }
+        .screener-button:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
@@ -77,6 +98,9 @@
 
 
         <div class="chart-container">
+            <button class="screener-button" onclick="window.open('https://finviz.com/screener.ashx?v=310&f=cap_midover,fa_epsqoq_high,sh_avgvol_o100,sh_curvol_o100,ta_perf_13wup,ta_sma200_pa&ft=4&o=-perf26w', '_blank')">
+                Single Stock Universe
+            </button>
             <img src="spx-regime.png" alt="SPX Regime Analysis Chart" id="regime-chart">
         </div>
 

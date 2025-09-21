@@ -105,7 +105,10 @@ fi
 LOG_FILENAME="${CURRENT_DATE}-${CURRENT_DAY_OF_WEEK}.log"
 LOG_FILE="$YEAR_MONTH_DIR/$LOG_FILENAME"
 
-print_status "Logging output to: $LOG_FILE"
+# Convert to absolute path before changing directories
+LOG_FILE_ABS="$(realpath "$LOG_FILE")"
+
+print_status "Logging output to: $LOG_FILE_ABS"
 
 # Change to alpaca directory to run the script
 print_status "Running alpacaTrend.py..."
@@ -113,7 +116,7 @@ cd alpaca
 
 # Run the script and capture output
 # Redirect both stdout and stderr to the log file and also display in real-time using tee
-python alpacaTrend.py 2>&1 | tee "$LOG_FILE"
+python alpacaTrend.py 2>&1 | tee "$LOG_FILE_ABS"
 
 # Check exit status
 if [ $? -eq 0 ]; then

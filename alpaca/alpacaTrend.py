@@ -278,41 +278,32 @@ def update_trailing_stops(position_tracker):
     
     return updated_count
 
-def submit_order_with_stop_loss(symbol, qty, entry_price, atr_value, current_high, counter=None, account_value=None):
+def submit_order_with_stop_loss(symbol, qty, entry_price, atr_value, current_high, stop_loss_price, counter=None, account_value=None):
     """Submit stop-limit order with stop loss order"""
+    # Use current day's high as stop price (trigger for limit order)
+    buy_stop_price = round(current_high, 2)
+    # Calculate limit price (entry_price + ATR * LIMIT_PRICE_ATR_MULT)
+    buy_limit_price = round(buy_stop_price + (LIMIT_PRICE_ATR_MULT * atr_value), 2)
+            
     if DRY_RUN:
-        # Calculate limit price (entry_price + ATR * LIMIT_PRICE_ATR_MULT)
-        limit_price = round(entry_price + (LIMIT_PRICE_ATR_MULT * atr_value), 2)
-        # Use current day's high as stop price (trigger for limit order)
-        stop_price = round(current_high, 2)
-        # Calculate stop loss price (4 ATR below the trigger price)
-        stop_loss_price = round(stop_price - (STOP_LOSS_ATR_MULT * atr_value), 2)
-        
         dollar_risk = (entry_price - stop_loss_price) * qty
         percent_risk = (dollar_risk / account_value * 100) if account_value else 0
         position_cost = entry_price * qty
         percent_to_stop = ((entry_price - stop_loss_price) / entry_price * 100)
         
         counter_text = f"[#{counter}] " if counter is not None else ""
-        print(f"[DRY RUN] {counter_text}Would submit STOP-LIMIT order for {symbol}: qty={qty}, limit_price={limit_price:.2f}, stop_price={stop_price:.2f}, stop_loss={stop_loss_price:.2f}, risk=${dollar_risk:.2f} ({percent_risk:.2f}%), cost=${position_cost:.2f}, stop%={percent_to_stop:.2f}%")
+        print(f"[DRY RUN] {counter_text}Would submit STOP-LIMIT order for {symbol}: qty={qty}, limit_price={buy_limit_price:.2f}, stop_price={buy_stop_price:.2f}, stop_loss={stop_loss_price:.2f}, risk=${dollar_risk:.2f} ({percent_risk:.2f}%), cost=${position_cost:.2f}, stop%={percent_to_stop:.2f}%")
         return True
     else:
         try:
-            # Calculate limit price (entry_price + ATR * LIMIT_PRICE_ATR_MULT)
-            limit_price = round(entry_price + (LIMIT_PRICE_ATR_MULT * atr_value), 2)
-            # Use current day's high as stop price (trigger for limit order)
-            stop_price = round(current_high, 2)
-            # Calculate stop loss price (4 ATR below the trigger price)
-            stop_loss_price = round(stop_price - (STOP_LOSS_ATR_MULT * atr_value), 2)
-            
             # Submit stop-limit order with stop loss
             order_data = StopLimitOrderRequest(
                 symbol=symbol,
                 qty=qty,
                 side=OrderSide.BUY,
                 time_in_force=TimeInForce.DAY,
-                limit_price=limit_price,
-                stop_price=stop_price,
+                limit_price=buy_limit_price,
+                stop_price=buy_stop_price,
                 stop_loss=StopLossRequest(stop_price=stop_loss_price),
                 position_intent=PositionIntent.BUY_TO_OPEN
             )
@@ -325,7 +316,7 @@ def submit_order_with_stop_loss(symbol, qty, entry_price, atr_value, current_hig
             percent_risk = (dollar_risk / account_value * 100) if account_value else 0
             position_cost = entry_price * qty
             percent_to_stop = ((entry_price - stop_loss_price) / entry_price * 100)
-            print(f"Submitted STOP-LIMIT for {symbol}: qty={qty}, limit_price={limit_price:.2f}, stop_price={stop_price:.2f}, stop_loss={stop_loss_price:.2f}, risk=${dollar_risk:.2f} ({percent_risk:.2f}%), cost=${position_cost:.2f}, stop%={percent_to_stop:.2f}%")
+            print(f"Submitted STOP-LIMIT for {symbol}: qty={qty}, limit_price={buy_limit_price:.2f}, stop_price={buy_stop_price:.2f}, stop_loss={stop_loss_price:.2f}, risk=${dollar_risk:.2f} ({percent_risk:.2f}%), cost=${position_cost:.2f}, stop%={percent_to_stop:.2f}%")
             
             # Add position to tracker
             tracking_data = load_position_tracker()
@@ -639,8 +630,8 @@ def main():
         for symbol, price, atr_value, current_high in to_enter:
             order_counter += 1
             # Calculate risk per share (entry price - stop loss price)
-            stop_price = round(price - (STOP_LOSS_ATR_MULT * atr_value), 2)
-            risk_per_share = price - stop_price
+            stop_loss_price = round(price - (STOP_LOSS_ATR_MULT * atr_value), 2)
+            risk_per_share = price - stop_loss_price
             
             # Calculate quantity based on risk per position
             if risk_per_share > 0:

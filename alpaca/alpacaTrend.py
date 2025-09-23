@@ -488,6 +488,12 @@ def add_stop_loss_order(symbol, qty, stop_price, current_price=None, account_val
             return False
 
 def main():
+    # === Print execution timestamp ===
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z")
+    print(f"\n=== AlpacaTrend.py Execution Started ===")
+    print(f"Timestamp: {current_time}")
+    print(f"Dry Run Mode: {DRY_RUN}")
+    
     # === Initialize API and Load Data ===
     global trading_client, data_client
     trading_client, data_client = initialize_alpaca_api()

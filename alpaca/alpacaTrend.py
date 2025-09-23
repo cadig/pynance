@@ -39,6 +39,36 @@ def get_alpaca_variables(whichAccount: str):
         'api_secret': config.get(whichAccount, 'API_SECRET'),
     }
 
+def calculate_risk_metrics(entry_price, stop_price, qty, account_value=None):
+    """
+    Calculate all risk-related metrics for a position
+    
+    Args:
+        entry_price (float): Entry price per share
+        stop_price (float): Stop loss price per share
+        qty (int): Number of shares
+        account_value (float, optional): Total account value for percentage calculations
+    
+    Returns:
+        dict: {
+            'dollar_risk': float,
+            'percent_risk': float, 
+            'position_cost': float,
+            'percent_to_stop': float
+        }
+    """
+    dollar_risk = (entry_price - stop_price) * qty
+    percent_risk = (dollar_risk / account_value * 100) if account_value else 0
+    position_cost = entry_price * qty
+    percent_to_stop = ((entry_price - stop_price) / entry_price * 100)
+    
+    return {
+        'dollar_risk': dollar_risk,
+        'percent_risk': percent_risk,
+        'position_cost': position_cost,
+        'percent_to_stop': percent_to_stop
+    }
+
 def get_regime_based_risk():
     """
     Get risk percentage based on current market regime background color
@@ -286,13 +316,11 @@ def submit_order_with_stop_loss(symbol, qty, entry_price, atr_value, current_hig
     buy_limit_price = round(buy_stop_price + (LIMIT_PRICE_ATR_MULT * atr_value), 2)
             
     if DRY_RUN:
-        dollar_risk = (entry_price - stop_loss_price) * qty
-        percent_risk = (dollar_risk / account_value * 100) if account_value else 0
-        position_cost = entry_price * qty
-        percent_to_stop = ((entry_price - stop_loss_price) / entry_price * 100)
+        # Calculate risk metrics using shared function
+        risk_metrics = calculate_risk_metrics(entry_price, stop_loss_price, qty, account_value)
         
         counter_text = f"[#{counter}] " if counter is not None else ""
-        print(f"[DRY RUN] {counter_text}Would submit STOP-LIMIT order for {symbol}: qty={qty}, limit_price={buy_limit_price:.2f}, stop_price={buy_stop_price:.2f}, stop_loss={stop_loss_price:.2f}, risk=${dollar_risk:.2f} ({percent_risk:.2f}%), cost=${position_cost:.2f}, stop%={percent_to_stop:.2f}%")
+        print(f"[DRY RUN] {counter_text}Would submit STOP-LIMIT order for {symbol}: qty={qty}, limit_price={buy_limit_price:.2f}, stop_price={buy_stop_price:.2f}, stop_loss={stop_loss_price:.2f}, risk=${risk_metrics['dollar_risk']:.2f} ({risk_metrics['percent_risk']:.2f}%), cost=${risk_metrics['position_cost']:.2f}, stop%={risk_metrics['percent_to_stop']:.2f}%")
         return True
     else:
         try:
@@ -312,11 +340,9 @@ def submit_order_with_stop_loss(symbol, qty, entry_price, atr_value, current_hig
             # Debug: Check if the order was created and what type it is
             print(f"Order submitted for {symbol}: ID={order.id}, Status={order.status}, Type={order.order_type}")
             
-            dollar_risk = (entry_price - stop_loss_price) * qty
-            percent_risk = (dollar_risk / account_value * 100) if account_value else 0
-            position_cost = entry_price * qty
-            percent_to_stop = ((entry_price - stop_loss_price) / entry_price * 100)
-            print(f"Submitted STOP-LIMIT for {symbol}: qty={qty}, limit_price={buy_limit_price:.2f}, stop_price={buy_stop_price:.2f}, stop_loss={stop_loss_price:.2f}, risk=${dollar_risk:.2f} ({percent_risk:.2f}%), cost=${position_cost:.2f}, stop%={percent_to_stop:.2f}%")
+            # Calculate risk metrics using shared function
+            risk_metrics = calculate_risk_metrics(entry_price, stop_loss_price, qty, account_value)
+            print(f"Submitted STOP-LIMIT for {symbol}: qty={qty}, limit_price={buy_limit_price:.2f}, stop_price={buy_stop_price:.2f}, stop_loss={stop_loss_price:.2f}, risk=${risk_metrics['dollar_risk']:.2f} ({risk_metrics['percent_risk']:.2f}%), cost=${risk_metrics['position_cost']:.2f}, stop%={risk_metrics['percent_to_stop']:.2f}%")
             
             # Add position to tracker
             tracking_data = load_position_tracker()
@@ -432,11 +458,12 @@ def has_stop_loss_order(symbol):
 def add_stop_loss_order(symbol, qty, stop_price, current_price=None, account_value=None):
     """Add a stop loss order for an existing position"""
     if DRY_RUN:
-        dollar_risk = (current_price - stop_price) * qty if current_price else 0
-        percent_risk = (dollar_risk / account_value * 100) if account_value and current_price else 0
-        position_cost = current_price * qty if current_price else 0
-        percent_to_stop = ((current_price - stop_price) / current_price * 100) if current_price else 0
-        print(f"[DRY RUN] Would add STOP order for {symbol}: qty={qty}, stop_price={stop_price:.2f}, risk=${dollar_risk:.2f} ({percent_risk:.2f}%), cost=${position_cost:.2f}, stop%={percent_to_stop:.2f}%")
+        # Calculate risk metrics using shared function (handle None current_price)
+        if current_price:
+            risk_metrics = calculate_risk_metrics(current_price, stop_price, qty, account_value)
+            print(f"[DRY RUN] Would add STOP order for {symbol}: qty={qty}, stop_price={stop_price:.2f}, risk=${risk_metrics['dollar_risk']:.2f} ({risk_metrics['percent_risk']:.2f}%), cost=${risk_metrics['position_cost']:.2f}, stop%={risk_metrics['percent_to_stop']:.2f}%")
+        else:
+            print(f"[DRY RUN] Would add STOP order for {symbol}: qty={qty}, stop_price={stop_price:.2f}")
         return True
     else:
         try:
@@ -449,11 +476,12 @@ def add_stop_loss_order(symbol, qty, stop_price, current_price=None, account_val
             )
             stop_order = trading_client.submit_order(stop_order_data)
             
-            dollar_risk = (current_price - stop_price) * qty if current_price else 0
-            percent_risk = (dollar_risk / account_value * 100) if account_value and current_price else 0
-            position_cost = current_price * qty if current_price else 0
-            percent_to_stop = ((current_price - stop_price) / current_price * 100) if current_price else 0
-            print(f"Added STOP order for {symbol}: qty={qty}, stop_price={stop_price:.2f}, risk=${dollar_risk:.2f} ({percent_risk:.2f}%), cost=${position_cost:.2f}, stop%={percent_to_stop:.2f}%")
+            # Calculate risk metrics using shared function (handle None current_price)
+            if current_price:
+                risk_metrics = calculate_risk_metrics(current_price, stop_price, qty, account_value)
+                print(f"Added STOP order for {symbol}: qty={qty}, stop_price={stop_price:.2f}, risk=${risk_metrics['dollar_risk']:.2f} ({risk_metrics['percent_risk']:.2f}%), cost=${risk_metrics['position_cost']:.2f}, stop%={risk_metrics['percent_to_stop']:.2f}%")
+            else:
+                print(f"Added STOP order for {symbol}: qty={qty}, stop_price={stop_price:.2f}")
             return True
         except Exception as e:
             print(f"Failed to add stop loss order for {symbol}: {e}")
@@ -689,10 +717,10 @@ def main():
             current_price = bars['close'].iloc[-1]
             atr_value = bars['ATR'].iloc[-1]
             stop_price = round(current_price - (STOP_LOSS_ATR_MULT * atr_value), 2)
-            position_risk = (current_price - stop_price) * qty
-            position_cost = current_price * qty
-            total_dollar_risk += position_risk
-            total_position_value += position_cost
+            # Calculate risk metrics using shared function
+            risk_metrics = calculate_risk_metrics(current_price, stop_price, qty, account_value)
+            total_dollar_risk += risk_metrics['dollar_risk']
+            total_position_value += risk_metrics['position_cost']
     
     # Calculate risk for new entries
     if daily_entry_limit > 0 and can_enter_new_positions and to_enter:
@@ -707,10 +735,10 @@ def main():
                 qty = int(risk_per_position // risk_per_share)
                 if qty > 0:
                     stop_price_rounded = round(stop_price, 2)
-                    entry_risk = (price - stop_price_rounded) * qty
-                    entry_cost = price * qty
-                    total_dollar_risk += entry_risk
-                    total_position_value += entry_cost
+                    # Calculate risk metrics using shared function
+                    risk_metrics = calculate_risk_metrics(price, stop_price_rounded, qty, account_value)
+                    total_dollar_risk += risk_metrics['dollar_risk']
+                    total_position_value += risk_metrics['position_cost']
     
     total_percent_risk = (total_dollar_risk / account_value * 100) if account_value > 0 else 0
     print(f"Total Dollar Risk: ${total_dollar_risk:.2f}")

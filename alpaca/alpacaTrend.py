@@ -29,7 +29,7 @@ STOP_LOSS_ATR_MULT = 4.0  # ATR multiplier for stop loss
 LIMIT_PRICE_ATR_MULT = 0.1  # ATR multiplier for limit price in stop-limit orders
 TRAILING_STOP_MIN_MOVE = 0.5  # Minimum ATR move required to update trailing stop
 EXCLUDE_TICKERS = ['RUM']  # List of tickers to exclude from universe
-DRY_RUN = False  # Set to False to submit actual orders
+DRY_RUN = True  # Set to False to submit actual orders
 
 def get_alpaca_variables(whichAccount: str):
     config = ConfigParser()
@@ -671,7 +671,7 @@ def main():
             if risk_per_share > 0:
                 qty = int(risk_per_position // risk_per_share)
                 if qty > 0:
-                    submit_order_with_stop_loss(symbol, qty, price, atr_value, current_high, order_counter, account_value)
+                    submit_order_with_stop_loss(symbol, qty, price, atr_value, current_high, stop_loss_price, order_counter, account_value)
     else:
         if not can_enter_new_positions:
             print("Entry conditions not met - no new trades placed.")

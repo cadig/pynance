@@ -226,8 +226,41 @@ def save_position_tracker(data):
     with open('position_tracker.json', 'w') as f:
         json.dump(data, f, indent=2)
 
+def fetch_live_alpaca_data():
+    """Fetch all live data from Alpaca in minimal API calls"""
+    try:
+        # Fetch all positions and orders in parallel
+        positions = trading_client.get_all_positions()
+        account = trading_client.get_account()
+        
+        # Get all open orders (including stop orders)
+        request = GetOrdersRequest(status=QueryOrderStatus.OPEN)
+        orders = trading_client.get_orders(filter=request)
+        
+        # Organize data for efficient lookup
+        positions_dict = {p.symbol: p for p in positions}
+        
+        # Organize stop orders by symbol
+        stop_orders_by_symbol = {}
+        for order in orders:
+            if order.side == OrderSide.SELL and order.order_type == 'stop':
+                if order.symbol not in stop_orders_by_symbol:
+                    stop_orders_by_symbol[order.symbol] = []
+                stop_orders_by_symbol[order.symbol].append(order)
+        
+        return {
+            'positions': positions_dict,
+            'stop_orders': stop_orders_by_symbol,
+            'account': account,
+            'all_orders': orders
+        }
+        
+    except Exception as e:
+        print(f"Error fetching live Alpaca data: {e}")
+        return None
+
 def sync_with_alpaca_positions():
-    """Sync tracking data with actual Alpaca positions"""
+    """Sync tracking data with actual Alpaca positions (legacy function - now uses live data)"""
     try:
         alpaca_positions = trading_client.get_all_positions()
         tracking_data = load_position_tracker()
@@ -256,8 +289,112 @@ def sync_with_alpaca_positions():
         print(f"Error syncing with Alpaca positions: {e}")
         return load_position_tracker()
 
+def get_current_stop_from_live_data(symbol, live_data, position_tracker):
+    """Get current stop price from live Alpaca data, with position tracker as fallback"""
+    # First, try to get from live stop orders
+    if symbol in live_data['stop_orders'] and live_data['stop_orders'][symbol]:
+        # Get the most recent stop order (highest stop price)
+        stop_orders = live_data['stop_orders'][symbol]
+        current_stop = max(float(order.stop_price) for order in stop_orders)
+        return current_stop, 'live_order'
+    
+    # Fallback to position tracker
+    if symbol in position_tracker and position_tracker[symbol]['current_stop'] is not None:
+        return position_tracker[symbol]['current_stop'], 'tracker'
+    
+    return None, 'none'
+
+def update_trailing_stops_with_live_data(live_data, position_tracker):
+    """Update trailing stops using live Alpaca data with position tracker fallback"""
+    updated_count = 0
+    sync_issues = []
+    
+    # Get all position symbols from live data
+    position_symbols = list(live_data['positions'].keys())
+    
+    for symbol in position_symbols:
+        try:
+            # Get current price and ATR
+            bars = fetch_bars(symbol)
+            if bars.empty:
+                continue
+                
+            bars = calculate_atr(bars)
+            current_price = bars['close'].iloc[-1]
+            atr_value = bars['ATR'].iloc[-1]
+            
+            # Get current stop from live data or tracker
+            current_stop, source = get_current_stop_from_live_data(symbol, live_data, position_tracker)
+            
+            # Always calculate new trailing stop based on current price and ATR
+            new_stop = round(current_price - (STOP_LOSS_ATR_MULT * atr_value), 2)
+            
+            # Only update if new stop is higher and meets minimum move requirement
+            should_update = False
+            if current_stop is None:
+                should_update = True
+            elif new_stop > current_stop + (TRAILING_STOP_MIN_MOVE * atr_value):
+                should_update = True
+                
+                if should_update:
+                    # Check for sync issues
+                    if source == 'tracker' and current_stop is not None:
+                        sync_issues.append(f"{symbol}: Tracker has stop {current_stop:.2f} but no live order found")
+                    
+                    if DRY_RUN:
+                        current_stop_str = f"{current_stop:.2f}" if current_stop is not None else "None"
+                        print(f"[DRY RUN] Would update trailing stop for {symbol}: {current_stop_str} -> {new_stop:.2f} (source: {source})")
+                    else:
+                        # Cancel existing stop loss orders for this symbol
+                        if symbol in live_data['stop_orders']:
+                            for order in live_data['stop_orders'][symbol]:
+                                try:
+                                    trading_client.cancel_order_by_id(order.id)
+                                    print(f"Cancelled stop order {order.id} for {symbol}")
+                                except Exception as e:
+                                    print(f"Failed to cancel stop order {order.id} for {symbol}: {e}")
+                        
+                        # Add new stop loss order
+                        qty = int(live_data['positions'][symbol].qty)
+                        add_stop_loss_order(symbol, qty, new_stop, current_price)
+                        
+                        current_stop_str = f"{current_stop:.2f}" if current_stop is not None else "None"
+                        print(f"Updated trailing stop for {symbol}: {current_stop_str} -> {new_stop:.2f} (source: {source})")
+                    
+                    # Update position tracker
+                    if symbol not in position_tracker:
+                        position_tracker[symbol] = {
+                            'entry_price': float(live_data['positions'][symbol].avg_entry_price),
+                            'highest_price': current_price,  # Track current price as highest
+                            'current_stop': new_stop,
+                            'initial_r_multiple': None,
+                            'entry_date': datetime.now().isoformat(),
+                            'qty': float(live_data['positions'][symbol].qty)
+                        }
+                    else:
+                        # Update highest price to current price if it's higher
+                        position_tracker[symbol]['highest_price'] = max(position_tracker[symbol]['highest_price'], current_price)
+                        position_tracker[symbol]['current_stop'] = new_stop
+                    
+                    updated_count += 1
+                    
+        except Exception as e:
+            print(f"Error updating trailing stop for {symbol}: {e}")
+    
+    # Report sync issues
+    if sync_issues:
+        print(f"\n=== Sync Issues Detected ===")
+        for issue in sync_issues:
+            print(f"WARNING: {issue}")
+    
+    if updated_count > 0:
+        save_position_tracker(position_tracker)
+        print(f"Updated {updated_count} trailing stops")
+    
+    return updated_count
+
 def update_trailing_stops(position_tracker):
-    """Update trailing stops for all positions"""
+    """Update trailing stops for all positions (legacy function)"""
     updated_count = 0
     
     for symbol, data in position_tracker.items():
@@ -533,15 +670,27 @@ def main():
     else:
         print("SPY is above long MA – new entries allowed.")
 
-    # Get current positions and account info
-    positions = trading_client.get_all_positions()
-    account = trading_client.get_account()
-    account_value = float(account.portfolio_value)
-    held_symbols = set([p.symbol for p in positions])
-    
-    # Sync position tracker with Alpaca positions
-    print("\n=== Syncing Position Tracker ===")
-    position_tracker = sync_with_alpaca_positions()
+    # Fetch all live data from Alpaca in minimal API calls
+    print("\n=== Fetching Live Alpaca Data ===")
+    live_data = fetch_live_alpaca_data()
+    if live_data is None:
+        print("Failed to fetch live data, falling back to legacy approach")
+        positions = trading_client.get_all_positions()
+        account = trading_client.get_account()
+        account_value = float(account.portfolio_value)
+        held_symbols = set([p.symbol for p in positions])
+        position_tracker = sync_with_alpaca_positions()
+    else:
+        positions = list(live_data['positions'].values())
+        account = live_data['account']
+        account_value = float(account.portfolio_value)
+        held_symbols = set(live_data['positions'].keys())
+        
+        # Load position tracker for fallback data
+        position_tracker = load_position_tracker()
+        
+        print(f"Fetched {len(positions)} positions and {len(live_data['all_orders'])} orders")
+        print(f"Found {len(live_data['stop_orders'])} symbols with stop orders")
 
     # === Exit Logic - Check existing positions ===
     print("Checking existing positions for exits...")
@@ -576,11 +725,19 @@ def main():
     
     # === Update Trailing Stops ===
     print("\n=== Updating Trailing Stops ===")
-    trailing_updates = update_trailing_stops(position_tracker)
+    if live_data is not None:
+        trailing_updates = update_trailing_stops_with_live_data(live_data, position_tracker)
+    else:
+        trailing_updates = update_trailing_stops(position_tracker)
     
     # Check for missing stop loss orders in batch
     if position_symbols:
-        symbols_needing_stops = check_missing_stop_loss_orders(position_symbols)
+        if live_data is not None:
+            # Use live data to find missing stops
+            symbols_needing_stops = [symbol for symbol in position_symbols 
+                                   if symbol not in live_data['stop_orders'] or not live_data['stop_orders'][symbol]]
+        else:
+            symbols_needing_stops = check_missing_stop_loss_orders(position_symbols)
         
         # Filter out symbols that were just closed
         symbols_needing_stops = [symbol for symbol in symbols_needing_stops if symbol not in closed_positions]

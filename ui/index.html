@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpaca Trading Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: #2563eb;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .main-content {
+            display: flex;
+            height: calc(100vh - 120px);
+        }
+        .sidebar {
+            width: 300px;
+            background: #f8fafc;
+            border-right: 1px solid #e2e8f0;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .chart-container {
+            flex: 1;
+            padding: 20px;
+            position: relative;
+        }
+        .ticker-list {
+            margin-bottom: 20px;
+        }
+        .ticker-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .ticker-item:hover {
+            background: #e2e8f0;
+            border-color: #2563eb;
+        }
+        .ticker-item.selected {
+            background: #2563eb;
+            color: white;
+        }
+        .ticker-symbol {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .ticker-info {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        .ticker-item.selected .ticker-info {
+            color: #e2e8f0;
+        }
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #1e293b;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #64748b;
+        }
+        .error {
+            color: #dc2626;
+            background: #fef2f2;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .chart-controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+        .btn-secondary {
+            background: #64748b;
+            color: white;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        #chart {
+            width: 100%;
+            height: 500px;
+        }
+        .order-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+        .order-marker {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .order-entry {
+            background: #10b981;
+        }
+        .order-stop {
+            background: #ef4444;
+        }
+        .order-exit {
+            background: #f59e0b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Alpaca Trading Dashboard</h1>
+            <p>View positions, orders, and price charts</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="section-title">Current Positions</div>
+                <div id="positions-list" class="ticker-list">
+                    <div class="loading">Loading positions...</div>
+                </div>
+                
+                <div class="section-title">Historical Trades</div>
+                <div id="trades-list" class="ticker-list">
+                    <div class="loading">Loading trades...</div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <div class="chart-controls">
+                    <button id="refresh-btn" class="btn btn-primary">Refresh Data</button>
+                    <span id="selected-symbol">Select a ticker to view chart</span>
+                </div>
+                <div id="chart"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+
+        let chart = null;
+        let candlestickSeries = null;
+        let stopLossSeries = null;
+        let entrySeries = null;
+        let exitSeries = null;
+        let selectedSymbol = null;
+        let positions = [];
+        let historicalTrades = [];
+        let currentOrders = [];
+
+        // Initialize the application
+        async function init() {
+            try {
+                // Load Alpaca credentials (you'll need to set these)
+                await loadCredentials();
+                
+                // Load initial data
+                await loadPositions();
+                await loadHistoricalTrades();
+                
+                // Initialize chart
+                initChart();
+                
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showError('Failed to initialize application');
+            }
+        }
+
+        // Load Alpaca credentials from config
+        async function loadCredentials() {
+            // Credentials are loaded from config.js (generated by load_config.py)
+            if (!ALPACA_CONFIG.apiKey || !ALPACA_CONFIG.secretKey) {
+                throw new Error('Alpaca credentials not configured. Run load_config.py first.');
+            }
+        }
+
+        // Load current positions from Alpaca
+        async function loadPositions() {
+            try {
+                const response = await fetch(`${ALPACA_CONFIG.baseUrl}/v2/positions`, {
+                    headers: {
+                        'APCA-API-KEY-ID': ALPACA_CONFIG.apiKey,
+                        'APCA-API-SECRET-KEY': ALPACA_CONFIG.secretKey
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to load positions: ${response.statusText}`);
+                }
+
+                positions = await response.json();
+                renderPositions();
+            } catch (error) {
+                console.error('Error loading positions:', error);
+                document.getElementById('positions-list').innerHTML = 
+                    '<div class="error">Failed to load positions</div>';
+            }
+        }
+
+        // Load historical trades/orders
+        async function loadHistoricalTrades() {
+            try {
+                // Get all orders with status=all to include filled and cancelled orders
+                const response = await fetch(`${ALPACA_CONFIG.baseUrl}/v2/orders?status=all&limit=100`, {
+                    headers: {
+                        'APCA-API-KEY-ID': ALPACA_CONFIG.apiKey,
+                        'APCA-API-SECRET-KEY': ALPACA_CONFIG.secretKey
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to load trades: ${response.statusText}`);
+                }
+
+                const orders = await response.json();
+                
+                // Group orders by symbol and filter for completed trades
+                const tradesBySymbol = {};
+                orders.forEach(order => {
+                    if (order.status === 'filled' && order.symbol) {
+                        if (!tradesBySymbol[order.symbol]) {
+                            tradesBySymbol[order.symbol] = [];
+                        }
+                        tradesBySymbol[order.symbol].push(order);
+                    }
+                });
+
+                // Convert to array of unique symbols with trade history
+                historicalTrades = Object.keys(tradesBySymbol).map(symbol => ({
+                    symbol,
+                    orders: tradesBySymbol[symbol]
+                }));
+
+                renderTrades();
+            } catch (error) {
+                console.error('Error loading trades:', error);
+                document.getElementById('trades-list').innerHTML = 
+                    '<div class="error">Failed to load trades</div>';
+            }
+        }
+
+        // Render positions list
+        function renderPositions() {
+            const container = document.getElementById('positions-list');
+            
+            if (positions.length === 0) {
+                container.innerHTML = '<div class="loading">No current positions</div>';
+                return;
+            }
+
+            container.innerHTML = positions.map(position => `
+                <div class="ticker-item" onclick="selectTicker('${position.symbol}')">
+                    <div class="ticker-symbol">${position.symbol}</div>
+                    <div class="ticker-info">
+                        Qty: ${position.qty} | 
+                        Avg Price: $${parseFloat(position.avg_entry_price).toFixed(2)} | 
+                        P&L: $${parseFloat(position.unrealized_pl).toFixed(2)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Render trades list
+        function renderTrades() {
+            const container = document.getElementById('trades-list');
+            
+            if (historicalTrades.length === 0) {
+                container.innerHTML = '<div class="loading">No historical trades</div>';
+                return;
+            }
+
+            container.innerHTML = historicalTrades.map(trade => `
+                <div class="ticker-item" onclick="selectTicker('${trade.symbol}')">
+                    <div class="ticker-symbol">${trade.symbol}</div>
+                    <div class="ticker-info">
+                        ${trade.orders.length} orders | 
+                        Last: ${new Date(trade.orders[trade.orders.length - 1].created_at).toLocaleDateString()}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Initialize TradingView chart
+        function initChart() {
+            const chartContainer = document.getElementById('chart');
+            chart = LightweightCharts.createChart(chartContainer, {
+                width: chartContainer.clientWidth,
+                height: 500,
+                layout: {
+                    backgroundColor: '#ffffff',
+                    textColor: '#333',
+                },
+                grid: {
+                    vertLines: {
+                        color: '#f0f0f0',
+                    },
+                    horzLines: {
+                        color: '#f0f0f0',
+                    },
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                },
+                rightPriceScale: {
+                    borderColor: '#cccccc',
+                },
+                timeScale: {
+                    borderColor: '#cccccc',
+                },
+            });
+
+            candlestickSeries = chart.addCandlestickSeries({
+                upColor: '#26a69a',
+                downColor: '#ef5350',
+                borderVisible: false,
+                wickUpColor: '#26a69a',
+                wickDownColor: '#ef5350',
+            });
+
+            // Add horizontal line series for stop losses
+            stopLossSeries = chart.addLineSeries({
+                color: '#ef4444',
+                lineWidth: 2,
+                lineStyle: 2, // Dashed line
+                title: 'Stop Loss'
+            });
+
+            // Add series for entry points (below price)
+            entrySeries = chart.addLineSeries({
+                color: '#10b981',
+                lineWidth: 3,
+                lineStyle: 0, // Solid line
+                title: 'Entry Points'
+            });
+
+            // Add series for exit points (above price)
+            exitSeries = chart.addLineSeries({
+                color: '#f59e0b',
+                lineWidth: 3,
+                lineStyle: 0, // Solid line
+                title: 'Exit Points'
+            });
+        }
+
+        // Select a ticker and load its data
+        async function selectTicker(symbol) {
+            selectedSymbol = symbol;
+            document.getElementById('selected-symbol').textContent = `Loading ${symbol}...`;
+            
+            // Clear previous overlays
+            if (candlestickSeries) {
+                candlestickSeries.setMarkers([]);
+            }
+            if (stopLossSeries) {
+                stopLossSeries.setData([]);
+            }
+            if (entrySeries) {
+                entrySeries.setData([]);
+            }
+            if (exitSeries) {
+                exitSeries.setData([]);
+            }
+            
+            // Update UI
+            document.querySelectorAll('.ticker-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            event.target.closest('.ticker-item').classList.add('selected');
+
+            try {
+                // Try to load chart data first
+                try {
+                    await loadChartData(symbol);
+                } catch (chartError) {
+                    console.warn('Chart data failed, continuing with orders:', chartError);
+                    document.getElementById('selected-symbol').textContent = `${symbol} - Chart data unavailable (check console for details)`;
+                }
+                
+                // Always try to load orders
+                try {
+                    await loadOrdersForSymbol(symbol);
+                } catch (orderError) {
+                    console.warn('Orders failed:', orderError);
+                    document.getElementById('selected-symbol').textContent = `${symbol} - Orders unavailable (check console for details)`;
+                }
+            } catch (error) {
+                console.error('Error loading ticker data:', error);
+                showError(`Failed to load data for ${symbol}`);
+            }
+        }
+
+        // Load chart data for a symbol
+        async function loadChartData(symbol) {
+            try {
+                // Use historical data only (avoid recent data requirements)
+                const start = new Date();
+                start.setDate(start.getDate() - 120); // 200 days ago to ensure historical data
+
+                // Format date for Alpaca API
+                const startStr = start.toISOString().split('T')[0];
+
+                // Use the data API endpoint for historical bars (no end date)
+                const dataApiUrl = 'https://data.alpaca.markets';
+                const response = await fetch(
+                    `${dataApiUrl}/v2/stocks/${symbol}/bars?` +
+                    `start=${startStr}&` +
+                    `timeframe=1Day&` +
+                    `limit=200`,
+                    {
+                        headers: {
+                            'APCA-API-KEY-ID': ALPACA_CONFIG.apiKey,
+                            'APCA-API-SECRET-KEY': ALPACA_CONFIG.secretKey
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Chart data API error:', response.status, errorText);
+                    throw new Error(`Failed to load chart data: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('Chart data response:', data);
+                const bars = data.bars || [];
+                
+                // Convert to chart format with comprehensive validation
+                const chartData = bars.map(bar => {
+                    // Validate that all required values are present and not null/undefined
+                    if (!bar.t || 
+                        bar.o === null || bar.o === undefined || 
+                        bar.h === null || bar.h === undefined || 
+                        bar.l === null || bar.l === undefined || 
+                        bar.c === null || bar.c === undefined) {
+                        console.warn('Skipping invalid bar data:', bar);
+                        return null;
+                    }
+                    
+                    // Parse values and validate they're valid numbers
+                    const open = parseFloat(bar.o);
+                    const high = parseFloat(bar.h);
+                    const low = parseFloat(bar.l);
+                    const close = parseFloat(bar.c);
+                    const time = Math.floor(new Date(bar.t).getTime() / 1000);
+                    
+                    // Validate parsed values
+                    if (isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close) || isNaN(time) || 
+                        open <= 0 || high <= 0 || low <= 0 || close <= 0 || time <= 0) {
+                        console.warn('Skipping bar with invalid numeric values:', bar);
+                        return null;
+                    }
+                    
+                    return {
+                        time: time,
+                        open: open,
+                        high: high,
+                        low: low,
+                        close: close
+                    };
+                }).filter(bar => bar !== null); // Remove any null entries
+
+                // Final safety check before setting chart data
+                if (chartData.length > 0) {
+                    try {
+                        // Ensure no null values in the final data structure
+                        const safeChartData = chartData.map(bar => ({
+                            time: bar.time,
+                            open: bar.open,
+                            high: bar.high,
+                            low: bar.low,
+                            close: bar.close
+                        }));
+                        
+                        console.log('Setting chart data with', safeChartData.length, 'bars');
+                        candlestickSeries.setData(safeChartData);
+                        document.getElementById('selected-symbol').textContent = `${symbol} - ${safeChartData.length} bars`;
+                    } catch (chartError) {
+                        console.error('Error setting chart data:', chartError);
+                        document.getElementById('selected-symbol').textContent = `${symbol} - Chart error`;
+                    }
+                } else {
+                    console.warn('No valid chart data to display');
+                    document.getElementById('selected-symbol').textContent = `${symbol} - No chart data`;
+                }
+                
+            } catch (error) {
+                console.error('Error loading chart data:', error);
+                throw error;
+            }
+        }
+
+        // Load orders for a specific symbol
+        async function loadOrdersForSymbol(symbol) {
+            try {
+                const url = `${ALPACA_CONFIG.baseUrl}/v2/orders?symbols=${symbol}&status=all&limit=50`;
+                console.log('Fetching orders from:', url);
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'APCA-API-KEY-ID': ALPACA_CONFIG.apiKey,
+                        'APCA-API-SECRET-KEY': ALPACA_CONFIG.secretKey
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Orders API error:', response.status, errorText);
+                    throw new Error(`Failed to load orders: ${response.status} ${response.statusText}`);
+                }
+
+                const orders = await response.json();
+                console.log(`Orders for ${symbol}:`, orders);
+                
+                // Store orders for overlay
+                currentOrders = orders;
+                
+                // Process and overlay orders on the chart
+                await overlayOrdersOnChart(orders);
+                
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                throw error;
+            }
+        }
+
+        // Process and overlay orders on the chart
+        async function overlayOrdersOnChart(orders) {
+            try {
+                // Clear previous overlays
+                stopLossSeries.setData([]);
+                entrySeries.setData([]);
+                exitSeries.setData([]);
+                
+                // Process orders by type
+                const entryOrders = [];
+                const exitOrders = [];
+                const stopLossOrders = [];
+                
+                orders.forEach(order => {
+                    const orderDate = new Date(order.created_at);
+                    const time = Math.floor(orderDate.getTime() / 1000);
+                    
+                    // Skip orders with invalid timestamps
+                    if (isNaN(time) || time <= 0) {
+                        console.warn('Skipping order with invalid timestamp:', order.created_at, 'parsed as:', time);
+                        return;
+                    }
+                    
+                    if (order.side === 'buy' && order.status === 'filled' && order.filled_avg_price) {
+                        const price = parseFloat(order.filled_avg_price);
+                        const qty = parseFloat(order.qty);
+                        
+                        if (!isNaN(price) && !isNaN(qty) && price > 0 && qty > 0) {
+                            entryOrders.push({
+                                time: time,
+                                price: price,
+                                qty: qty,
+                                order: order
+                            });
+                        } else {
+                            console.warn('Skipping invalid entry order:', order);
+                        }
+                    } else if (order.side === 'sell' && order.status === 'filled' && order.filled_avg_price) {
+                        const price = parseFloat(order.filled_avg_price);
+                        const qty = parseFloat(order.qty);
+                        
+                        if (!isNaN(price) && !isNaN(qty) && price > 0 && qty > 0) {
+                            exitOrders.push({
+                                time: time,
+                                price: price,
+                                qty: qty,
+                                order: order
+                            });
+                        } else {
+                            console.warn('Skipping invalid exit order:', order);
+                        }
+                    } else if (order.order_type === 'stop' && order.side === 'sell' && order.stop_price) {
+                        const price = parseFloat(order.stop_price);
+                        
+                        if (!isNaN(price) && price > 0) {
+                            // Include all stop loss orders: new, accepted, filled, and cancelled
+                            stopLossOrders.push({
+                                time: time,
+                                price: price,
+                                status: order.status,
+                                order: order
+                            });
+                        } else {
+                            console.warn('Skipping invalid stop loss order:', order);
+                        }
+                    }
+                });
+                
+                // Add entry points as horizontal lines (positioned below price)
+                if (entryOrders.length > 0) {
+                    console.log('Entry orders:', entryOrders);
+                    const entryData = [];
+                    entryOrders.forEach(entry => {
+                        // Create a short horizontal line for each entry
+                        const lineStart = entry.time - 86400; // 1 day before
+                        const lineEnd = entry.time + 86400;   // 1 day after
+                        
+                        if (!isNaN(lineStart) && !isNaN(lineEnd) && !isNaN(entry.price)) {
+                            entryData.push(
+                                { time: lineStart, value: entry.price },
+                                { time: lineEnd, value: entry.price }
+                            );
+                        }
+                    });
+                    // Validate entry data before setting
+                    const validEntryData = entryData.filter(point => 
+                        point && 
+                        typeof point.time === 'number' && !isNaN(point.time) && point.time > 0 &&
+                        typeof point.value === 'number' && !isNaN(point.value) && point.value > 0
+                    );
+                    try {
+                        entrySeries.setData(validEntryData);
+                    } catch (entryError) {
+                        console.error('Error setting entry data:', entryError);
+                        console.log('Entry data that caused error:', validEntryData);
+                    }
+                }
+                
+                // Add exit points as horizontal lines (positioned above price)
+                if (exitOrders.length > 0) {
+                    console.log('Exit orders:', exitOrders);
+                    const exitData = [];
+                    exitOrders.forEach(exit => {
+                        // Create a short horizontal line for each exit
+                        const lineStart = exit.time - 86400; // 1 day before
+                        const lineEnd = exit.time + 86400;   // 1 day after
+                        
+                        if (!isNaN(lineStart) && !isNaN(lineEnd) && !isNaN(exit.price)) {
+                            exitData.push(
+                                { time: lineStart, value: exit.price },
+                                { time: lineEnd, value: exit.price }
+                            );
+                        }
+                    });
+                    // Validate exit data before setting
+                    const validExitData = exitData.filter(point => 
+                        point && 
+                        typeof point.time === 'number' && !isNaN(point.time) && point.time > 0 &&
+                        typeof point.value === 'number' && !isNaN(point.value) && point.value > 0
+                    );
+                    try {
+                        exitSeries.setData(validExitData);
+                    } catch (exitError) {
+                        console.error('Error setting exit data:', exitError);
+                        console.log('Exit data that caused error:', validExitData);
+                    }
+                }
+                
+                // Add stop loss lines
+                if (stopLossOrders.length > 0) {
+                    console.log('Stop loss orders found:', stopLossOrders.length);
+                    console.log('Stop loss orders:', stopLossOrders);
+                    await addStopLossLines(stopLossOrders);
+                } else {
+                    console.log('No stop loss orders found');
+                }
+                
+            } catch (error) {
+                console.error('Error overlaying orders:', error);
+            }
+        }
+        
+        // Add stop loss horizontal lines
+        async function addStopLossLines(stopLossOrders) {
+            try {
+                // Get the current chart data to determine the time range
+                const chartData = candlestickSeries.data();
+                if (!chartData || chartData.length === 0) {
+                    console.warn('No chart data available for stop loss lines');
+                    return;
+                }
+                
+                const chartEndTime = chartData[chartData.length - 1].time;
+                const allStopLossData = [];
+                
+                // Sort stop loss orders by time to handle overlapping periods correctly
+                const sortedStopLosses = stopLossOrders.sort((a, b) => a.time - b.time);
+                
+                // Process each stop loss order
+                sortedStopLosses.forEach((stopLoss, index) => {
+                    let endTime;
+                    
+                    console.log(`Processing stop loss ${index + 1}: status=${stopLoss.status}, price=${stopLoss.price}, time=${new Date(stopLoss.time * 1000).toLocaleDateString()}`);
+                    
+                    if (stopLoss.status === 'canceled' || stopLoss.status === 'cancelled') {
+                        // Cancelled stop loss - line from creation to cancellation
+                        const canceledAt = stopLoss.order.canceled_at || stopLoss.order.updated_at;
+                        if (!canceledAt) {
+                            console.warn('No cancellation timestamp found for order:', stopLoss.order);
+                            return;
+                        }
+                        const canceledDate = new Date(canceledAt);
+                        endTime = Math.floor(canceledDate.getTime() / 1000);
+                        
+                        // Validate the timestamp
+                        if (isNaN(endTime) || endTime <= 0) {
+                            console.warn('Invalid cancellation timestamp:', canceledAt, 'parsed as:', endTime);
+                            return;
+                        }
+                        console.log(`Cancelled stop loss: ${stopLoss.price} from ${new Date(stopLoss.time * 1000).toLocaleDateString()} to ${new Date(endTime * 1000).toLocaleDateString()}`);
+                    } else if (stopLoss.status === 'filled') {
+                        // Filled stop loss - line from creation to fill
+                        const filledAt = stopLoss.order.filled_at || stopLoss.order.updated_at;
+                        if (!filledAt) {
+                            console.warn('No fill timestamp found for order:', stopLoss.order);
+                            return;
+                        }
+                        const filledDate = new Date(filledAt);
+                        endTime = Math.floor(filledDate.getTime() / 1000);
+                        
+                        // Validate the timestamp
+                        if (isNaN(endTime) || endTime <= 0) {
+                            console.warn('Invalid fill timestamp:', filledAt, 'parsed as:', endTime);
+                            return;
+                        }
+                        console.log(`Filled stop loss: ${stopLoss.price} from ${new Date(stopLoss.time * 1000).toLocaleDateString()} to ${new Date(endTime * 1000).toLocaleDateString()}`);
+                    } else if (stopLoss.status === 'new' || stopLoss.status === 'accepted') {
+                        // Active stop loss - line from creation to current time
+                        endTime = chartEndTime;
+                        console.log(`Active stop loss: ${stopLoss.price} from ${new Date(stopLoss.time * 1000).toLocaleDateString()} to present`);
+                    } else {
+                        // Skip other statuses
+                        console.log(`Skipping stop loss with status: ${stopLoss.status}`);
+                        return;
+                    }
+                    
+                    // Create line from start to end (validate values first)
+                    if (!isNaN(stopLoss.time) && !isNaN(stopLoss.price) && !isNaN(endTime) && endTime > stopLoss.time) {
+                        allStopLossData.push({
+                            time: stopLoss.time,
+                            value: stopLoss.price
+                        });
+                        allStopLossData.push({
+                            time: endTime,
+                            value: stopLoss.price
+                        });
+                    } else {
+                        console.warn('Skipping invalid stop loss data:', {
+                            time: stopLoss.time,
+                            price: stopLoss.price,
+                            endTime: endTime,
+                            order: stopLoss.order
+                        });
+                    }
+                    
+                    console.log(`Added line segment: ${stopLoss.time} -> ${endTime} at price ${stopLoss.price}`);
+                });
+                
+                // Set all stop loss data at once (with final validation)
+                if (allStopLossData.length > 0) {
+                    // Final validation to ensure no null values
+                    const validStopLossData = allStopLossData.filter(point => 
+                        point && 
+                        typeof point.time === 'number' && !isNaN(point.time) && point.time > 0 &&
+                        typeof point.value === 'number' && !isNaN(point.value) && point.value > 0
+                    );
+                    
+                    if (validStopLossData.length > 0) {
+                        try {
+                            console.log('About to set stop loss data:', validStopLossData);
+                            stopLossSeries.setData(validStopLossData);
+                            console.log(`Plotted ${sortedStopLosses.length} stop loss orders`);
+                            console.log('Stop loss data points:', validStopLossData.length);
+                        } catch (stopLossError) {
+                            console.error('Error setting stop loss data:', stopLossError);
+                            console.log('Stop loss data that caused error:', validStopLossData);
+                            // Try to identify the problematic data point
+                            validStopLossData.forEach((point, index) => {
+                                console.log(`Data point ${index}:`, point);
+                                if (point.time === null || point.value === null || isNaN(point.time) || isNaN(point.value)) {
+                                    console.error(`Problematic data point at index ${index}:`, point);
+                                }
+                            });
+                        }
+                    } else {
+                        console.log('No valid stop loss data to plot');
+                    }
+                } else {
+                    console.log('No stop loss data to plot');
+                }
+                
+            } catch (error) {
+                console.error('Error adding stop loss lines:', error);
+            }
+        }
+
+        // Show error message
+        function showError(message) {
+            console.error(message);
+            // You could add a toast notification here
+        }
+
+        // Refresh all data
+        async function refreshData() {
+            document.getElementById('selected-symbol').textContent = 'Refreshing...';
+            await loadPositions();
+            await loadHistoricalTrades();
+            if (selectedSymbol) {
+                await loadChartData(selectedSymbol);
+                await loadOrdersForSymbol(selectedSymbol);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('refresh-btn').addEventListener('click', refreshData);
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

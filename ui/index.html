@@ -512,7 +512,28 @@
                             close: bar.close
                         }));
                         
-                        console.log('Setting chart data with', safeChartData.length, 'bars');
+                        console.log(`Chart loaded: ${safeChartData.length} bars for ${symbol}`);
+                        
+                        // Check for any null values in chart data (only log if found)
+                        const hasNullValues = safeChartData.some(bar => 
+                            bar.time === null || bar.open === null || bar.high === null || 
+                            bar.low === null || bar.close === null ||
+                            isNaN(bar.time) || isNaN(bar.open) || isNaN(bar.high) || 
+                            isNaN(bar.low) || isNaN(bar.close)
+                        );
+                        
+                        if (hasNullValues) {
+                            console.error('Chart data contains null or NaN values!');
+                            safeChartData.forEach((bar, index) => {
+                                if (bar.time === null || bar.open === null || bar.high === null || 
+                                    bar.low === null || bar.close === null ||
+                                    isNaN(bar.time) || isNaN(bar.open) || isNaN(bar.high) || 
+                                    isNaN(bar.low) || isNaN(bar.close)) {
+                                    console.error(`Problematic chart bar at index ${index}:`, bar);
+                                }
+                            });
+                        }
+                        
                         candlestickSeries.setData(safeChartData);
                         document.getElementById('selected-symbol').textContent = `${symbol} - ${safeChartData.length} bars`;
                     } catch (chartError) {
@@ -568,9 +589,19 @@
         async function overlayOrdersOnChart(orders) {
             try {
                 // Clear previous overlays
-                stopLossSeries.setData([]);
-                entrySeries.setData([]);
-                exitSeries.setData([]);
+                try {
+                    if (stopLossSeries && typeof stopLossSeries.setData === 'function') {
+                        stopLossSeries.setData([]);
+                    }
+                    if (entrySeries && typeof entrySeries.setData === 'function') {
+                        entrySeries.setData([]);
+                    }
+                    if (exitSeries && typeof exitSeries.setData === 'function') {
+                        exitSeries.setData([]);
+                    }
+                } catch (clearError) {
+                    console.warn('Error clearing previous overlays:', clearError);
+                }
                 
                 // Process orders by type
                 const entryOrders = [];
@@ -636,16 +667,22 @@
                 if (entryOrders.length > 0) {
                     console.log('Entry orders:', entryOrders);
                     const entryData = [];
-                    entryOrders.forEach(entry => {
+                    entryOrders.forEach((entry, index) => {
                         // Create a short horizontal line for each entry
                         const lineStart = entry.time - 86400; // 1 day before
                         const lineEnd = entry.time + 86400;   // 1 day after
-                        
+                                                
                         if (!isNaN(lineStart) && !isNaN(lineEnd) && !isNaN(entry.price)) {
                             entryData.push(
                                 { time: lineStart, value: entry.price },
                                 { time: lineEnd, value: entry.price }
                             );
+                        } else {
+                            console.warn(`Skipping entry ${index} due to invalid values:`, {
+                                lineStart,
+                                lineEnd,
+                                price: entry.price
+                            });
                         }
                     });
                     // Validate entry data before setting
@@ -656,6 +693,7 @@
                     );
                     try {
                         entrySeries.setData(validEntryData);
+                        console.log(`Entry markers: ${validEntryData.length} points`);
                     } catch (entryError) {
                         console.error('Error setting entry data:', entryError);
                         console.log('Entry data that caused error:', validEntryData);
@@ -666,16 +704,24 @@
                 if (exitOrders.length > 0) {
                     console.log('Exit orders:', exitOrders);
                     const exitData = [];
-                    exitOrders.forEach(exit => {
+                    exitOrders.forEach((exit, index) => {
                         // Create a short horizontal line for each exit
                         const lineStart = exit.time - 86400; // 1 day before
                         const lineEnd = exit.time + 86400;   // 1 day after
+                        
+                        // console.log(`Processing exit ${index}:`, { exit, lineStart, lineEnd, price: exit.price });
                         
                         if (!isNaN(lineStart) && !isNaN(lineEnd) && !isNaN(exit.price)) {
                             exitData.push(
                                 { time: lineStart, value: exit.price },
                                 { time: lineEnd, value: exit.price }
                             );
+                        } else {
+                            console.warn(`Skipping exit ${index} due to invalid values:`, {
+                                lineStart,
+                                lineEnd,
+                                price: exit.price
+                            });
                         }
                     });
                     // Validate exit data before setting
@@ -725,9 +771,7 @@
                 // Process each stop loss order
                 sortedStopLosses.forEach((stopLoss, index) => {
                     let endTime;
-                    
-                    console.log(`Processing stop loss ${index + 1}: status=${stopLoss.status}, price=${stopLoss.price}, time=${new Date(stopLoss.time * 1000).toLocaleDateString()}`);
-                    
+
                     if (stopLoss.status === 'canceled' || stopLoss.status === 'cancelled') {
                         // Cancelled stop loss - line from creation to cancellation
                         const canceledAt = stopLoss.order.canceled_at || stopLoss.order.updated_at;
@@ -743,7 +787,6 @@
                             console.warn('Invalid cancellation timestamp:', canceledAt, 'parsed as:', endTime);
                             return;
                         }
-                        console.log(`Cancelled stop loss: ${stopLoss.price} from ${new Date(stopLoss.time * 1000).toLocaleDateString()} to ${new Date(endTime * 1000).toLocaleDateString()}`);
                     } else if (stopLoss.status === 'filled') {
                         // Filled stop loss - line from creation to fill
                         const filledAt = stopLoss.order.filled_at || stopLoss.order.updated_at;
@@ -759,11 +802,11 @@
                             console.warn('Invalid fill timestamp:', filledAt, 'parsed as:', endTime);
                             return;
                         }
-                        console.log(`Filled stop loss: ${stopLoss.price} from ${new Date(stopLoss.time * 1000).toLocaleDateString()} to ${new Date(endTime * 1000).toLocaleDateString()}`);
                     } else if (stopLoss.status === 'new' || stopLoss.status === 'accepted') {
                         // Active stop loss - line from creation to current time
-                        endTime = chartEndTime;
-                        console.log(`Active stop loss: ${stopLoss.price} from ${new Date(stopLoss.time * 1000).toLocaleDateString()} to present`);
+                        // Use current time if chart end time is earlier than stop loss time
+                        const currentTime = Math.floor(Date.now() / 1000);
+                        endTime = Math.max(chartEndTime, currentTime);
                     } else {
                         // Skip other statuses
                         console.log(`Skipping stop loss with status: ${stopLoss.status}`);
@@ -771,7 +814,7 @@
                     }
                     
                     // Create line from start to end (validate values first)
-                    if (!isNaN(stopLoss.time) && !isNaN(stopLoss.price) && !isNaN(endTime) && endTime > stopLoss.time) {
+                    if (!isNaN(stopLoss.time) && !isNaN(stopLoss.price) && !isNaN(endTime) && endTime >= stopLoss.time) {
                         allStopLossData.push({
                             time: stopLoss.time,
                             value: stopLoss.price
@@ -788,8 +831,6 @@
                             order: stopLoss.order
                         });
                     }
-                    
-                    console.log(`Added line segment: ${stopLoss.time} -> ${endTime} at price ${stopLoss.price}`);
                 });
                 
                 // Set all stop loss data at once (with final validation)
@@ -804,9 +845,51 @@
                     if (validStopLossData.length > 0) {
                         try {
                             console.log('About to set stop loss data:', validStopLossData);
-                            stopLossSeries.setData(validStopLossData);
-                            console.log(`Plotted ${sortedStopLosses.length} stop loss orders`);
-                            console.log('Stop loss data points:', validStopLossData.length);
+                            
+                            // Additional validation before setting data
+                            const finalValidData = validStopLossData.filter(point => {
+                                const isValid = point && 
+                                    typeof point.time === 'number' && !isNaN(point.time) && point.time > 0 &&
+                                    typeof point.value === 'number' && !isNaN(point.value) && point.value > 0;
+                                
+                                if (!isValid) {
+                                    console.error('Filtering out invalid stop loss point:', point);
+                                }
+                                return isValid;
+                            });
+                            
+                            // Additional safety check - ensure all values are valid
+                            const ultraValidData = finalValidData.map(point => ({
+                                time: Math.floor(point.time),
+                                value: parseFloat(point.value)
+                            })).filter(point => 
+                                !isNaN(point.time) && point.time > 0 &&
+                                !isNaN(point.value) && point.value > 0
+                            );
+                            
+                            // Deduplicate by timestamp - keep the last value for each timestamp
+                            const deduplicatedData = [];
+                            const timestampMap = new Map();
+                            
+                            ultraValidData.forEach(point => {
+                                timestampMap.set(point.time, point.value);
+                            });
+                            
+                            // Convert back to array, sorted by time
+                            for (const [time, value] of timestampMap.entries()) {
+                                deduplicatedData.push({ time, value });
+                            }
+                            
+                            // Sort by time to ensure proper order
+                            deduplicatedData.sort((a, b) => a.time - b.time);
+                            
+                            // Check if stopLossSeries is properly initialized
+                            if (stopLossSeries && typeof stopLossSeries.setData === 'function') {
+                                stopLossSeries.setData(deduplicatedData);
+                                console.log(`Stop loss lines: ${deduplicatedData.length} points from ${sortedStopLosses.length} orders`);
+                            } else {
+                                console.error('stopLossSeries is not properly initialized');
+                            }
                         } catch (stopLossError) {
                             console.error('Error setting stop loss data:', stopLossError);
                             console.log('Stop loss data that caused error:', validStopLossData);
@@ -822,7 +905,7 @@
                         console.log('No valid stop loss data to plot');
                     }
                 } else {
-                    console.log('No stop loss data to plot');
+                    console.log('No stop loss orders found');
                 }
                 
             } catch (error) {

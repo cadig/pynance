@@ -502,6 +502,7 @@ def main():
     # === Print initial ticker list ===
     print(f"\n=== Initial Ticker List ({len(tickers)} tickers) ===")
     print(','.join(tickers))
+    print(f"Finviz URL: https://finviz.com/screener.ashx?v=310&f=cap_midover,fa_epsqoq_high,sh_avgvol_o100,sh_curvol_o100,ta_perf_13wup,ta_sma200_pa&ft=4&o=-perf26w&t={','.join(tickers)}")
     
     # === Get Dynamic Risk Percentage Based on Market Regime ===
     percent_risk = get_regime_based_risk()

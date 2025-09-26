@@ -49,12 +49,7 @@ function initChart() {
             },
         },
         rightPriceScale: {
-            borderColor: '#cccccc',
-            visible: true,
-            scaleMargins: {
-                top: 0.1,
-                bottom: 0.1,
-            },
+            visible: false,
         },
         timeScale: {
             borderColor: '#cccccc',

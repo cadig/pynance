@@ -136,7 +136,37 @@ function showTradesError() {
 }
 
 /**
- * Toggle collapsible section
+ * Switch between tabs
+ */
+function switchTab(tabName) {
+    // Remove active class from all tab headers
+    document.querySelectorAll('.tab-header').forEach(header => {
+        header.classList.remove('active');
+    });
+    
+    // Remove active class from all tab panels
+    document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.remove('active');
+    });
+    
+    // Add active class to selected tab header
+    const selectedHeader = document.getElementById(`${tabName}-tab`);
+    if (selectedHeader) {
+        selectedHeader.classList.add('active');
+    }
+    
+    // Add active class to selected tab panel
+    const selectedPanel = document.getElementById(`${tabName}-panel`);
+    if (selectedPanel) {
+        selectedPanel.classList.add('active');
+    }
+}
+
+// Make switchTab globally available
+window.switchTab = switchTab;
+
+/**
+ * Toggle collapsible section (for Portfolio Metrics)
  */
 function toggleSection(sectionId) {
     const section = document.querySelector(`.${sectionId}`);

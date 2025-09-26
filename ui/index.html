@@ -52,30 +52,31 @@
                     </div>
                 </div>
                 
-                <div class="positions-section">
-                    <div class="section-header collapsible-header" onclick="toggleSection('positions-section')">
-                        <span class="section-title">Current Positions</span>
-                        <span class="toggle-icon">▼</span>
+                <div class="tabs-container">
+                    <div class="tab-headers">
+                        <button class="tab-header active" onclick="switchTab('positions')" id="positions-tab">
+                            Current Positions
+                        </button>
+                        <button class="tab-header" onclick="switchTab('trades')" id="trades-tab">
+                            Historical Orders
+                        </button>
                     </div>
-                    <div class="section-content">
-                        <div class="section-header">
-                            <div class="section-title"></div>
-                            <button id="pnl-filter-btn" class="pnl-filter-btn" title="Sort by P&L (Original Order)">P&L ↕️</button>
+                    
+                    <div class="tab-content">
+                        <div id="positions-panel" class="tab-panel active">
+                            <div class="section-header">
+                                <div class="section-title"></div>
+                                <button id="pnl-filter-btn" class="pnl-filter-btn" title="Sort by P&L (Original Order)">P&L ↕️</button>
+                            </div>
+                            <div id="positions-list" class="ticker-list">
+                                <div class="loading">Loading positions...</div>
+                            </div>
                         </div>
-                        <div id="positions-list" class="ticker-list">
-                            <div class="loading">Loading positions...</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="trades-section">
-                    <div class="section-header collapsible-header" onclick="toggleSection('trades-section')">
-                        <span class="section-title">Historical Trades</span>
-                        <span class="toggle-icon">▼</span>
-                    </div>
-                    <div class="section-content">
-                        <div id="trades-list" class="ticker-list">
-                            <div class="loading">Loading trades...</div>
+                        
+                        <div id="trades-panel" class="tab-panel">
+                            <div id="trades-list" class="ticker-list">
+                                <div class="loading">Loading trades...</div>
+                            </div>
                         </div>
                     </div>
                 </div>

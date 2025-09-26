@@ -1,0 +1,174 @@
+/* Alpaca Trading Dashboard Styles */
+
+/* Base styles */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f5f5f5;
+}
+
+/* Layout */
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.header {
+    background: #2563eb;
+    color: white;
+    padding: 8px 12px;
+    text-align: center;
+}
+
+.main-content {
+    display: flex;
+    height: calc(100vh - 120px);
+}
+
+.sidebar {
+    width: 300px;
+    background: #f8fafc;
+    border-right: 1px solid #e2e8f0;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.chart-container {
+    flex: 1;
+    padding: 20px;
+    position: relative;
+}
+
+/* Ticker list styles */
+.ticker-list {
+    margin-bottom: 20px;
+}
+
+.ticker-item {
+    padding: 10px;
+    margin: 5px 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ticker-item:hover {
+    background: #e2e8f0;
+    border-color: #2563eb;
+}
+
+.ticker-item.selected {
+    background: #2563eb;
+    color: white;
+}
+
+.ticker-symbol {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.ticker-info {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.ticker-item.selected .ticker-info {
+    color: #e2e8f0;
+}
+
+/* Section titles */
+.section-title {
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #1e293b;
+}
+
+/* Status indicators */
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #64748b;
+}
+
+.error {
+    color: #dc2626;
+    background: #fef2f2;
+    padding: 10px;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+
+/* Chart controls */
+.chart-controls {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* Button styles */
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-primary {
+    background: #2563eb;
+    color: white;
+}
+
+.btn-secondary {
+    background: #64748b;
+    color: white;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+/* Chart styles */
+#chart {
+    width: 100%;
+    height: 500px;
+}
+
+/* Order overlay styles */
+.order-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+
+.order-marker {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.order-entry {
+    background: #10b981;
+}
+
+.order-stop {
+    background: #ef4444;
+}
+
+.order-exit {
+    background: #f59e0b;
+}

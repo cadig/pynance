@@ -39,44 +39,61 @@ function initChart() {
         crosshair: {
             mode: LightweightCharts.CrosshairMode.Normal,
         },
+        leftPriceScale: {
+            borderColor: '#cccccc',
+            visible: true,
+            scaleMargins: {
+                top: 0.1,
+                bottom: 0.1,
+            },
+        },
         rightPriceScale: {
             borderColor: '#cccccc',
+            visible: true,
+            scaleMargins: {
+                top: 0.1,
+                bottom: 0.1,
+            },
         },
         timeScale: {
             borderColor: '#cccccc',
         },
     });
 
-    candlestickSeries = chart.addCandlestickSeries({
+    candlestickSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
         upColor: '#26a69a',
         downColor: '#ef5350',
         borderVisible: false,
         wickUpColor: '#26a69a',
         wickDownColor: '#ef5350',
+        priceScaleId: 'left',
     });
 
     // Add horizontal line series for stop losses
-    stopLossSeries = chart.addLineSeries({
+    stopLossSeries = chart.addSeries(LightweightCharts.LineSeries, {
         color: '#ef4444',
         lineWidth: 2,
         lineStyle: 2, // Dashed line
-        title: 'Stop Loss'
+        title: 'Stop Loss',
+        priceScaleId: 'left'
     });
 
     // Add series for entry points (below price)
-    entrySeries = chart.addLineSeries({
+    entrySeries = chart.addSeries(LightweightCharts.LineSeries, {
         color: '#10b981',
         lineWidth: 3,
         lineStyle: 0, // Solid line
-        title: 'Entry Points'
+        title: 'Entry Points',
+        priceScaleId: 'left'
     });
 
     // Add series for exit points (above price)
-    exitSeries = chart.addLineSeries({
+    exitSeries = chart.addSeries(LightweightCharts.LineSeries, {
         color: '#f59e0b',
         lineWidth: 3,
         lineStyle: 0, // Solid line
-        title: 'Exit Points'
+        title: 'Exit Points',
+        priceScaleId: 'left'
     });
 
     // Create separate volume chart
@@ -113,7 +130,7 @@ function initChart() {
     });
 
     // Add volume series to separate chart
-    volumeSeries = volumeChart.addHistogramSeries({
+    volumeSeries = volumeChart.addSeries(LightweightCharts.HistogramSeries, {
         color: '#26a69a',
         priceFormat: {
             type: 'volume',
@@ -124,17 +141,19 @@ function initChart() {
     // Synchronization will be set up after data is loaded
 
     // Add 10-day Simple Moving Average
-    sma10Series = chart.addLineSeries({
+    sma10Series = chart.addSeries(LightweightCharts.LineSeries, {
         color: '#ff6b6b',
         lineWidth: 2,
-        lineStyle: 0 // Solid line
+        lineStyle: 0, // Solid line
+        priceScaleId: 'left'
     });
 
     // Add 50-day Simple Moving Average
-    sma50Series = chart.addLineSeries({
+    sma50Series = chart.addSeries(LightweightCharts.LineSeries, {
         color: '#4ecdc4',
         lineWidth: 2,
-        lineStyle: 0 // Solid line
+        lineStyle: 0, // Solid line
+        priceScaleId: 'left'
     });
 }
 
@@ -293,9 +312,7 @@ async function loadChartData(symbol) {
  * Clear all chart overlays
  */
 function clearChartOverlays() {
-    if (candlestickSeries) {
-        candlestickSeries.setMarkers([]);
-    }
+    // Note: In v5.0, markers are handled through plugins, not directly on series
     if (stopLossSeries) {
         stopLossSeries.setData([]);
     }

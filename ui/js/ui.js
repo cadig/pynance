@@ -28,16 +28,23 @@ function renderPositions() {
         const pnlColor = pnl > 0 ? 'green' : pnl < 0 ? 'red' : 'neutral';
         const pnlSign = pnl > 0 ? '+' : '';
         
+        // Calculate P/L percentage
+        const avgEntryPrice = parseFloat(position.avg_entry_price);
+        const currentPrice = parseFloat(position.current_price);
+        const pnlPercentage = avgEntryPrice > 0 ? ((currentPrice - avgEntryPrice) / avgEntryPrice) * 100 : 0;
+        const pnlPercentageSign = pnlPercentage > 0 ? '+' : '';
+        const pnlPercentageColor = pnlPercentage > 0 ? 'green' : pnlPercentage < 0 ? 'red' : 'neutral';
+        
         return `
             <div class="ticker-item ${warningClass}" onclick="selectTicker('${position.symbol}')">
                 <div class="ticker-symbol">
-                    ${position.symbol} ${stopLossIndicator}
+                    ${position.symbol} ${stopLossIndicator} ${!hasStopLoss ? '<span>NO STOP LOSS</span>' : ''}
                 </div>
                 <div class="ticker-info">
                     Qty: ${position.qty} | 
-                    Avg Price: $${parseFloat(position.avg_entry_price).toFixed(2)} | 
-                    P&L: <span class="pnl-value pnl-${pnlColor}">${pnlSign}$${pnl.toFixed(2)}</span>
-                    ${!hasStopLoss ? '<br><strong>⚠️ NO STOP LOSS</strong>' : ''}
+                    Avg Price: $${avgEntryPrice.toFixed(2)} | 
+                    P&L: <span class="pnl-value pnl-${pnlColor}">${pnlSign}$${pnl.toFixed(2)}</span> | 
+                    P&L%: <span class="pnl-value pnl-${pnlPercentageColor}">${pnlPercentageSign}${pnlPercentage.toFixed(2)}%</span>
                 </div>
             </div>
         `;
@@ -163,7 +170,7 @@ window.toggleSection = toggleSection;
 function updatePortfolioMetrics() {
     const positions = getPositions();
     
-    // Calculate total P&L
+    // Calculate total open P&L
     const totalPnL = positions.reduce((sum, position) => {
         return sum + (parseFloat(position.unrealized_pl) || 0);
     }, 0);
@@ -238,7 +245,7 @@ function updatePortfolioMetrics() {
             </div>
             <div class="metrics-grid">
                 <div class="metric-item">
-                    <div class="metric-label">Total P&L</div>
+                    <div class="metric-label">Total Open P&L</div>
                     <div class="metric-value ${pnlPercentage >= 0 ? 'positive' : 'negative'}">
                         ${pnlPercentage >= 0 ? '+' : ''}${pnlPercentage.toFixed(1)}%
                     </div>

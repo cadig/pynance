@@ -54,6 +54,8 @@ body {
     border-right: 1px solid #e2e8f0;
     padding: 20px;
     overflow-y: auto;
+    max-height: calc(100vh - 80px);
+    height: calc(100vh - 80px);
 }
 
 .chart-container {
@@ -93,12 +95,15 @@ body {
 .ticker-symbol {
     font-weight: bold;
     font-size: 16px;
+    display: inline-block;
+    margin-right: 10px;
 }
 
 .ticker-info {
     font-size: 12px;
     color: #64748b;
-    margin-top: 4px;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 .ticker-item.selected .ticker-info {
@@ -244,6 +249,15 @@ body {
     cursor: help;
 }
 
+.warning-symbol {
+    color: #f59e0b;
+    font-weight: bold;
+    margin-left: 4px;
+    cursor: help;
+    display: inline-block;
+    font-size: 14px;
+}
+
 /* Collapsible sections */
 .collapsible-header {
     cursor: pointer;
@@ -301,6 +315,37 @@ body {
 .positions-section .section-content,
 .trades-section .section-content {
     padding: 0 8px;
+}
+
+/* Make positions and trades lists scrollable */
+#positions-list,
+#trades-list {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+/* Custom scrollbar for positions and trades lists */
+#positions-list::-webkit-scrollbar,
+#trades-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+#positions-list::-webkit-scrollbar-track,
+#trades-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+#positions-list::-webkit-scrollbar-thumb,
+#trades-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+#positions-list::-webkit-scrollbar-thumb:hover,
+#trades-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 /* Metric value colors */
@@ -516,6 +561,24 @@ body {
 }
 
 /* Chart styles */
+.charts-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 400px;
+}
+
+.price-chart {
+    flex: 1;
+    min-height: 300px;
+}
+
+.volume-chart {
+    height: 120px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
 #chart {
     width: 100%;
     flex: 1;

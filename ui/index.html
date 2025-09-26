@@ -29,7 +29,7 @@
                     </div>
                     <div class="metrics-grid">
                         <div class="metric-item">
-                            <div class="metric-label">Total P&L</div>
+                            <div class="metric-label">Total Open P&L</div>
                             <div class="metric-value">Loading...</div>
                             <div class="metric-percentage">Loading...</div>
                         </div>
@@ -86,7 +86,10 @@
                     <button id="refresh-btn" class="btn btn-primary">Refresh Data</button>
                     <span id="selected-symbol">Select a ticker to view chart</span>
                 </div>
-                <div id="chart"></div>
+                <div class="charts-wrapper">
+                    <div id="chart" class="price-chart"></div>
+                    <div id="volume-chart" class="volume-chart"></div>
+                </div>
             </div>
         </div>
     </div>

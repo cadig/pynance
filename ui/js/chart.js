@@ -3,19 +3,27 @@
  */
 
 let chart = null;
+let volumeChart = null;
 let candlestickSeries = null;
 let stopLossSeries = null;
 let entrySeries = null;
 let exitSeries = null;
+let volumeSeries = null;
+let sma10Series = null;
+let sma50Series = null;
+let chartsSynchronized = false;
 
 /**
  * Initialize TradingView chart
  */
 function initChart() {
     const chartContainer = document.getElementById('chart');
+    const volumeContainer = document.getElementById('volume-chart');
+    
+    // Create main price chart
     chart = LightweightCharts.createChart(chartContainer, {
         width: chartContainer.clientWidth,
-        height: 500,
+        height: 400,
         layout: {
             backgroundColor: '#ffffff',
             textColor: '#333',
@@ -69,6 +77,64 @@ function initChart() {
         lineWidth: 3,
         lineStyle: 0, // Solid line
         title: 'Exit Points'
+    });
+
+    // Create separate volume chart
+    volumeChart = LightweightCharts.createChart(volumeContainer, {
+        width: volumeContainer.clientWidth,
+        height: 120,
+        layout: {
+            backgroundColor: '#f8fafc',
+            textColor: '#333',
+        },
+        grid: {
+            vertLines: {
+                color: '#e2e8f0',
+            },
+            horzLines: {
+                color: '#e2e8f0',
+            },
+        },
+        crosshair: {
+            mode: LightweightCharts.CrosshairMode.Normal,
+        },
+        rightPriceScale: {
+            borderColor: '#e2e8f0',
+            scaleMargins: {
+                top: 0.1,
+                bottom: 0.1,
+            },
+        },
+        timeScale: {
+            borderColor: '#e2e8f0',
+            timeVisible: true,
+            secondsVisible: false,
+        },
+    });
+
+    // Add volume series to separate chart
+    volumeSeries = volumeChart.addHistogramSeries({
+        color: '#26a69a',
+        priceFormat: {
+            type: 'volume',
+        },
+        title: 'Volume'
+    });
+
+    // Synchronization will be set up after data is loaded
+
+    // Add 10-day Simple Moving Average
+    sma10Series = chart.addLineSeries({
+        color: '#ff6b6b',
+        lineWidth: 2,
+        lineStyle: 0 // Solid line
+    });
+
+    // Add 50-day Simple Moving Average
+    sma50Series = chart.addLineSeries({
+        color: '#4ecdc4',
+        lineWidth: 2,
+        lineStyle: 0 // Solid line
     });
 }
 
@@ -140,7 +206,8 @@ async function loadChartData(symbol) {
                 open: open,
                 high: high,
                 low: low,
-                close: close
+                close: close,
+                volume: parseFloat(bar.v) || 0
             };
         }).filter(bar => bar !== null); // Remove any null entries
 
@@ -179,6 +246,33 @@ async function loadChartData(symbol) {
                 }
                 
                 candlestickSeries.setData(safeChartData);
+                
+                // Prepare volume data
+                const volumeData = chartData.map(bar => ({
+                    time: bar.time,
+                    value: bar.volume,
+                    color: bar.close >= bar.open ? '#26a69a' : '#ef5350' // Green for up, red for down
+                }));
+                
+                // Calculate moving averages
+                const sma10Data = calculateSMA(chartData, 10);
+                const sma50Data = calculateSMA(chartData, 50);
+                
+                // Set volume data on separate chart
+                volumeSeries.setData(volumeData);
+                
+                // Set moving average data
+                sma10Series.setData(sma10Data);
+                sma50Series.setData(sma50Data);
+                
+                // Set up synchronization after data is loaded (only once)
+                if (!chartsSynchronized) {
+                    setTimeout(() => {
+                        synchronizeCharts();
+                        chartsSynchronized = true;
+                    }, 200);
+                }
+                
                 document.getElementById('selected-symbol').textContent = `${symbol} - ${safeChartData.length} bars`;
             } catch (chartError) {
                 console.error('Error setting chart data:', chartError);
@@ -211,6 +305,15 @@ function clearChartOverlays() {
     if (exitSeries) {
         exitSeries.setData([]);
     }
+    if (volumeSeries && volumeChart) {
+        volumeSeries.setData([]);
+    }
+    if (sma10Series) {
+        sma10Series.setData([]);
+    }
+    if (sma50Series) {
+        sma50Series.setData([]);
+    }
 }
 
 /**
@@ -218,6 +321,13 @@ function clearChartOverlays() {
  */
 function getChart() {
     return chart;
+}
+
+/**
+ * Get volume chart instance
+ */
+function getVolumeChart() {
+    return volumeChart;
 }
 
 /**
@@ -246,4 +356,137 @@ function getEntrySeries() {
  */
 function getExitSeries() {
     return exitSeries;
+}
+
+/**
+ * Calculate Simple Moving Average
+ */
+function calculateSMA(data, period) {
+    const smaData = [];
+    
+    for (let i = period - 1; i < data.length; i++) {
+        let sum = 0;
+        for (let j = 0; j < period; j++) {
+            sum += data[i - j].close;
+        }
+        const average = sum / period;
+        smaData.push({
+            time: data[i].time,
+            value: average
+        });
+    }
+    
+    return smaData;
+}
+
+/**
+ * Get volume series
+ */
+function getVolumeSeries() {
+    return volumeSeries;
+}
+
+/**
+ * Get SMA 10 series
+ */
+function getSMA10Series() {
+    return sma10Series;
+}
+
+/**
+ * Get SMA 50 series
+ */
+function getSMA50Series() {
+    return sma50Series;
+}
+
+/**
+ * Synchronize charts for scrolling, zooming, and crosshair movement
+ */
+function synchronizeCharts() {
+    if (!chart || !volumeChart) return;
+    
+    // Check if volume chart has data before setting up synchronization
+    if (!volumeSeries || !volumeChart.timeScale()) {
+        console.warn('Volume chart not ready for synchronization');
+        return;
+    }
+
+    let isPriceChartScrolling = false;
+    let isVolumeChartScrolling = false;
+
+    // Synchronize time scale changes (scrolling/zooming)
+    chart.timeScale().subscribeVisibleTimeRangeChange((timeRange) => {
+        if (isPriceChartScrolling || !timeRange || !timeRange.from || !timeRange.to) return;
+        
+        isVolumeChartScrolling = true;
+        try {
+            volumeChart.timeScale().setVisibleRange(timeRange);
+        } catch (error) {
+            console.warn('Volume chart time range sync failed:', error);
+        }
+        setTimeout(() => {
+            isVolumeChartScrolling = false;
+        }, 10);
+    });
+
+    volumeChart.timeScale().subscribeVisibleTimeRangeChange((timeRange) => {
+        if (isVolumeChartScrolling || !timeRange || !timeRange.from || !timeRange.to) return;
+        
+        isPriceChartScrolling = true;
+        try {
+            chart.timeScale().setVisibleRange(timeRange);
+        } catch (error) {
+            console.warn('Price chart time range sync failed:', error);
+        }
+        setTimeout(() => {
+            isPriceChartScrolling = false;
+        }, 10);
+    });
+
+    // Synchronize crosshair movement
+    chart.subscribeCrosshairMove((param) => {
+        try {
+            if (param.point) {
+                volumeChart.setCrosshairPosition(param.point.x, param.point.y, param.seriesData);
+            } else {
+                volumeChart.clearCrosshairPosition();
+            }
+        } catch (error) {
+            console.warn('Volume chart crosshair sync failed:', error);
+        }
+    });
+
+    volumeChart.subscribeCrosshairMove((param) => {
+        try {
+            if (param.point) {
+                chart.setCrosshairPosition(param.point.x, param.point.y, param.seriesData);
+            } else {
+                chart.clearCrosshairPosition();
+            }
+        } catch (error) {
+            console.warn('Price chart crosshair sync failed:', error);
+        }
+    });
+
+    // Synchronize clicks
+    chart.subscribeClick((param) => {
+        try {
+            if (param.point) {
+                volumeChart.setCrosshairPosition(param.point.x, param.point.y, param.seriesData);
+            }
+        } catch (error) {
+            console.warn('Volume chart click sync failed:', error);
+        }
+    });
+
+    volumeChart.subscribeClick((param) => {
+        try {
+            if (param.point) {
+                chart.setCrosshairPosition(param.point.x, param.point.y, param.seriesData);
+            }
+        } catch (error) {
+            console.warn('Price chart click sync failed:', error);
+        }
+    });
 }

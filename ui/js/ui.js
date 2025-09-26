@@ -16,16 +16,25 @@ function renderPositions() {
         return;
     }
 
-    container.innerHTML = positions.map(position => `
-        <div class="ticker-item" onclick="selectTicker('${position.symbol}')">
-            <div class="ticker-symbol">${position.symbol}</div>
-            <div class="ticker-info">
-                Qty: ${position.qty} | 
-                Avg Price: $${parseFloat(position.avg_entry_price).toFixed(2)} | 
-                P&L: $${parseFloat(position.unrealized_pl).toFixed(2)}
+    container.innerHTML = positions.map(position => {
+        const hasStopLoss = hasStopLossOrder(position.symbol);
+        const warningClass = hasStopLoss ? '' : 'no-stop-loss';
+        const stopLossIndicator = hasStopLoss ? '🛡️' : '⚠️';
+        
+        return `
+            <div class="ticker-item ${warningClass}" onclick="selectTicker('${position.symbol}')">
+                <div class="ticker-symbol">
+                    ${position.symbol} ${stopLossIndicator}
+                </div>
+                <div class="ticker-info">
+                    Qty: ${position.qty} | 
+                    Avg Price: $${parseFloat(position.avg_entry_price).toFixed(2)} | 
+                    P&L: $${parseFloat(position.unrealized_pl).toFixed(2)}
+                    ${!hasStopLoss ? '<br><strong>⚠️ NO STOP LOSS</strong>' : ''}
+                </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 /**

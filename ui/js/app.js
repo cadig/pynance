@@ -18,6 +18,8 @@ async function init() {
         try {
             console.log('Loading positions...');
             await loadPositions();
+            console.log('Loading current orders for stop loss analysis...');
+            await loadCurrentOrders();
             console.log('Rendering positions...');
             renderPositions();
         } catch (error) {
@@ -419,6 +421,7 @@ async function refreshData() {
     updateSelectedSymbol('', 'Refreshing...');
     try {
         await loadPositions();
+        await loadCurrentOrders();
         renderPositions();
     } catch (error) {
         showPositionsError();

@@ -84,6 +84,31 @@ async function loadHistoricalTrades() {
 }
 
 /**
+ * Load all current orders (for stop loss analysis)
+ */
+async function loadCurrentOrders() {
+    try {
+        const response = await fetch(`${ALPACA_CONFIG.baseUrl}/v2/orders?status=all&limit=100`, {
+            headers: {
+                'APCA-API-KEY-ID': ALPACA_CONFIG.apiKey,
+                'APCA-API-SECRET-KEY': ALPACA_CONFIG.secretKey
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to load current orders: ${response.statusText}`);
+        }
+
+        currentOrders = await response.json();
+        console.log('Current orders loaded:', currentOrders.length);
+        return currentOrders;
+    } catch (error) {
+        console.error('Error loading current orders:', error);
+        throw error;
+    }
+}
+
+/**
  * Load orders for a specific symbol
  */
 async function loadOrdersForSymbol(symbol) {
@@ -136,4 +161,20 @@ function getHistoricalTrades() {
  */
 function getCurrentOrders() {
     return currentOrders;
+}
+
+/**
+ * Check if a position has an active stop loss order
+ */
+function hasStopLossOrder(symbol) {
+    if (!currentOrders || currentOrders.length === 0) {
+        return false;
+    }
+    
+    return currentOrders.some(order => 
+        order.symbol === symbol && 
+        order.order_type === 'stop' && 
+        order.side === 'sell' && 
+        (order.status === 'new' || order.status === 'accepted' || order.status === 'partially_filled')
+    );
 }

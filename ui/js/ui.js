@@ -127,3 +127,121 @@ function showTradesLoading() {
 function showTradesError() {
     document.getElementById('trades-list').innerHTML = '<div class="error">Failed to load trades</div>';
 }
+
+/**
+ * Update Portfolio Metrics with current data
+ */
+function updatePortfolioMetrics() {
+    const positions = getPositions();
+    
+    // Calculate total P&L
+    const totalPnL = positions.reduce((sum, position) => {
+        return sum + (parseFloat(position.unrealized_pl) || 0);
+    }, 0);
+    
+    // Calculate total risk to stop using real stop loss data
+    let totalRisk = 0;
+    let positionsWithoutStopLoss = 0;
+    
+    positions.forEach(position => {
+        const currentPrice = parseFloat(position.current_price) || 0;
+        const qty = parseFloat(position.qty) || 0;
+        
+        if (currentPrice > 0 && qty > 0) {
+            // Check if position has a stop loss order
+            const stopLossOrder = getCurrentOrders().find(order => 
+                order.symbol === position.symbol && 
+                order.order_type === 'stop' && 
+                order.side === 'sell' && 
+                (order.status === 'new' || order.status === 'accepted' || order.status === 'partially_filled')
+            );
+            
+            if (stopLossOrder && stopLossOrder.stop_price) {
+                const stopPrice = parseFloat(stopLossOrder.stop_price);
+                const riskPerShare = Math.abs(currentPrice - stopPrice);
+                const totalPositionRisk = riskPerShare * Math.abs(qty);
+                totalRisk += totalPositionRisk;
+            } else {
+                // Position has no stop loss
+                positionsWithoutStopLoss++;
+            }
+        }
+    });
+    
+    // Count positions
+    const positionCount = positions.length;
+    
+    // Calculate percentage P&L (mock calculation)
+    const totalValue = positions.reduce((sum, position) => {
+        return sum + (parseFloat(position.qty) * parseFloat(position.avg_entry_price));
+    }, 0);
+    const pnlPercentage = totalValue > 0 ? (totalPnL / totalValue) * 100 : 0;
+    
+    // Calculate capital usage using real account equity
+    const totalCapital = getAccountEquity();
+    const capitalUsage = totalCapital > 0 ? (totalValue / totalCapital) * 100 : 0;
+    const capitalUsageAmount = totalValue;
+    
+    // Handle case where account data is not available
+    const capitalUsageDisplay = totalCapital > 0 ? capitalUsage.toFixed(1) : 'N/A';
+    const capitalUsageAmountDisplay = totalCapital > 0 ? `$${capitalUsageAmount.toFixed(0)}` : 'N/A';
+    
+    // Total equity is now included in the metrics container update below
+    
+    // Log account data for debugging
+    console.log('Account equity:', totalCapital);
+    console.log('Total position value:', totalValue);
+    console.log('Capital usage:', capitalUsage.toFixed(1) + '%');
+    console.log('Total risk to stop:', totalRisk);
+    console.log('Positions without stop loss:', positionsWithoutStopLoss);
+    
+    // Update the metrics display
+    const metricsContainer = document.querySelector('.portfolio-metrics');
+    if (metricsContainer) {
+        const formattedEquity = totalCapital > 0 ? 
+            `$${totalCapital.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 
+            'Loading...';
+            
+        metricsContainer.innerHTML = `
+            <div class="metrics-title">Portfolio Metrics</div>
+            <div class="account-equity">
+                <span class="equity-label">Total Equity:</span>
+                <span class="equity-value" id="total-equity">${formattedEquity}</span>
+            </div>
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    <div class="metric-label">Total P&L</div>
+                    <div class="metric-value ${pnlPercentage >= 0 ? 'positive' : 'negative'}">
+                        ${pnlPercentage >= 0 ? '+' : ''}${pnlPercentage.toFixed(1)}%
+                    </div>
+                    <div class="metric-percentage ${totalPnL >= 0 ? 'pnl-positive' : 'pnl-negative'}">
+                        ${totalPnL >= 0 ? '+' : ''}$${totalPnL.toFixed(2)}
+                    </div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">Risk to Stop ${positionsWithoutStopLoss > 0 ? '⚠️' : ''}</div>
+                    <div class="metric-value ${totalCapital > 0 ? ((totalRisk / totalCapital) * 100) < 1 ? 'risk-low' : ((totalRisk / totalCapital) * 100) < 2 ? 'risk-medium' : 'risk-high' : 'risk-low'}" ${positionsWithoutStopLoss > 0 ? 'title="Some positions do not have a stop loss"' : ''}>
+                        ${totalCapital > 0 ? ((totalRisk / totalCapital) * 100).toFixed(1) : '0.0'}%
+                    </div>
+                    <div class="metric-percentage">
+                        $${totalRisk.toFixed(0)}
+                    </div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">Capital Usage</div>
+                    <div class="metric-value ${totalCapital > 0 ? (capitalUsage < 50 ? 'capital-low' : capitalUsage < 80 ? 'capital-medium' : 'capital-high') : 'capital-medium'}">
+                        ${capitalUsageDisplay}%
+                    </div>
+                    <div class="metric-percentage">
+                        ${capitalUsageAmountDisplay}
+                    </div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">Positions</div>
+                    <div class="metric-value positions-count">${positionCount}</div>
+                    <div class="metric-subtitle">Active</div>
+                </div>
+            </div>
+        `;
+    }
+}

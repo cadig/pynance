@@ -17,12 +17,16 @@ async function init() {
         
         // Load initial data
         try {
+            console.log('Loading account data...');
+            await loadAccountData();
             console.log('Loading positions...');
             await loadPositions();
             console.log('Loading current orders for stop loss analysis...');
             await loadCurrentOrders();
             console.log('Rendering positions...');
             renderPositions();
+            console.log('Updating portfolio metrics...');
+            updatePortfolioMetrics();
         } catch (error) {
             console.error('Error loading positions:', error);
             showPositionsError();
@@ -421,9 +425,11 @@ async function addStopLossLines(stopLossOrders) {
 async function refreshData() {
     updateSelectedSymbol('', 'Refreshing...');
     try {
+        await loadAccountData();
         await loadPositions();
         await loadCurrentOrders();
         renderPositions();
+        updatePortfolioMetrics();
     } catch (error) {
         showPositionsError();
     }

@@ -13,12 +13,12 @@ body {
 /* Layout */
 .container {
     max-width: 1400px;
-    margin: 20px auto;
+    margin: auto;
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     overflow: hidden;
-    height: calc(100vh - 40px);
+    height: calc(100vh - 20px);
     display: flex;
     flex-direction: column;
 }
@@ -26,8 +26,20 @@ body {
 .header {
     background: #2563eb;
     color: white;
-    padding: 8px 12px;
+    padding: 4px 12px;
     text-align: center;
+}
+
+.header h1 {
+    font-size: 18px;
+    margin: 0 0 2px 0;
+    font-weight: 600;
+}
+
+.header p {
+    font-size: 12px;
+    margin: 0;
+    opacity: 0.9;
 }
 
 .main-content {
@@ -140,6 +152,149 @@ body {
 @keyframes blink {
     0%, 50% { opacity: 1; }
     51%, 100% { opacity: 0.3; }
+}
+
+/* Portfolio Metrics */
+.portfolio-metrics {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 16px;
+}
+
+.metrics-title {
+    font-weight: 500;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 8px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.account-equity {
+    text-align: center;
+    margin-bottom: 10px;
+    padding: 6px;
+    background: #f1f5f9;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+}
+
+.equity-label {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 500;
+    margin-right: 6px;
+}
+
+.equity-value {
+    font-size: 14px;
+    font-weight: bold;
+    color: #1e293b;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.metric-item {
+    text-align: center;
+    padding: 6px;
+    background: white;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+}
+
+.metric-label {
+    font-size: 10px;
+    color: #64748b;
+    font-weight: 500;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-value {
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+.metric-percentage {
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.metric-subtitle {
+    font-size: 10px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+/* Warning symbol in metric labels */
+.metric-label {
+    position: relative;
+}
+
+.metric-label:hover {
+    cursor: help;
+}
+
+/* Metric value colors */
+.metric-value.pnl-positive {
+    color: #059669;
+}
+
+.metric-value.pnl-negative {
+    color: #dc2626;
+}
+
+.metric-value.risk-low {
+    color: #059669;
+}
+
+.metric-value.risk-medium {
+    color: #d97706;
+}
+
+.metric-value.risk-high {
+    color: #dc2626;
+}
+
+.metric-value.positions-count {
+    color: #2563eb;
+}
+
+.metric-value.capital-low {
+    color: #059669;
+}
+
+.metric-value.capital-medium {
+    color: #d97706;
+}
+
+.metric-value.capital-high {
+    color: #dc2626;
+}
+
+.metric-value.positive {
+    color: #059669;
+}
+
+.metric-value.negative {
+    color: #dc2626;
+}
+
+.metric-percentage.positive {
+    color: #059669;
+}
+
+.metric-percentage.negative {
+    color: #dc2626;
 }
 
 /* Section titles */
@@ -348,5 +503,19 @@ body {
     
     #chart {
         min-height: 300px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .metrics-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+}
+
+@media (max-width: 800px) {
+    .metrics-grid {
+        grid-template-columns: 1fr;
+        gap: 4px;
     }
 }

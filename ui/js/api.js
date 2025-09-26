@@ -5,6 +5,7 @@
 let positions = [];
 let historicalTrades = [];
 let currentOrders = [];
+let accountData = null;
 
 /**
  * Load Alpaca credentials from config
@@ -79,6 +80,31 @@ async function loadHistoricalTrades() {
         return historicalTrades;
     } catch (error) {
         console.error('Error loading trades:', error);
+        throw error;
+    }
+}
+
+/**
+ * Load account data from Alpaca
+ */
+async function loadAccountData() {
+    try {
+        const response = await fetch(`${ALPACA_CONFIG.baseUrl}/v2/account`, {
+            headers: {
+                'APCA-API-KEY-ID': ALPACA_CONFIG.apiKey,
+                'APCA-API-SECRET-KEY': ALPACA_CONFIG.secretKey
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to load account data: ${response.statusText}`);
+        }
+
+        accountData = await response.json();
+        console.log('Account data loaded:', accountData);
+        return accountData;
+    } catch (error) {
+        console.error('Error loading account data:', error);
         throw error;
     }
 }
@@ -161,6 +187,29 @@ function getHistoricalTrades() {
  */
 function getCurrentOrders() {
     return currentOrders;
+}
+
+/**
+ * Get account data
+ */
+function getAccountData() {
+    return accountData;
+}
+
+/**
+ * Get account equity (total account value)
+ */
+function getAccountEquity() {
+    if (!accountData) return 0;
+    return parseFloat(accountData.equity) || 0;
+}
+
+/**
+ * Get buying power (available cash for trading)
+ */
+function getBuyingPower() {
+    if (!accountData) return 0;
+    return parseFloat(accountData.buying_power) || 0;
 }
 
 /**

@@ -3,6 +3,7 @@
  */
 
 let selectedSymbol = null;
+let pnlSortState = 'original'; // 'original', 'asc', 'desc'
 
 /**
  * Initialize the application
@@ -455,4 +456,63 @@ async function refreshData() {
  */
 function getSelectedSymbol() {
     return selectedSymbol;
+}
+
+/**
+ * Toggle P&L sorting
+ */
+function togglePnlSorting() {
+    const positions = getPositions();
+    if (!positions || positions.length === 0) return;
+    
+    // Cycle through sorting states
+    if (pnlSortState === 'original') {
+        pnlSortState = 'asc';
+    } else if (pnlSortState === 'asc') {
+        pnlSortState = 'desc';
+    } else {
+        pnlSortState = 'original';
+    }
+    
+    // Update button appearance
+    const btn = document.getElementById('pnl-filter-btn');
+    btn.className = 'pnl-filter-btn';
+    
+    if (pnlSortState === 'asc') {
+        btn.classList.add('asc');
+        btn.textContent = 'P&L ↑';
+        btn.title = 'Sort by P&L (Ascending)';
+    } else if (pnlSortState === 'desc') {
+        btn.classList.add('desc');
+        btn.textContent = 'P&L ↓';
+        btn.title = 'Sort by P&L (Descending)';
+    } else {
+        btn.textContent = 'P&L ↕️';
+        btn.title = 'Sort by P&L (Original Order)';
+    }
+    
+    // Re-render positions with new sorting
+    renderPositions();
+}
+
+/**
+ * Sort positions by P&L
+ */
+function sortPositionsByPnl(positions) {
+    if (pnlSortState === 'original') {
+        return positions; // Return original order
+    }
+    
+    const sorted = [...positions].sort((a, b) => {
+        const pnlA = parseFloat(a.unrealized_pl) || 0;
+        const pnlB = parseFloat(b.unrealized_pl) || 0;
+        
+        if (pnlSortState === 'asc') {
+            return pnlA - pnlB; // Ascending: lowest P&L first
+        } else {
+            return pnlB - pnlA; // Descending: highest P&L first
+        }
+    });
+    
+    return sorted;
 }

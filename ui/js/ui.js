@@ -11,15 +11,22 @@ function renderPositions() {
     const positions = getPositions();
     console.log('Positions data:', positions);
     
-    if (positions.length === 0) {
+    // Apply P&L sorting if available
+    const sortedPositions = typeof sortPositionsByPnl === 'function' ? sortPositionsByPnl(positions) : positions;
+    
+    if (sortedPositions.length === 0) {
         container.innerHTML = '<div class="loading">No current positions</div>';
         return;
     }
 
-    container.innerHTML = positions.map(position => {
+    container.innerHTML = sortedPositions.map(position => {
         const hasStopLoss = hasStopLossOrder(position.symbol);
         const warningClass = hasStopLoss ? '' : 'no-stop-loss';
         const stopLossIndicator = hasStopLoss ? '🛡️' : '⚠️';
+        
+        const pnl = parseFloat(position.unrealized_pl);
+        const pnlColor = pnl > 0 ? 'green' : pnl < 0 ? 'red' : 'neutral';
+        const pnlSign = pnl > 0 ? '+' : '';
         
         return `
             <div class="ticker-item ${warningClass}" onclick="selectTicker('${position.symbol}')">
@@ -29,7 +36,7 @@ function renderPositions() {
                 <div class="ticker-info">
                     Qty: ${position.qty} | 
                     Avg Price: $${parseFloat(position.avg_entry_price).toFixed(2)} | 
-                    P&L: $${parseFloat(position.unrealized_pl).toFixed(2)}
+                    P&L: <span class="pnl-value pnl-${pnlColor}">${pnlSign}$${pnl.toFixed(2)}</span>
                     ${!hasStopLoss ? '<br><strong>⚠️ NO STOP LOSS</strong>' : ''}
                 </div>
             </div>

@@ -149,6 +149,112 @@ body {
     color: #1e293b;
 }
 
+/* Section header with filter */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.section-header .section-title {
+    margin-bottom: 0;
+}
+
+/* P&L Filter button */
+.pnl-filter-btn {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 50px;
+}
+
+.pnl-filter-btn:hover {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+.pnl-filter-btn:active {
+    background: #cbd5e1;
+    transform: scale(0.95);
+}
+
+/* Filter button states */
+.pnl-filter-btn.asc {
+    background: #dcfce7;
+    border-color: #22c55e;
+    color: #166534;
+}
+
+.pnl-filter-btn.desc {
+    background: #fef2f2;
+    border-color: #ef4444;
+    color: #991b1b;
+}
+
+/* P&L Value Colors */
+.pnl-value {
+    font-weight: bold;
+    font-size: 11px;
+    display: inline-block;
+    white-space: nowrap;
+}
+
+.pnl-value.pnl-green {
+    color: #059669;
+    background: #d1fae5;
+    padding: 1px 3px;
+    border-radius: 2px;
+    border: 1px solid #a7f3d0;
+}
+
+.pnl-value.pnl-red {
+    color: #dc2626;
+    background: #fee2e2;
+    padding: 1px 3px;
+    border-radius: 2px;
+    border: 1px solid #fca5a5;
+}
+
+.pnl-value.pnl-neutral {
+    color: #6b7280;
+    background: #f3f4f6;
+    padding: 1px 3px;
+    border-radius: 2px;
+    border: 1px solid #d1d5db;
+}
+
+/* P&L values in warning positions (no stop loss) */
+.ticker-item.no-stop-loss .pnl-value.pnl-green {
+    color: #166534;
+    background: #bbf7d0;
+    border-color: #86efac;
+    padding: 1px 3px;
+    border-radius: 2px;
+}
+
+.ticker-item.no-stop-loss .pnl-value.pnl-red {
+    color: #991b1b;
+    background: #fecaca;
+    border-color: #f87171;
+    padding: 1px 3px;
+    border-radius: 2px;
+}
+
+.ticker-item.no-stop-loss .pnl-value.pnl-neutral {
+    color: #92400e;
+    background: #fef3c7;
+    border-color: #fde68a;
+    padding: 1px 3px;
+    border-radius: 2px;
+}
+
 /* Status indicators */
 .loading {
     text-align: center;

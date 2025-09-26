@@ -16,7 +16,10 @@
         
         <div class="main-content">
             <div class="sidebar">
-                <div class="section-title">Current Positions</div>
+                <div class="section-header">
+                    <div class="section-title">Current Positions</div>
+                    <button id="pnl-filter-btn" class="pnl-filter-btn" title="Sort by P&L (Original Order)">P&L ↕️</button>
+                </div>
                 <div id="positions-list" class="ticker-list">
                     <div class="loading">Loading positions...</div>
                 </div>
@@ -45,6 +48,7 @@
     <script>
         // Event listeners
         document.getElementById('refresh-btn').addEventListener('click', refreshData);
+        document.getElementById('pnl-filter-btn').addEventListener('click', togglePnlSorting);
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', init);

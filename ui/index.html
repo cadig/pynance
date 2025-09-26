@@ -85,6 +85,8 @@
             <div class="chart-container">
                 <div class="chart-controls">
                     <button id="refresh-btn" class="btn btn-primary">Refresh Data</button>
+                    <button id="universe-btn" class="btn btn-secondary" onclick="openUniverse()">Single Stock Universe</button>
+                    <button id="regime-btn" class="btn btn-secondary" onclick="openRegime()">Regime</button>
                     <span id="selected-symbol">Select a ticker to view chart</span>
                 </div>
                 <div class="charts-wrapper">
@@ -104,6 +106,16 @@
         // Event listeners
         document.getElementById('refresh-btn').addEventListener('click', refreshData);
         document.getElementById('pnl-filter-btn').addEventListener('click', togglePnlSorting);
+
+        // Open Single Stock Universe in new tab
+        function openUniverse() {
+            window.open('https://finviz.com/screener.ashx?v=310&f=cap_midover,fa_epsqoq_high,sh_avgvol_o100,sh_curvol_o100,ta_perf_13wup,ta_sma200_pa&ft=4&o=-perf26w', '_blank');
+        }
+
+        // Open SPX Regime Analysis in new tab
+        function openRegime() {
+            window.open('https://cadig.github.io/pynance/', '_blank');
+        }
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', init);

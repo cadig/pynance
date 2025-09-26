@@ -18,7 +18,11 @@
             <div class="sidebar">
                 <!-- Portfolio Metrics -->
                 <div class="portfolio-metrics">
-                    <div class="metrics-title">Portfolio Metrics</div>
+                    <div class="section-header collapsible-header" onclick="toggleSection('portfolio-metrics')">
+                        <span class="section-title">Portfolio Metrics</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="section-content">
                     <div class="account-equity">
                         <span class="equity-label">Total Equity:</span>
                         <span class="equity-value" id="total-equity">Loading...</span>
@@ -45,19 +49,35 @@
                             <div class="metric-subtitle">Loading...</div>
                         </div>
                     </div>
+                    </div>
                 </div>
                 
-                <div class="section-header">
-                    <div class="section-title">Current Positions</div>
-                    <button id="pnl-filter-btn" class="pnl-filter-btn" title="Sort by P&L (Original Order)">P&L ↕️</button>
-                </div>
-                <div id="positions-list" class="ticker-list">
-                    <div class="loading">Loading positions...</div>
+                <div class="positions-section">
+                    <div class="section-header collapsible-header" onclick="toggleSection('positions-section')">
+                        <span class="section-title">Current Positions</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="section-header">
+                            <div class="section-title"></div>
+                            <button id="pnl-filter-btn" class="pnl-filter-btn" title="Sort by P&L (Original Order)">P&L ↕️</button>
+                        </div>
+                        <div id="positions-list" class="ticker-list">
+                            <div class="loading">Loading positions...</div>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="section-title">Historical Trades</div>
-                <div id="trades-list" class="ticker-list">
-                    <div class="loading">Loading trades...</div>
+                <div class="trades-section">
+                    <div class="section-header collapsible-header" onclick="toggleSection('trades-section')">
+                        <span class="section-title">Historical Trades</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="section-content">
+                        <div id="trades-list" class="ticker-list">
+                            <div class="loading">Loading trades...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
             

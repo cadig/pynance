@@ -129,6 +129,35 @@ function showTradesError() {
 }
 
 /**
+ * Toggle collapsible section
+ */
+function toggleSection(sectionId) {
+    const section = document.querySelector(`.${sectionId}`);
+    if (!section) return;
+    
+    const header = section.querySelector('.collapsible-header');
+    const content = section.querySelector('.section-content');
+    
+    if (!header || !content) return;
+    
+    // Toggle collapsed state
+    const isCollapsed = header.classList.contains('collapsed');
+    
+    if (isCollapsed) {
+        // Expand
+        header.classList.remove('collapsed');
+        content.classList.remove('collapsed');
+    } else {
+        // Collapse
+        header.classList.add('collapsed');
+        content.classList.add('collapsed');
+    }
+}
+
+// Make toggleSection globally available
+window.toggleSection = toggleSection;
+
+/**
  * Update Portfolio Metrics with current data
  */
 function updatePortfolioMetrics() {
@@ -196,14 +225,13 @@ function updatePortfolioMetrics() {
     console.log('Positions without stop loss:', positionsWithoutStopLoss);
     
     // Update the metrics display
-    const metricsContainer = document.querySelector('.portfolio-metrics');
+    const metricsContainer = document.querySelector('.portfolio-metrics .section-content');
     if (metricsContainer) {
         const formattedEquity = totalCapital > 0 ? 
             `$${totalCapital.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 
             'Loading...';
             
         metricsContainer.innerHTML = `
-            <div class="metrics-title">Portfolio Metrics</div>
             <div class="account-equity">
                 <span class="equity-label">Total Equity:</span>
                 <span class="equity-value" id="total-equity">${formattedEquity}</span>

@@ -293,6 +293,10 @@ async function loadChartData(symbol) {
                 sma10Series.setData(sma10Data);
                 sma50Series.setData(sma50Data);
                 
+                // Fit content to ensure proper scaling and eliminate whitespace
+                chart.timeScale().fitContent();
+                volumeChart.timeScale().fitContent();
+                
                 // Set up synchronization after data is loaded (only once)
                 if (!chartsSynchronized) {
                     setTimeout(() => {

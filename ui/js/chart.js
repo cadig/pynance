@@ -27,6 +27,7 @@ function initChart() {
         layout: {
             backgroundColor: '#ffffff',
             textColor: '#333',
+            attributionLogo: false,
         },
         grid: {
             vertLines: {
@@ -103,6 +104,7 @@ function initChart() {
         layout: {
             backgroundColor: '#f8fafc',
             textColor: '#333',
+            attributionLogo: false,
         },
         grid: {
             vertLines: {
@@ -115,12 +117,16 @@ function initChart() {
         crosshair: {
             mode: LightweightCharts.CrosshairMode.Normal,
         },
-        rightPriceScale: {
+        leftPriceScale: {
             borderColor: '#e2e8f0',
+            visible: true,
             scaleMargins: {
                 top: 0.1,
                 bottom: 0.1,
             },
+        },
+        rightPriceScale: {
+            visible: false,
         },
         timeScale: {
             borderColor: '#e2e8f0',
@@ -135,7 +141,8 @@ function initChart() {
         priceFormat: {
             type: 'volume',
         },
-        title: 'Volume'
+        title: 'Volume',
+        priceScaleId: 'left'
     });
 
     // Synchronization will be set up after data is loaded
@@ -145,7 +152,8 @@ function initChart() {
         color: '#ff6b6b',
         lineWidth: 2,
         lineStyle: 0, // Solid line
-        priceScaleId: 'left'
+        priceScaleId: 'left',
+        title: '' // Hide from legend
     });
 
     // Add 50-day Simple Moving Average
@@ -153,7 +161,8 @@ function initChart() {
         color: '#4ecdc4',
         lineWidth: 2,
         lineStyle: 0, // Solid line
-        priceScaleId: 'left'
+        priceScaleId: 'left',
+        title: '' // Hide from legend
     });
 }
 

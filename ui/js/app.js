@@ -6,6 +6,137 @@ let selectedSymbol = null;
 let pnlSortState = 'original'; // 'original', 'asc', 'desc'
 
 /**
+ * Update script status indicators
+ */
+async function updateScriptStatus() {
+    const scriptStatusContainer = document.querySelector('.script-status');
+    if (!scriptStatusContainer) return;
+
+    // Show loading state
+    scriptStatusContainer.innerHTML = `
+        <div class="script-item">
+            <div class="script-indicator script-loading"></div>
+            <span class="script-name">Loading...</span>
+            <span class="script-timestamp">Checking status...</span>
+        </div>
+    `;
+
+    try {
+        // Fetch real data for Regime Detector
+        const regimeDetectorData = await fetchRegimeDetectorStatus();
+        
+        // Mock data for other scripts (can be replaced with real API calls later)
+        const scriptStatuses = [
+            {
+                name: 'Trend Trader',
+                lastUpdated: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+                status: 'running'
+            },
+            {
+                name: 'Risk Manager', 
+                lastUpdated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+                status: 'warning'
+            },
+            {
+                name: 'Regime Detector',
+                lastUpdated: regimeDetectorData.lastUpdated,
+                status: regimeDetectorData.status
+            }
+        ];
+
+        scriptStatusContainer.innerHTML = scriptStatuses.map(script => {
+            const timeAgo = getTimeAgo(script.lastUpdated);
+            const statusClass = script.status;
+            
+            return `
+                <div class="script-item">
+                    <div class="script-indicator script-${statusClass}"></div>
+                    <span class="script-name">${script.name}</span>
+                    <span class="script-timestamp">Last updated: ${timeAgo}</span>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Error updating script status:', error);
+        // Show error state
+        scriptStatusContainer.innerHTML = `
+            <div class="script-item">
+                <div class="script-indicator script-error"></div>
+                <span class="script-name">Status Check Failed</span>
+                <span class="script-timestamp">Unable to load status</span>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Fetch Regime Detector status from API
+ */
+async function fetchRegimeDetectorStatus() {
+    try {
+        const response = await fetch('https://cadig.github.io/pynance/spx-regime-results.json');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const lastUpdated = new Date(data.datetime);
+        const status = getScriptStatus(lastUpdated);
+        
+        return {
+            lastUpdated: lastUpdated,
+            status: status
+        };
+    } catch (error) {
+        console.error('Error fetching Regime Detector status:', error);
+        // Return error state
+        return {
+            lastUpdated: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+            status: 'error'
+        };
+    }
+}
+
+/**
+ * Get human-readable time ago string
+ */
+function getTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+    if (diffDays > 0) {
+        return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    } else if (diffHours > 0) {
+        return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    } else if (diffMinutes > 0) {
+        return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+    } else {
+        return 'Just now';
+    }
+}
+
+/**
+ * Determine script status based on last updated time
+ */
+function getScriptStatus(lastUpdated) {
+    const now = new Date();
+    const diffMs = now - lastUpdated;
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+    if (diffDays <= 1) {
+        return 'running'; // Green - within 1 day
+    } else if (diffDays <= 3) {
+        return 'warning'; // Yellow - 1-3 days
+    } else {
+        return 'error'; // Red - more than 3 days
+    }
+}
+
+/**
  * Initialize the application
  */
 async function init() {
@@ -54,6 +185,11 @@ async function init() {
         // Initialize chart
         console.log('Initializing chart...');
         initChart();
+        
+        // Update script status indicators
+        console.log('Updating script status...');
+        await updateScriptStatus();
+        
         console.log('Application initialized successfully');
         
     } catch (error) {
@@ -646,6 +782,9 @@ async function refreshData() {
         console.error('Error refreshing orders:', error);
         showOrdersError();
     }
+    
+    // Update script status
+    await updateScriptStatus();
     
     if (selectedSymbol) {
         try {

@@ -16,6 +16,8 @@ sys.path.append('..')
 from finviz.finvizScanner import scan_multiple_criteria
 from RegimeDetector import RegimeDetector
 from RiskManager import RiskManager
+from alpaca_utils import get_alpaca_variables, initialize_alpaca_api, fetch_bars, calculate_atr, ATR_PERIOD
+from risk_utils import calculate_risk_metrics, check_missing_stop_loss_orders, add_stop_loss_order, STOP_LOSS_ATR_MULT
 
 # === CONFIG ===
 MAX_POSITIONS = 40
@@ -23,51 +25,12 @@ MAX_POSITIONS_PER_DAY = 4  # Maximum new positions to enter per day
 LONG_MA_PERIOD = 50
 SHORT_MA_PERIOD = 10
 EXTENDED_ATR_EXIT_MULT = 14
-ATR_PERIOD = 20
 EXTENSION_MULT = 2.5
-STOP_LOSS_ATR_MULT = 4.0  # ATR multiplier for stop loss
 LIMIT_PRICE_ATR_MULT = 0.1  # ATR multiplier for limit price in stop-limit orders
 TRAILING_STOP_MIN_MOVE = 0.5  # Minimum ATR move required to update trailing stop
 EXCLUDE_TICKERS = ['RUM']  # List of tickers to exclude from universe
 DRY_RUN = True  # Set to False to submit actual orders
 
-def get_alpaca_variables(whichAccount: str):
-    config = ConfigParser()
-    config.read('../../config/alpaca-config.ini')
-    return {
-        'api_key': config.get(whichAccount, 'API_KEY'),
-        'api_secret': config.get(whichAccount, 'API_SECRET'),
-    }
-
-def calculate_risk_metrics(entry_price, stop_price, qty, account_value=None):
-    """
-    Calculate all risk-related metrics for a position
-    
-    Args:
-        entry_price (float): Entry price per share
-        stop_price (float): Stop loss price per share
-        qty (int): Number of shares
-        account_value (float, optional): Total account value for percentage calculations
-    
-    Returns:
-        dict: {
-            'dollar_risk': float,
-            'percent_risk': float, 
-            'position_cost': float,
-            'percent_to_stop': float
-        }
-    """
-    dollar_risk = (entry_price - stop_price) * qty
-    percent_risk = (dollar_risk / account_value * 100) if account_value else 0
-    position_cost = entry_price * qty
-    percent_to_stop = ((entry_price - stop_price) / entry_price * 100)
-    
-    return {
-        'dollar_risk': dollar_risk,
-        'percent_risk': percent_risk,
-        'position_cost': position_cost,
-        'percent_to_stop': percent_to_stop
-    }
 
 def get_regime_based_risk():
     """
@@ -103,17 +66,6 @@ def get_regime_based_risk():
         print("Falling back to default risk percentage: 0.2%")
         return 0.2  # Fallback to 0.2% if regime data unavailable
 
-def initialize_alpaca_api():
-    alpaca_config = get_alpaca_variables('paper')
-    trading_client = TradingClient(
-        api_key=alpaca_config['api_key'], 
-        secret_key=alpaca_config['api_secret'], 
-    )
-    data_client = StockHistoricalDataClient(
-        api_key=alpaca_config['api_key'],
-        secret_key=alpaca_config['api_secret'],
-    )
-    return trading_client, data_client
 
 def load_universe_tickers():
     """Load tickers using the finviz screener and exclude specified tickers"""
@@ -138,29 +90,6 @@ def load_universe_tickers():
     return filtered_tickers
 
 # === Helper Functions ===
-def fetch_bars(symbol, limit=100):
-    end = datetime.now(timezone.utc)
-    start = end - timedelta(days=100)
-    try:
-        request_params = StockBarsRequest(
-            symbol_or_symbols=symbol,
-            timeframe=TimeFrame.Day,
-            start=start,
-        )
-        bars = data_client.get_stock_bars(request_params)
-        if bars and hasattr(bars, 'df'):
-            return bars.df
-    except Exception as e:
-        print(f"Error fetching {symbol}: {e}")
-    return pd.DataFrame()
-
-def calculate_atr(df, period=ATR_PERIOD):
-    df['H-L'] = df['high'] - df['low']
-    df['H-PC'] = np.abs(df['high'] - df['close'].shift(1))
-    df['L-PC'] = np.abs(df['low'] - df['close'].shift(1))
-    df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
-    df['ATR'] = df['TR'].rolling(period).mean()
-    return df
 
 def should_enter(df):
     if len(df) < max(ATR_PERIOD, LONG_MA_PERIOD) + 1:
@@ -203,7 +132,7 @@ def should_exit_extended(df):
 
 def spy_above_long_ma():
     try:
-        spy = fetch_bars('SPY', 60)
+        spy = fetch_bars('SPY', data_client, 60)
         if len(spy) < LONG_MA_PERIOD:
             return False
         sma_long = spy['close'].rolling(LONG_MA_PERIOD).mean().iloc[-1]
@@ -315,7 +244,7 @@ def update_trailing_stops_with_live_data(live_data, position_tracker):
     for symbol in position_symbols:
         try:
             # Get current price and ATR
-            bars = fetch_bars(symbol)
+            bars = fetch_bars(symbol, data_client)
             if bars.empty:
                 continue
                 
@@ -356,7 +285,7 @@ def update_trailing_stops_with_live_data(live_data, position_tracker):
                         
                         # Add new stop loss order
                         qty = int(live_data['positions'][symbol].qty)
-                        add_stop_loss_order(symbol, qty, new_stop, current_price)
+                        add_stop_loss_order(symbol, qty, new_stop, current_price, None, trading_client, DRY_RUN)
                         
                         current_stop_str = f"{current_stop:.2f}" if current_stop is not None else "None"
                         print(f"Updated trailing stop for {symbol}: {current_stop_str} -> {new_stop:.2f} (source: {source})")
@@ -400,7 +329,7 @@ def update_trailing_stops(position_tracker):
     for symbol, data in position_tracker.items():
         try:
             # Get current price and ATR
-            bars = fetch_bars(symbol)
+            bars = fetch_bars(symbol, data_client)
             if bars.empty:
                 continue
                 
@@ -428,7 +357,7 @@ def update_trailing_stops(position_tracker):
                         
                         # Add new stop loss order
                         qty = int(data['qty'])
-                        add_stop_loss_order(symbol, qty, new_stop, current_price)
+                        add_stop_loss_order(symbol, qty, new_stop, current_price, None, trading_client, DRY_RUN)
                         
                         current_stop_str = f"{data['current_stop']:.2f}" if data['current_stop'] is not None else "None"
                         print(f"Updated trailing stop for {symbol}: {current_stop_str} -> {new_stop:.2f}")
@@ -557,25 +486,6 @@ def close_position(symbol, qty, counter=None):
             print(f"Failed to close position for {symbol}: {e}")
             return False
 
-def check_missing_stop_loss_orders(symbols):
-    """Check which symbols are missing stop loss orders"""
-    try:
-        # Get all open orders
-        request = GetOrdersRequest(status=QueryOrderStatus.OPEN)
-        orders = trading_client.get_orders(filter=request)
-        
-        # Find stop loss orders by symbol
-        symbols_with_stops = set()
-        for order in orders:
-            if order.side == OrderSide.SELL and order.order_type == 'stop':
-                symbols_with_stops.add(order.symbol)
-        
-        # Return symbols that don't have stop loss orders
-        return [symbol for symbol in symbols if symbol not in symbols_with_stops]
-        
-    except Exception as e:
-        print(f"Error checking stop loss orders: {e}")
-        return symbols  # Assume all symbols need stops if error occurs
 
 def has_stop_loss_order(symbol):
     """Check if a position has an active stop loss order (deprecated - use check_missing_stop_loss_orders instead)"""
@@ -591,37 +501,6 @@ def has_stop_loss_order(symbol):
         print(f"Error checking stop loss orders for {symbol}: {e}")
         return False
 
-def add_stop_loss_order(symbol, qty, stop_price, current_price=None, account_value=None):
-    """Add a stop loss order for an existing position"""
-    if DRY_RUN:
-        # Calculate risk metrics using shared function (handle None current_price)
-        if current_price:
-            risk_metrics = calculate_risk_metrics(current_price, stop_price, qty, account_value)
-            print(f"[DRY RUN] Would add STOP order for {symbol}: qty={qty}, stop_price={stop_price:.2f}, risk=${risk_metrics['dollar_risk']:.2f} ({risk_metrics['percent_risk']:.2f}%), cost=${risk_metrics['position_cost']:.2f}, stop%={risk_metrics['percent_to_stop']:.2f}%")
-        else:
-            print(f"[DRY RUN] Would add STOP order for {symbol}: qty={qty}, stop_price={stop_price:.2f}")
-        return True
-    else:
-        try:
-            stop_order_data = StopOrderRequest(
-                symbol=symbol,
-                qty=qty,
-                side=OrderSide.SELL,
-                stop_price=stop_price,
-                time_in_force=TimeInForce.GTC
-            )
-            stop_order = trading_client.submit_order(stop_order_data)
-            
-            # Calculate risk metrics using shared function (handle None current_price)
-            if current_price:
-                risk_metrics = calculate_risk_metrics(current_price, stop_price, qty, account_value)
-                print(f"Added STOP order for {symbol}: qty={qty}, stop_price={stop_price:.2f}, risk=${risk_metrics['dollar_risk']:.2f} ({risk_metrics['percent_risk']:.2f}%), cost=${risk_metrics['position_cost']:.2f}, stop%={risk_metrics['percent_to_stop']:.2f}%")
-            else:
-                print(f"Added STOP order for {symbol}: qty={qty}, stop_price={stop_price:.2f}")
-            return True
-        except Exception as e:
-            print(f"Failed to add stop loss order for {symbol}: {e}")
-            return False
 
 def main():
     # === Print execution timestamp ===
@@ -707,7 +586,7 @@ def main():
             
         exit_counter += 1
         position_symbols.append(symbol)
-        bars = fetch_bars(symbol)
+        bars = fetch_bars(symbol, data_client)
         if bars.empty:
             continue
             
@@ -736,7 +615,7 @@ def main():
             symbols_needing_stops = [symbol for symbol in position_symbols 
                                    if symbol not in live_data['stop_orders'] or not live_data['stop_orders'][symbol]]
         else:
-            symbols_needing_stops = check_missing_stop_loss_orders(position_symbols)
+            symbols_needing_stops = check_missing_stop_loss_orders(position_symbols, trading_client)
         
         # Filter out symbols that were just closed
         symbols_needing_stops = [symbol for symbol in symbols_needing_stops if symbol not in closed_positions]
@@ -746,7 +625,7 @@ def main():
         
         # Calculate stop prices for symbols needing stops
         for symbol in symbols_needing_stops:
-            bars = fetch_bars(symbol)
+            bars = fetch_bars(symbol, data_client)
             if not bars.empty:
                 bars = calculate_atr(bars)
                 current_price = bars['close'].iloc[-1]
@@ -764,7 +643,7 @@ def main():
     if missing_stops:
         print(f"\n=== Adding Missing Stop Loss Orders ({len(missing_stops)} positions) ===")
         for symbol, qty, stop_price, current_price in missing_stops:
-            add_stop_loss_order(symbol, qty, stop_price, current_price, account_value)
+            add_stop_loss_order(symbol, qty, stop_price, current_price, account_value, trading_client, DRY_RUN)
             
             # Update position tracker with initial R multiple
             if symbol in position_tracker:
@@ -793,7 +672,7 @@ def main():
                 continue
 
             entry_counter += 1
-            bars = fetch_bars(ticker)
+            bars = fetch_bars(ticker, data_client)
             if bars.empty:
                 continue
 
@@ -874,7 +753,7 @@ def main():
         if qty <= 0:  # Skip short positions
             continue
             
-        bars = fetch_bars(symbol)
+        bars = fetch_bars(symbol, data_client)
         if not bars.empty:
             bars = calculate_atr(bars)
             current_price = bars['close'].iloc[-1]
@@ -908,6 +787,27 @@ def main():
     print(f"Total Account Risk: {total_percent_risk:.2f}%")
     print(f"Total Position Value: ${total_position_value:.2f}")
     print(f"Account Value: ${account_value:.2f}")
+
+    # === Write execution timestamp to JSON file for UI monitoring ===
+    try:
+        # Create timestamp data
+        timestamp_data = {
+            "last_execution": datetime.now().isoformat(),
+            "execution_timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "dry_run_mode": DRY_RUN
+        }
+        
+        # Write to JSON file in ui directory
+        ui_json_path = os.path.join('..', 'ui', 'trend-trader-status.json')
+        with open(ui_json_path, 'w') as f:
+            json.dump(timestamp_data, f, indent=2)
+        
+        print(f"\n=== Execution Status Written ===")
+        print(f"Status file: {ui_json_path}")
+        print(f"Last execution: {timestamp_data['execution_timestamp']}")
+        
+    except Exception as e:
+        print(f"Error writing execution status: {e}")
 
 if __name__ == "__main__":
     main()

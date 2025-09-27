@@ -6,7 +6,7 @@ from alpaca.trading.client import TradingClient
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
-from alpaca.trading.requests import MarketOrderRequest, StopOrderRequest, GetOrdersRequest, StopLossRequest, StopLimitOrderRequest
+from alpaca.trading.requests import MarketOrderRequest, StopOrderRequest, GetOrdersRequest, StopLimitOrderRequest
 from alpaca.trading.enums import OrderSide, TimeInForce, QueryOrderStatus, PositionIntent
 from datetime import datetime, timedelta, timezone
 from configparser import ConfigParser
@@ -469,7 +469,6 @@ def submit_order_with_stop_loss(symbol, qty, entry_price, atr_value, current_hig
                 time_in_force=TimeInForce.DAY,
                 limit_price=buy_limit_price,
                 stop_price=buy_stop_price,
-                stop_loss=StopLossRequest(stop_price=stop_loss_price),
                 position_intent=PositionIntent.BUY_TO_OPEN
             )
             order = trading_client.submit_order(order_data)

@@ -22,25 +22,31 @@ async function updateScriptStatus() {
     `;
 
     try {
-        // Fetch real data for Regime Detector
-        const regimeDetectorData = await fetchRegimeDetectorStatus();
+        // Fetch real data for all scripts
+        const [trendTraderData, riskManagerData, regimeDetectorData] = await Promise.allSettled([
+            fetchTrendTraderStatus(),
+            fetchRiskManagerStatus(),
+            fetchRegimeDetectorStatus()
+        ]);
         
-        // Mock data for other scripts (can be replaced with real API calls later)
         const scriptStatuses = [
             {
                 name: 'Trend Trader',
-                lastUpdated: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-                status: 'running'
+                lastUpdated: trendTraderData.status === 'fulfilled' ? trendTraderData.value.lastUpdated : new Date(0),
+                status: trendTraderData.status === 'fulfilled' ? trendTraderData.value.status : 'error',
+                details: trendTraderData.status === 'fulfilled' ? trendTraderData.value.details : null
             },
             {
                 name: 'Risk Manager', 
-                lastUpdated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-                status: 'warning'
+                lastUpdated: riskManagerData.status === 'fulfilled' ? riskManagerData.value.lastUpdated : new Date(0),
+                status: riskManagerData.status === 'fulfilled' ? riskManagerData.value.status : 'error',
+                details: riskManagerData.status === 'fulfilled' ? riskManagerData.value.details : null
             },
             {
                 name: 'Regime Detector',
-                lastUpdated: regimeDetectorData.lastUpdated,
-                status: regimeDetectorData.status
+                lastUpdated: regimeDetectorData.status === 'fulfilled' ? regimeDetectorData.value.lastUpdated : new Date(0),
+                status: regimeDetectorData.status === 'fulfilled' ? regimeDetectorData.value.status : 'error',
+                details: regimeDetectorData.status === 'fulfilled' ? regimeDetectorData.value.details : null
             }
         ];
 
@@ -48,11 +54,15 @@ async function updateScriptStatus() {
             const timeAgo = getTimeAgo(script.lastUpdated);
             const statusClass = script.status;
             
+            // Add details if available
+            const detailsHtml = script.details ? `<div class="script-details">${script.details}</div>` : '';
+            
             return `
                 <div class="script-item">
                     <div class="script-indicator script-${statusClass}"></div>
                     <span class="script-name">${script.name}</span>
                     <span class="script-timestamp">Last updated: ${timeAgo}</span>
+                    ${detailsHtml}
                 </div>
             `;
         }).join('');
@@ -66,6 +76,74 @@ async function updateScriptStatus() {
                 <span class="script-timestamp">Unable to load status</span>
             </div>
         `;
+    }
+}
+
+/**
+ * Fetch Trend Trader status from local JSON file
+ */
+async function fetchTrendTraderStatus() {
+    try {
+        const response = await fetch('trend-trader-status.json');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const lastUpdated = new Date(data.last_execution);
+        const status = getScriptStatus(lastUpdated);
+        
+        // Create details string
+        const details = `Dry Run: ${data.dry_run_mode ? 'Yes' : 'No'} | Positions: ${data.total_positions || 'N/A'}`;
+        
+        return {
+            lastUpdated: lastUpdated,
+            status: status,
+            details: details
+        };
+    } catch (error) {
+        console.error('Error fetching Trend Trader status:', error);
+        // Return error state
+        return {
+            lastUpdated: new Date(0),
+            status: 'error',
+            details: 'Unable to load status'
+        };
+    }
+}
+
+/**
+ * Fetch Risk Manager status from local JSON file
+ */
+async function fetchRiskManagerStatus() {
+    try {
+        const response = await fetch('risk-manager-status.json');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const lastUpdated = new Date(data.last_execution);
+        const status = getScriptStatus(lastUpdated);
+        
+        // Create details string
+        const details = `Dry Run: ${data.dry_run_mode ? 'Yes' : 'No'} | Positions: ${data.total_positions || 'N/A'} | With Stops: ${data.positions_with_stops || 'N/A'}`;
+        
+        return {
+            lastUpdated: lastUpdated,
+            status: status,
+            details: details
+        };
+    } catch (error) {
+        console.error('Error fetching Risk Manager status:', error);
+        // Return error state
+        return {
+            lastUpdated: new Date(0),
+            status: 'error',
+            details: 'Unable to load status'
+        };
     }
 }
 
@@ -86,14 +164,16 @@ async function fetchRegimeDetectorStatus() {
         
         return {
             lastUpdated: lastUpdated,
-            status: status
+            status: status,
+            details: 'External API'
         };
     } catch (error) {
         console.error('Error fetching Regime Detector status:', error);
         // Return error state
         return {
-            lastUpdated: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
-            status: 'error'
+            lastUpdated: new Date(0),
+            status: 'error',
+            details: 'Unable to load status'
         };
     }
 }

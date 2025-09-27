@@ -673,6 +673,13 @@ body {
     animation: pulse-loading 1s infinite;
 }
 
+.script-details {
+    font-size: 11px;
+    color: #6b7280;
+    margin-top: 2px;
+    font-weight: 400;
+}
+
 .script-name {
     font-weight: 600;
     font-size: 14px;

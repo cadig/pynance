@@ -172,3 +172,4 @@ scripts/execution/*.log
 logs/*
 
 ui/config.js
+ui/*.json

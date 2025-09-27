@@ -170,3 +170,5 @@ alpaca/*.log
 scripts/execution/*.log
 
 logs/*
+
+ui/config.js

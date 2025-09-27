@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpaca Trading Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@5.0.0/dist/lightweight-charts.standalone.production.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Alpaca Trading Dashboard</h1>
+            <p>View positions, orders, and price charts</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <!-- Portfolio Metrics -->
+                <div class="portfolio-metrics">
+                    <div class="section-header collapsible-header" onclick="toggleSection('portfolio-metrics')">
+                        <span class="section-title">Portfolio Metrics</span>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="section-content">
+                    <div class="account-equity">
+                        <span class="equity-label">Total Equity:</span>
+                        <span class="equity-value" id="total-equity">Loading...</span>
+                    </div>
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <div class="metric-label">Total Open P&L</div>
+                            <div class="metric-value">Loading...</div>
+                            <div class="metric-percentage">Loading...</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Risk to Stop</div>
+                            <div class="metric-value">Loading...</div>
+                            <div class="metric-percentage">Loading...</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Capital Usage</div>
+                            <div class="metric-value">Loading...</div>
+                            <div class="metric-percentage">Loading...</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Positions</div>
+                            <div class="metric-value">Loading...</div>
+                            <div class="metric-subtitle">Loading...</div>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+                
+                <div class="tabs-container">
+                    <div class="tab-headers">
+                        <button class="tab-header active" onclick="switchTab('positions')" id="positions-tab">
+                            Positions
+                        </button>
+                        <button class="tab-header" onclick="switchTab('orders')" id="orders-tab">
+                            Orders
+                        </button>
+                        <button class="tab-header" onclick="switchTab('trades')" id="trades-tab">
+                            History
+                        </button>
+                    </div>
+                    
+                    <div class="tab-content">
+                        <div id="positions-panel" class="tab-panel active">
+                            <div class="section-header">
+                                <div class="section-title"></div>
+                                <button id="pnl-filter-btn" class="pnl-filter-btn" title="Sort by P&L (Original Order)">P&L ↕️</button>
+                            </div>
+                            <div id="positions-list" class="ticker-list">
+                                <div class="loading">Loading positions...</div>
+                            </div>
+                        </div>
+                        
+                        <div id="orders-panel" class="tab-panel">
+                            <div class="orders-section">
+                                <div class="section-header">
+                                    <div class="section-title">Open Orders</div>
+                                </div>
+                                <div id="open-orders-list" class="ticker-list">
+                                    <div class="loading">Loading open orders...</div>
+                                </div>
+                            </div>
+                            <div class="orders-divider"></div>
+                            <div class="orders-section">
+                                <div class="section-header">
+                                    <div class="section-title">Stop Loss Orders</div>
+                                </div>
+                                <div id="stop-loss-orders-list" class="ticker-list">
+                                    <div class="loading">Loading stop loss orders...</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="trades-panel" class="tab-panel">
+                            <div id="trades-list" class="ticker-list">
+                                <div class="loading">Loading trades...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <div class="script-status">
+                    <div class="script-item">
+                        <div class="script-indicator script-running"></div>
+                        <span class="script-name">Trend Trader</span>
+                        <span class="script-timestamp">Last updated: 2 hours ago</span>
+                    </div>
+                    <div class="script-item">
+                        <div class="script-indicator script-warning"></div>
+                        <span class="script-name">Risk Manager</span>
+                        <span class="script-timestamp">Last updated: 2 days ago</span>
+                    </div>
+                    <div class="script-item">
+                        <div class="script-indicator script-error"></div>
+                        <span class="script-name">Regime Detector</span>
+                        <span class="script-timestamp">Last updated: 5 days ago</span>
+                    </div>
+                </div>
+                <div class="chart-controls">
+                    <div class="chart-info">
+                        <span id="selected-symbol">Select a ticker to view chart</span>
+                    </div>
+                    <div class="chart-buttons">
+                        <button id="refresh-btn" class="btn btn-primary">Refresh Data</button>
+                        <button id="universe-btn" class="btn btn-secondary" onclick="openUniverse()">Single Stock Universe</button>
+                        <button id="regime-btn" class="btn btn-secondary" onclick="openRegime()">Regime</button>
+                    </div>
+                </div>
+                <div class="charts-wrapper">
+                    <div id="chart" class="price-chart"></div>
+                    <div id="volume-chart" class="volume-chart"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/chart.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        // Event listeners
+        document.getElementById('refresh-btn').addEventListener('click', refreshData);
+        document.getElementById('pnl-filter-btn').addEventListener('click', togglePnlSorting);
+
+        // Open Single Stock Universe in new tab
+        function openUniverse() {
+            window.open('https://finviz.com/screener.ashx?v=310&f=cap_midover,fa_epsqoq_high,sh_avgvol_o100,sh_curvol_o100,ta_perf_13wup,ta_sma200_pa&ft=4&o=-perf26w', '_blank');
+        }
+
+        // Open SPX Regime Analysis in new tab
+        function openRegime() {
+            window.open('https://cadig.github.io/pynance/', '_blank');
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

@@ -127,6 +127,7 @@ async function loadCurrentOrders() {
 
         currentOrders = await response.json();
         console.log('Current orders loaded:', currentOrders.length);
+        console.log('Current orders data:', currentOrders);
         return currentOrders;
     } catch (error) {
         console.error('Error loading current orders:', error);

@@ -42,6 +42,15 @@ async function init() {
             showTradesError();
         }
         
+        try {
+            console.log('Rendering orders...');
+            renderOpenOrders();
+            renderStopLossOrders();
+        } catch (error) {
+            console.error('Error rendering orders:', error);
+            showOrdersError();
+        }
+        
         // Initialize chart
         console.log('Initializing chart...');
         initChart();
@@ -64,7 +73,7 @@ async function selectTicker(symbol) {
     clearChartOverlays();
     
     // Update UI
-    updateTickerSelection(event.target.closest('.ticker-item'));
+    updateTickerSelection(event.target.closest('.ticker-item, .order-item'));
 
     try {
         // Try to load chart data first
@@ -105,6 +114,9 @@ async function overlayOrdersOnChart(orders) {
             if (getExitSeries() && typeof getExitSeries().setData === 'function') {
                 getExitSeries().setData([]);
             }
+            if (getOpenOrdersSeries() && typeof getOpenOrdersSeries().setData === 'function') {
+                getOpenOrdersSeries().setData([]);
+            }
         } catch (clearError) {
             console.warn('Error clearing previous overlays:', clearError);
         }
@@ -113,6 +125,7 @@ async function overlayOrdersOnChart(orders) {
         const entryOrders = [];
         const exitOrders = [];
         const stopLossOrders = [];
+        const openOrders = [];
         
         orders.forEach(order => {
             const orderDate = new Date(order.created_at);
@@ -165,6 +178,20 @@ async function overlayOrdersOnChart(orders) {
                     });
                 } else {
                     console.warn('Skipping invalid stop loss order:', order);
+                }
+            } else if (order.side === 'buy' && (order.status === 'new' || order.status === 'accepted' || order.status === 'partially_filled')) {
+                // Process open buy orders
+                const price = parseFloat(order.limit_price) || parseFloat(order.stop_price);
+                
+                if (!isNaN(price) && price > 0) {
+                    openOrders.push({
+                        time: time,
+                        price: price,
+                        status: order.status,
+                        order: order
+                    });
+                } else {
+                    console.warn('Skipping invalid open order:', order);
                 }
             }
         });
@@ -240,6 +267,15 @@ async function overlayOrdersOnChart(orders) {
                 console.error('Error setting exit data:', exitError);
                 console.log('Exit data that caused error:', validExitData);
             }
+        }
+        
+        // Add open orders lines
+        if (openOrders.length > 0) {
+            console.log('Open orders found:', openOrders.length);
+            console.log('Open orders:', openOrders);
+            await addOpenOrdersLines(openOrders);
+        } else {
+            console.log('No open orders found');
         }
         
         // Add stop loss lines
@@ -420,6 +456,168 @@ async function addStopLossLines(stopLossOrders) {
 }
 
 /**
+ * Add open orders horizontal lines
+ */
+async function addOpenOrdersLines(openOrders) {
+    try {
+        // Get the current chart data to determine the time range
+        const chartData = getCandlestickSeries().data();
+        if (!chartData || chartData.length === 0) {
+            console.warn('No chart data available for open orders lines');
+            return;
+        }
+        
+        const chartEndTime = chartData[chartData.length - 1].time;
+        const allOpenOrdersData = [];
+        
+        // Sort open orders by time
+        const sortedOpenOrders = openOrders.sort((a, b) => a.time - b.time);
+        
+        // Process each open order
+        sortedOpenOrders.forEach((openOrder, index) => {
+            let endTime;
+
+            if (openOrder.status === 'canceled' || openOrder.status === 'cancelled') {
+                // Cancelled order - line from creation to cancellation
+                const canceledAt = openOrder.order.canceled_at || openOrder.order.updated_at;
+                if (!canceledAt) {
+                    console.warn('No cancellation timestamp found for order:', openOrder.order);
+                    return;
+                }
+                const canceledDate = new Date(canceledAt);
+                endTime = Math.floor(canceledDate.getTime() / 1000);
+                
+                // Validate the timestamp
+                if (isNaN(endTime) || endTime <= 0) {
+                    console.warn('Invalid cancellation timestamp:', canceledAt, 'parsed as:', endTime);
+                    return;
+                }
+            } else if (openOrder.status === 'filled') {
+                // Filled order - line from creation to fill
+                const filledAt = openOrder.order.filled_at || openOrder.order.updated_at;
+                if (!filledAt) {
+                    console.warn('No fill timestamp found for order:', openOrder.order);
+                    return;
+                }
+                const filledDate = new Date(filledAt);
+                endTime = Math.floor(filledDate.getTime() / 1000);
+                
+                // Validate the timestamp
+                if (isNaN(endTime) || endTime <= 0) {
+                    console.warn('Invalid fill timestamp:', filledAt, 'parsed as:', endTime);
+                    return;
+                }
+            } else if (openOrder.status === 'new' || openOrder.status === 'accepted' || openOrder.status === 'partially_filled') {
+                // Active order - line from creation to current time
+                const currentTime = Math.floor(Date.now() / 1000);
+                endTime = Math.max(chartEndTime, currentTime);
+            } else {
+                // Skip other statuses
+                console.log(`Skipping open order with status: ${openOrder.status}`);
+                return;
+            }
+            
+            // Create line from start to end (validate values first)
+            if (!isNaN(openOrder.time) && !isNaN(openOrder.price) && !isNaN(endTime) && endTime >= openOrder.time) {
+                allOpenOrdersData.push({
+                    time: openOrder.time,
+                    value: openOrder.price
+                });
+                allOpenOrdersData.push({
+                    time: endTime,
+                    value: openOrder.price
+                });
+            } else {
+                console.warn('Skipping invalid open order data:', {
+                    time: openOrder.time,
+                    price: openOrder.price,
+                    endTime: endTime,
+                    order: openOrder.order
+                });
+            }
+        });
+        
+        // Set all open orders data at once (with final validation)
+        if (allOpenOrdersData.length > 0) {
+            // Final validation to ensure no null values
+            const validOpenOrdersData = allOpenOrdersData.filter(point => 
+                point && 
+                typeof point.time === 'number' && !isNaN(point.time) && point.time > 0 &&
+                typeof point.value === 'number' && !isNaN(point.value) && point.value > 0
+            );
+            
+            if (validOpenOrdersData.length > 0) {
+                try {
+                    console.log('About to set open orders data:', validOpenOrdersData);
+                    
+                    // Additional validation before setting data
+                    const finalValidData = validOpenOrdersData.filter(point => {
+                        const isValid = point && 
+                            typeof point.time === 'number' && !isNaN(point.time) && point.time > 0 &&
+                            typeof point.value === 'number' && !isNaN(point.value) && point.value > 0;
+                        
+                        if (!isValid) {
+                            console.error('Filtering out invalid open order point:', point);
+                        }
+                        return isValid;
+                    });
+                    
+                    // Additional safety check - ensure all values are valid
+                    const ultraValidData = finalValidData.map(point => ({
+                        time: Math.floor(point.time),
+                        value: parseFloat(point.value)
+                    })).filter(point => 
+                        !isNaN(point.time) && point.time > 0 &&
+                        !isNaN(point.value) && point.value > 0
+                    );
+                    
+                    // Deduplicate by timestamp - keep the last value for each timestamp
+                    const deduplicatedData = [];
+                    const timestampMap = new Map();
+                    
+                    ultraValidData.forEach(point => {
+                        timestampMap.set(point.time, point.value);
+                    });
+                    
+                    // Convert back to array, sorted by time
+                    for (const [time, value] of timestampMap.entries()) {
+                        deduplicatedData.push({ time, value });
+                    }
+                    
+                    // Sort by time to ensure proper order
+                    deduplicatedData.sort((a, b) => a.time - b.time);
+                    
+                    // Check if openOrdersSeries is properly initialized
+                    if (getOpenOrdersSeries() && typeof getOpenOrdersSeries().setData === 'function') {
+                        getOpenOrdersSeries().setData(deduplicatedData);
+                        console.log(`Open orders lines: ${deduplicatedData.length} points from ${sortedOpenOrders.length} orders`);
+                    } else {
+                        console.error('openOrdersSeries is not properly initialized');
+                    }
+                } catch (openOrdersError) {
+                    console.error('Error setting open orders data:', openOrdersError);
+                    console.log('Open orders data that caused error:', validOpenOrdersData);
+                    // Try to identify the problematic data point
+                    validOpenOrdersData.forEach((point, index) => {
+                        console.log(`Data point ${index}:`, point);
+                        if (point.time === null || point.value === null || isNaN(point.time) || isNaN(point.value)) {
+                            console.error(`Problematic data point at index ${index}:`, point);
+                        }
+                    });
+                }
+            } else {
+                console.log('No valid open orders data to plot');
+            }
+        } else {
+            console.log('No open orders found');
+        }
+        
+    } catch (error) {
+        console.error('Error adding open orders lines:', error);
+    }
+}
+
+/**
  * Refresh all data
  */
 async function refreshData() {
@@ -439,6 +637,14 @@ async function refreshData() {
         renderTrades();
     } catch (error) {
         showTradesError();
+    }
+    
+    try {
+        renderOpenOrders();
+        renderStopLossOrders();
+    } catch (error) {
+        console.error('Error refreshing orders:', error);
+        showOrdersError();
     }
     
     if (selectedSymbol) {

@@ -8,6 +8,7 @@ let candlestickSeries = null;
 let stopLossSeries = null;
 let entrySeries = null;
 let exitSeries = null;
+let openOrdersSeries = null;
 let volumeSeries = null;
 let sma10Series = null;
 let sma50Series = null;
@@ -56,12 +57,10 @@ function initChart() {
         },
     });
 
-    candlestickSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
+    candlestickSeries = chart.addSeries(LightweightCharts.BarSeries, {
         upColor: '#26a69a',
         downColor: '#ef5350',
         borderVisible: false,
-        wickUpColor: '#26a69a',
-        wickDownColor: '#ef5350',
         priceScaleId: 'left',
     });
 
@@ -89,6 +88,15 @@ function initChart() {
         lineWidth: 3,
         lineStyle: 0, // Solid line
         title: 'Exit Points',
+        priceScaleId: 'left'
+    });
+
+    // Add series for open orders (blue)
+    openOrdersSeries = chart.addSeries(LightweightCharts.LineSeries, {
+        color: '#3b82f6',
+        lineWidth: 2,
+        lineStyle: 0, // Solid line
+        title: 'Open Orders',
         priceScaleId: 'left'
     });
 
@@ -145,19 +153,19 @@ function initChart() {
     // Add 10-day Simple Moving Average
     sma10Series = chart.addSeries(LightweightCharts.LineSeries, {
         color: '#ff6b6b',
-        lineWidth: 2,
+        lineWidth: 0.5,
         lineStyle: 0, // Solid line
-        priceScaleId: 'left',
-        title: '' // Hide from legend
+        priceScaleId: 'left'
+        // No title property to hide from legend
     });
 
     // Add 50-day Simple Moving Average
     sma50Series = chart.addSeries(LightweightCharts.LineSeries, {
         color: '#4ecdc4',
-        lineWidth: 2,
+        lineWidth: 0.5,
         lineStyle: 0, // Solid line
-        priceScaleId: 'left',
-        title: '' // Hide from legend
+        priceScaleId: 'left'
+        // No title property to hide from legend
     });
 }
 
@@ -330,6 +338,9 @@ function clearChartOverlays() {
     if (exitSeries) {
         exitSeries.setData([]);
     }
+    if (openOrdersSeries) {
+        openOrdersSeries.setData([]);
+    }
     if (volumeSeries && volumeChart) {
         volumeSeries.setData([]);
     }
@@ -381,6 +392,13 @@ function getEntrySeries() {
  */
 function getExitSeries() {
     return exitSeries;
+}
+
+/**
+ * Get open orders series
+ */
+function getOpenOrdersSeries() {
+    return openOrdersSeries;
 }
 
 /**

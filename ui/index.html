@@ -55,10 +55,13 @@
                 <div class="tabs-container">
                     <div class="tab-headers">
                         <button class="tab-header active" onclick="switchTab('positions')" id="positions-tab">
-                            Current Positions
+                            Positions
+                        </button>
+                        <button class="tab-header" onclick="switchTab('orders')" id="orders-tab">
+                            Orders
                         </button>
                         <button class="tab-header" onclick="switchTab('trades')" id="trades-tab">
-                            Historical Orders
+                            History
                         </button>
                     </div>
                     
@@ -73,6 +76,26 @@
                             </div>
                         </div>
                         
+                        <div id="orders-panel" class="tab-panel">
+                            <div class="orders-section">
+                                <div class="section-header">
+                                    <div class="section-title">Open Orders</div>
+                                </div>
+                                <div id="open-orders-list" class="ticker-list">
+                                    <div class="loading">Loading open orders...</div>
+                                </div>
+                            </div>
+                            <div class="orders-divider"></div>
+                            <div class="orders-section">
+                                <div class="section-header">
+                                    <div class="section-title">Stop Loss Orders</div>
+                                </div>
+                                <div id="stop-loss-orders-list" class="ticker-list">
+                                    <div class="loading">Loading stop loss orders...</div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div id="trades-panel" class="tab-panel">
                             <div id="trades-list" class="ticker-list">
                                 <div class="loading">Loading trades...</div>
@@ -84,10 +107,14 @@
             
             <div class="chart-container">
                 <div class="chart-controls">
-                    <button id="refresh-btn" class="btn btn-primary">Refresh Data</button>
-                    <button id="universe-btn" class="btn btn-secondary" onclick="openUniverse()">Single Stock Universe</button>
-                    <button id="regime-btn" class="btn btn-secondary" onclick="openRegime()">Regime</button>
-                    <span id="selected-symbol">Select a ticker to view chart</span>
+                    <div class="chart-info">
+                        <span id="selected-symbol">Select a ticker to view chart</span>
+                    </div>
+                    <div class="chart-buttons">
+                        <button id="refresh-btn" class="btn btn-primary">Refresh Data</button>
+                        <button id="universe-btn" class="btn btn-secondary" onclick="openUniverse()">Single Stock Universe</button>
+                        <button id="regime-btn" class="btn btn-secondary" onclick="openRegime()">Regime</button>
+                    </div>
                 </div>
                 <div class="charts-wrapper">
                     <div id="chart" class="price-chart"></div>

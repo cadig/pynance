@@ -52,6 +52,101 @@ function renderPositions() {
 }
 
 /**
+ * Render open orders list
+ */
+function renderOpenOrders() {
+    console.log('renderOpenOrders called');
+    const container = document.getElementById('open-orders-list');
+    const orders = getCurrentOrders();
+    console.log('Orders data:', orders);
+    
+    // Check if orders data is loaded
+    if (!orders || !Array.isArray(orders)) {
+        console.log('Orders data not loaded yet:', orders);
+        container.innerHTML = '<div class="loading">Loading orders...</div>';
+        return;
+    }
+    
+    // Filter for open buy orders (not filled)
+    const openBuyOrders = orders.filter(order => 
+        order.side === 'buy' && 
+        (order.status === 'new' || order.status === 'accepted' || order.status === 'partially_filled')
+    );
+    
+    console.log('Open buy orders found:', openBuyOrders.length, openBuyOrders);
+    
+    if (openBuyOrders.length === 0) {
+        container.innerHTML = '<div class="loading">No open buy orders</div>';
+        return;
+    }
+
+    container.innerHTML = openBuyOrders.map(order => {
+        const orderDate = new Date(order.created_at);
+        const statusClass = order.status.replace('_', '-');
+        
+        return `
+            <div class="order-item" onclick="selectTicker('${order.symbol}')">
+                <div class="order-symbol">${order.symbol}</div>
+                <div class="order-info">
+                    Qty: ${order.qty} | 
+                    Price: $${order.limit_price || 'Market'} | 
+                    ${orderDate.toLocaleDateString()}
+                    <span class="order-status ${statusClass}">${order.status.toUpperCase()}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Render stop loss orders list
+ */
+function renderStopLossOrders() {
+    console.log('renderStopLossOrders called');
+    const container = document.getElementById('stop-loss-orders-list');
+    const orders = getCurrentOrders();
+    console.log('Orders data:', orders);
+    
+    // Check if orders data is loaded
+    if (!orders || !Array.isArray(orders)) {
+        console.log('Orders data not loaded yet:', orders);
+        container.innerHTML = '<div class="loading">Loading orders...</div>';
+        return;
+    }
+    
+    // Filter for stop loss orders
+    const stopLossOrders = orders.filter(order => 
+        order.order_type === 'stop' && 
+        order.side === 'sell' &&
+        (order.status === 'new' || order.status === 'accepted' || order.status === 'partially_filled')
+    );
+    
+    console.log('Stop loss orders found:', stopLossOrders.length, stopLossOrders);
+    
+    if (stopLossOrders.length === 0) {
+        container.innerHTML = '<div class="loading">No stop loss orders</div>';
+        return;
+    }
+
+    container.innerHTML = stopLossOrders.map(order => {
+        const orderDate = new Date(order.created_at);
+        const statusClass = order.status.replace('_', '-');
+        
+        return `
+            <div class="order-item" onclick="selectTicker('${order.symbol}')">
+                <div class="order-symbol">${order.symbol}</div>
+                <div class="order-info">
+                    Qty: ${order.qty} | 
+                    Stop: $${order.stop_price} | 
+                    ${orderDate.toLocaleDateString()}
+                    <span class="order-status ${statusClass}">${order.status.toUpperCase()}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
  * Render trades list
  */
 function renderTrades() {
@@ -100,11 +195,13 @@ function updateSelectedSymbol(symbol, status = '') {
  * Update ticker selection in UI
  */
 function updateTickerSelection(selectedElement) {
-    // Update UI
-    document.querySelectorAll('.ticker-item').forEach(item => {
+    // Update UI - handle both ticker items and order items
+    document.querySelectorAll('.ticker-item, .order-item').forEach(item => {
         item.classList.remove('selected');
     });
-    selectedElement.classList.add('selected');
+    if (selectedElement) {
+        selectedElement.classList.add('selected');
+    }
 }
 
 /**
@@ -133,6 +230,22 @@ function showTradesLoading() {
  */
 function showTradesError() {
     document.getElementById('trades-list').innerHTML = '<div class="error">Failed to load trades</div>';
+}
+
+/**
+ * Show loading state for orders
+ */
+function showOrdersLoading() {
+    document.getElementById('open-orders-list').innerHTML = '<div class="loading">Loading open orders...</div>';
+    document.getElementById('stop-loss-orders-list').innerHTML = '<div class="loading">Loading stop loss orders...</div>';
+}
+
+/**
+ * Show error state for orders
+ */
+function showOrdersError() {
+    document.getElementById('open-orders-list').innerHTML = '<div class="error">Failed to load orders</div>';
+    document.getElementById('stop-loss-orders-list').innerHTML = '<div class="error">Failed to load orders</div>';
 }
 
 /**

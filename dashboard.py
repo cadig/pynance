@@ -110,7 +110,7 @@ class LongVolBreakoutsSection(ttk.Frame):
             # Get absolute paths
             script_path = Path(__file__).parent / "ibkr" / "longVolBreakouts.py"
             repo_root = Path(self.config.repo_root).resolve()
-            execution_dir = repo_root / "scripts" / "execution"
+            execution_dir = repo_root
             
             # Verify paths exist
             if not script_path.exists():

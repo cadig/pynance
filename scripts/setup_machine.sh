@@ -186,7 +186,87 @@ setup_ui_serving() {
         return 1
     fi
     
+    if [ -f "$PROJECT_ROOT/scripts/manage_ui_server.sh" ]; then
+        chmod +x "$PROJECT_ROOT/scripts/manage_ui_server.sh"
+        print_success "UI server management script is executable"
+    else
+        print_error "manage_ui_server.sh not found"
+        return 1
+    fi
+    
     print_success "UI serving setup completed"
+}
+
+# Function to start UI server as background process
+start_ui_server() {
+    print_header "STARTING UI SERVER"
+    
+    # Check if UI server is already running
+    if lsof -Pi :8080 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        print_warning "UI server is already running on port 8080"
+        print_status "Stopping existing server..."
+        pkill -f "http.server.*8080" 2>/dev/null || true
+        sleep 2
+    fi
+    
+    # Create logs directory if it doesn't exist
+    local logs_dir="$(dirname "$PROJECT_ROOT")/logs"
+    if [ ! -d "$logs_dir" ]; then
+        print_status "Creating logs directory: $logs_dir"
+        mkdir -p "$logs_dir"
+    fi
+    
+    # Create UI log file
+    local ui_log_file="$logs_dir/ui_server.log"
+    print_status "UI server logs will be written to: $ui_log_file"
+    
+    # Start the UI server in background
+    print_status "Starting UI server on port 8080..."
+    cd "$PROJECT_ROOT/ui"
+    
+    # Start server with proper logging
+    nohup python3 -m http.server 8080 --bind 0.0.0.0 > "$ui_log_file" 2>&1 &
+    local server_pid=$!
+    
+    # Save PID to file for later management
+    echo "$server_pid" > "/tmp/pynance_ui_server.pid"
+    
+    # Wait a moment to check if server started successfully
+    sleep 3
+    
+    # Check if server is running
+    if ps -p "$server_pid" > /dev/null 2>&1; then
+        print_success "UI server started successfully (PID: $server_pid)"
+        print_status "Server logs: $ui_log_file"
+        
+        # Get WSL IP for Windows access
+        if grep -q Microsoft /proc/version 2>/dev/null; then
+            local wsl_ip=$(hostname -I | awk '{print $1}')
+            print_status "Access URLs:"
+            print_status "  From WSL: http://localhost:8080"
+            print_status "  From Windows: http://$wsl_ip:8080"
+        else
+            print_status "Access URL: http://localhost:8080"
+        fi
+        
+        # Test the server
+        print_status "Testing UI server..."
+        if command -v curl >/dev/null 2>&1; then
+            if curl -s http://localhost:8080 > /dev/null 2>&1; then
+                print_success "UI server is responding correctly"
+            else
+                print_warning "UI server may not be responding - check logs: $ui_log_file"
+            fi
+        else
+            print_warning "curl not available - cannot test server automatically"
+            print_status "Test manually: http://localhost:8080"
+        fi
+        
+    else
+        print_error "Failed to start UI server"
+        print_status "Check logs for errors: $ui_log_file"
+        return 1
+    fi
 }
 
 # Function to verify configuration
@@ -317,12 +397,12 @@ show_next_steps() {
     echo "   - RiskManager: Every hour during adjusted local time (equivalent to 9 AM - 4 PM EST)"
     echo "   - Times are automatically adjusted for your system timezone"
     echo
-    echo "6. Start the UI server:"
-    echo "   - Start UI service: ./scripts/start_ui_service.sh start"
-    echo "   - Check status: ./scripts/start_ui_service.sh status"
-    echo "   - View logs: ./scripts/start_ui_service.sh logs"
+    echo "6. UI server is already running:"
     echo "   - Access from WSL: http://localhost:8080"
     echo "   - Access from Windows: http://[WSL_IP]:8080"
+    echo "   - Manage server: ./scripts/manage_ui_server.sh [start|stop|restart|status|logs|test]"
+    echo "   - View logs: ./scripts/manage_ui_server.sh logs"
+    echo "   - Follow logs: ./scripts/manage_ui_server.sh follow"
     echo
     echo "7. For DST transitions:"
     echo "   - Check DST status: ./scripts/check_dst_status.sh"
@@ -356,6 +436,9 @@ main() {
     
     # Setup UI serving
     setup_ui_serving
+    
+    # Start UI server
+    start_ui_server
     
     # Verify configuration
     verify_configuration

@@ -163,6 +163,7 @@ cython_debug/
 
 # data dumps
 *.csv
+finnhub/*.csv
 
 alpaca/position_tracker.json
 alpaca/*.log

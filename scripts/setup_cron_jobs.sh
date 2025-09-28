@@ -46,13 +46,168 @@ chmod +x "$PROJECT_ROOT/scripts/view_risk_manager_logs.sh"
 chmod +x "$PROJECT_ROOT/scripts/view_all_logs.sh"
 print_success "Scripts are now executable"
 
-# Define the cron jobs
-# TrendTrader: Run once per day at 8:55 AM EST (before market opens at 9:30 AM EST)
-TREND_TRADER_CRON="55 8 * * 1-5 cd $PROJECT_ROOT && ./scripts/run_alpaca_trend.sh"
+# Detect system timezone and adjust cron job times accordingly
+print_status "Detecting system timezone and adjusting cron job times..."
 
-# RiskManager: Run every hour during market hours (9 AM - 4 PM EST, Monday-Friday)
-# This runs at 9:00, 10:00, 11:00, 12:00, 1:00, 2:00, 3:00, 4:00 PM EST
-RISK_MANAGER_CRON="0 9-16 * * 1-5 cd $PROJECT_ROOT && ./scripts/run_risk_manager.sh"
+# Get current timezone
+CURRENT_TZ=$(timedatectl show --property=Timezone --value 2>/dev/null || echo "Unknown")
+print_status "Current system timezone: $CURRENT_TZ"
+
+# Function to get current EST/EDT timezone offset dynamically
+get_est_offset() {
+    # Get the current UTC offset for Eastern Time
+    local est_offset=$(TZ=America/New_York date +%z 2>/dev/null | sed 's/^+//' | sed 's/^\([0-9][0-9]\)\([0-9][0-9]\)$/-(\1*60+\2)/60/' | bc 2>/dev/null)
+    
+    if [ -n "$est_offset" ] && [ "$est_offset" != "0" ]; then
+        echo "$est_offset"
+    else
+        # Fallback: determine based on current date
+        local current_month=$(date +%m)
+        local current_day=$(date +%d)
+        
+        # DST in US: Second Sunday in March to First Sunday in November
+        # For simplicity, we'll use month-based detection
+        if [ "$current_month" -ge 3 ] && [ "$current_month" -le 10 ]; then
+            # Summer months: EDT (UTC-4)
+            echo "-4"
+        else
+            # Winter months: EST (UTC-5)
+            echo "-5"
+        fi
+    fi
+}
+
+# Function to get current local timezone offset dynamically
+get_local_offset() {
+    # Get the current UTC offset for the local timezone
+    local local_offset=$(date +%z 2>/dev/null | sed 's/^+//' | sed 's/^\([0-9][0-9]\)\([0-9][0-9]\)$/-(\1*60+\2)/60/' | bc 2>/dev/null)
+    
+    if [ -n "$local_offset" ] && [ "$local_offset" != "0" ]; then
+        echo "$local_offset"
+    else
+        # Fallback: determine based on timezone name
+        case "$CURRENT_TZ" in
+            *"America/Los_Angeles"*|*"PDT"*|*"PST"*)
+                # Pacific Time: PDT is UTC-7, PST is UTC-8
+                local current_month=$(date +%m)
+                if [ "$current_month" -ge 3 ] && [ "$current_month" -le 10 ]; then
+                    echo "-7"  # PDT
+                else
+                    echo "-8"  # PST
+                fi
+                ;;
+            *"America/New_York"*|*"EST"*|*"EDT"*)
+                # Eastern Time: EDT is UTC-4, EST is UTC-5
+                local current_month=$(date +%m)
+                if [ "$current_month" -ge 3 ] && [ "$current_month" -le 10 ]; then
+                    echo "-4"  # EDT
+                else
+                    echo "-5"  # EST
+                fi
+                ;;
+            *"America/Chicago"*|*"CST"*|*"CDT"*)
+                # Central Time: CDT is UTC-5, CST is UTC-6
+                local current_month=$(date +%m)
+                if [ "$current_month" -ge 3 ] && [ "$current_month" -le 10 ]; then
+                    echo "-5"  # CDT
+                else
+                    echo "-6"  # CST
+                fi
+                ;;
+            *"America/Denver"*|*"MST"*|*"MDT"*)
+                # Mountain Time: MDT is UTC-6, MST is UTC-7
+                local current_month=$(date +%m)
+                if [ "$current_month" -ge 3 ] && [ "$current_month" -le 10 ]; then
+                    echo "-6"  # MDT
+                else
+                    echo "-7"  # MST
+                fi
+                ;;
+            *)
+                print_warning "Unknown timezone: $CURRENT_TZ"
+                print_warning "Using dynamic detection. Please verify cron job times."
+                # Try to get offset from date command
+                local dynamic_offset=$(date +%z 2>/dev/null | sed 's/^+//' | sed 's/^\([0-9][0-9]\)\([0-9][0-9]\)$/-(\1*60+\2)/60/' | bc 2>/dev/null)
+                if [ -n "$dynamic_offset" ]; then
+                    echo "$dynamic_offset"
+                else
+                    echo "-7"  # Default fallback
+                fi
+                ;;
+        esac
+    fi
+}
+
+# Function to check if DST is currently active
+is_dst_active() {
+    local timezone="$1"
+    if [ -z "$timezone" ]; then
+        timezone="America/New_York"
+    fi
+    
+    # Get current time in the specified timezone
+    local current_time=$(TZ="$timezone" date +%Y-%m-%d\ %H:%M:%S)
+    local current_month=$(TZ="$timezone" date +%m)
+    local current_day=$(TZ="$timezone" date +%d)
+    
+    # DST in US: Second Sunday in March to First Sunday in November
+    # For simplicity, we'll use month-based detection
+    if [ "$current_month" -ge 3 ] && [ "$current_month" -le 10 ]; then
+        return 0  # DST is active
+    else
+        return 1  # DST is not active
+    fi
+}
+
+# Function to get DST status information
+get_dst_status() {
+    local est_dst=$(is_dst_active "America/New_York" && echo "EDT" || echo "EST")
+    local local_dst=$(is_dst_active "$CURRENT_TZ" && echo "DST" || echo "STD")
+    
+    echo "EST/EDT: $est_dst, Local: $local_dst"
+}
+
+# Calculate time differences
+EST_OFFSET=$(get_est_offset)
+LOCAL_OFFSET=$(get_local_offset)
+
+# Calculate the difference between EST and local time
+TIME_DIFF=$((EST_OFFSET - LOCAL_OFFSET))
+
+print_status "EST offset: UTC$EST_OFFSET"
+print_status "Local offset: UTC$LOCAL_OFFSET"
+print_status "Time difference: $TIME_DIFF hours"
+print_status "DST Status: $(get_dst_status)"
+
+# Adjust cron job times based on timezone difference
+if [ "$TIME_DIFF" -eq 0 ]; then
+    # Already in Eastern Time
+    TREND_TRADER_HOUR="8"
+    RISK_MANAGER_HOURS="9-16"
+    print_status "System is in Eastern Time - no adjustment needed"
+elif [ "$TIME_DIFF" -gt 0 ]; then
+    # Local time is behind EST (e.g., Pacific Time)
+    TREND_TRADER_HOUR=$((8 - TIME_DIFF))
+    RISK_MANAGER_START=$((9 - TIME_DIFF))
+    RISK_MANAGER_END=$((16 - TIME_DIFF))
+    RISK_MANAGER_HOURS="${RISK_MANAGER_START}-${RISK_MANAGER_END}"
+    print_status "Local time is $TIME_DIFF hours behind EST"
+    print_status "Adjusted TrendTrader to run at ${TREND_TRADER_HOUR}:55 local time"
+    print_status "Adjusted RiskManager to run from ${RISK_MANAGER_START}:00 to ${RISK_MANAGER_END}:00 local time"
+else
+    # Local time is ahead of EST (e.g., European time)
+    TREND_TRADER_HOUR=$((8 - TIME_DIFF))
+    RISK_MANAGER_START=$((9 - TIME_DIFF))
+    RISK_MANAGER_END=$((16 - TIME_DIFF))
+    RISK_MANAGER_HOURS="${RISK_MANAGER_START}-${RISK_MANAGER_END}"
+    print_status "Local time is $((-TIME_DIFF)) hours ahead of EST"
+    print_status "Adjusted TrendTrader to run at ${TREND_TRADER_HOUR}:55 local time"
+    print_status "Adjusted RiskManager to run from ${RISK_MANAGER_START}:00 to ${RISK_MANAGER_END}:00 local time"
+fi
+
+# Define the cron jobs with adjusted times
+TREND_TRADER_CRON="55 ${TREND_TRADER_HOUR} * * 1-5 cd $PROJECT_ROOT && ./scripts/run_alpaca_trend.sh"
+RISK_MANAGER_CRON="0 ${RISK_MANAGER_HOURS} * * 1-5 cd $PROJECT_ROOT && ./scripts/run_risk_manager.sh"
 
 # Function to check if a cron job exists
 cron_job_exists() {
@@ -139,12 +294,12 @@ cleanup_old_cron_jobs
 
 # Add trendTrader cron job
 print_status "Setting up trendTrader cron job..."
-print_status "TrendTrader will run at 8:55 AM EST (before market opens)"
+print_status "TrendTrader will run at ${TREND_TRADER_HOUR}:55 local time (equivalent to 8:55 AM EST)"
 add_cron_job_if_missing "$TREND_TRADER_CRON" "trendTrader"
 
 # Add RiskManager cron job
 print_status "Setting up RiskManager cron job..."
-print_status "RiskManager will run every hour from 9 AM to 4 PM EST during market hours"
+print_status "RiskManager will run every hour from ${RISK_MANAGER_START}:00 to ${RISK_MANAGER_END}:00 local time (equivalent to 9 AM - 4 PM EST)"
 add_cron_job_if_missing "$RISK_MANAGER_CRON" "RiskManager"
 
 # Validate the cron jobs
@@ -172,5 +327,15 @@ echo
 
 print_success "Cron job setup completed!"
 print_status "Your trading system is now configured to run automatically:"
-print_status "  - trendTrader: Daily at 8:55 AM EST (before market opens)"
-print_status "  - RiskManager: Every hour from 9 AM to 4 PM EST (during market hours)"
+print_status "  - trendTrader: Daily at ${TREND_TRADER_HOUR}:55 local time (equivalent to 8:55 AM EST/EDT)"
+print_status "  - RiskManager: Every hour from ${RISK_MANAGER_START}:00 to ${RISK_MANAGER_END}:00 local time (equivalent to 9 AM - 4 PM EST/EDT)"
+print_status "  - System timezone: $CURRENT_TZ"
+print_status "  - Market timezone: Eastern Time (EST/EDT)"
+
+# DST transition warning
+print_warning "IMPORTANT: Daylight Saving Time Transitions"
+print_status "DST transitions occur on:"
+print_status "  - Spring Forward: Second Sunday in March (2:00 AM → 3:00 AM)"
+print_status "  - Fall Back: First Sunday in November (2:00 AM → 1:00 AM)"
+print_warning "You may need to re-run this script after DST transitions to ensure correct timing."
+print_status "To re-run: ./scripts/setup_cron_jobs.sh"

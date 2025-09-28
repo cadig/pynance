@@ -259,10 +259,15 @@ show_next_steps() {
     echo "   crontab -l"
     echo
     echo "5. The system will automatically run:"
-    echo "   - trendTrader: Daily at 8:55 AM EST (before market opens)"
-    echo "   - RiskManager: Every hour from 9 AM to 4 PM EST (during market hours)"
+    echo "   - trendTrader: Daily at adjusted local time (equivalent to 8:55 AM EST)"
+    echo "   - RiskManager: Every hour during adjusted local time (equivalent to 9 AM - 4 PM EST)"
+    echo "   - Times are automatically adjusted for your system timezone"
     echo
-    echo "6. For troubleshooting:"
+    echo "6. For DST transitions:"
+    echo "   - Check DST status: ./scripts/check_dst_status.sh"
+    echo "   - Re-run setup after DST transitions: ./scripts/setup_cron_jobs.sh"
+    echo
+    echo "7. For troubleshooting:"
     echo "   - Check logs in: $(dirname "$PROJECT_ROOT")/logs/"
     echo "   - View cron job logs: grep CRON /var/log/syslog (Linux) or /var/log/system.log (macOS)"
     echo

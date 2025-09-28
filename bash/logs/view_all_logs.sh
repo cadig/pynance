@@ -15,7 +15,7 @@ LOGS_DIR="../logs"
 # Check if logs directory exists
 if [ ! -d "$LOGS_DIR" ]; then
     print_error "Logs directory not found at $LOGS_DIR"
-    print_status "Run setup_logging.sh first to create the logs directory"
+    print_status "Run bash/setup/setup_logging.sh first to create the logs directory"
     exit 1
 fi
 

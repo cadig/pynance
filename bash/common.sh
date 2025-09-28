@@ -273,7 +273,7 @@ test_url() {
 # Make scripts executable
 make_scripts_executable() {
     local project_root="$1"
-    local scripts=("run_alpaca_trend.sh" "run_risk_manager.sh" "setup_logging.sh" "setup_cron_jobs.sh" "serve_ui.sh" "start_ui_service.sh" "manage_ui_server.sh")
+    local scripts=("run_alpaca_trend.sh" "run_risk_manager.sh" "setup_cron_jobs.sh" "serve_ui.sh")
     
     for script in "${scripts[@]}"; do
         if [ -f "$project_root/bash/$script" ]; then
@@ -318,8 +318,8 @@ show_setup_next_steps() {
     echo
     echo "3. Monitor the logs:"
     echo "   ./bash/view_logs.sh"
-    echo "   ./bash/view_risk_manager_logs.sh"
-    echo "   ./bash/view_all_logs.sh"
+    echo "   ./bash/logs/view_risk_manager_logs.sh"
+    echo "   ./bash/logs/view_all_logs.sh"
     echo
     echo "4. Check cron jobs:"
     echo "   crontab -l"
@@ -332,9 +332,9 @@ show_setup_next_steps() {
     echo "6. UI server is already running:"
     echo "   - Access from WSL: http://localhost:8080"
     echo "   - Access from Windows: http://[WSL_IP]:8080"
-    echo "   - Manage server: ./bash/manage_ui_server.sh [start|stop|restart|status|logs|test]"
-    echo "   - View logs: ./bash/manage_ui_server.sh logs"
-    echo "   - Follow logs: ./bash/manage_ui_server.sh follow"
+    echo "   - Manage server: ./bash/ui/manage_ui_server.sh [start|stop|restart|status|logs|test]"
+    echo "   - View logs: ./bash/ui/manage_ui_server.sh logs"
+    echo "   - Follow logs: ./bash/ui/manage_ui_server.sh follow"
     echo
     echo "7. For DST transitions:"
     echo "   - Check DST status: ./bash/check_dst_status.sh"

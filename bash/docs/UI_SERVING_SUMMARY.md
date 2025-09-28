@@ -52,7 +52,7 @@ fi
 ### From WSL (Local)
 ```bash
 # Start service
-./bash/start_ui_service.sh start
+./bash/ui/start_ui_service.sh start
 
 # Access locally
 curl http://localhost:8080
@@ -71,27 +71,27 @@ http://[WSL_IP]:8080
 
 ### Start Service
 ```bash
-./bash/start_ui_service.sh start
+./bash/ui/start_ui_service.sh start
 ```
 
 ### Check Status
 ```bash
-./bash/start_ui_service.sh status
+./bash/ui/start_ui_service.sh status
 ```
 
 ### View Logs
 ```bash
-./bash/start_ui_service.sh logs
+./bash/ui/start_ui_service.sh logs
 ```
 
 ### Stop Service
 ```bash
-./bash/start_ui_service.sh stop
+./bash/ui/start_ui_service.sh stop
 ```
 
 ### Restart Service
 ```bash
-./bash/start_ui_service.sh restart
+./bash/ui/start_ui_service.sh restart
 ```
 
 ## Windows Firewall Configuration
@@ -137,7 +137,7 @@ netsh advfirewall firewall add rule name="WSL Port 8080" dir=in action=allow pro
 ./bash/setup_machine.sh
 
 # 2. Start UI service
-./bash/start_ui_service.sh start
+./bash/ui/start_ui_service.sh start
 
 # 3. Access from Windows
 # Open browser: http://[WSL_IP]:8080
@@ -146,13 +146,13 @@ netsh advfirewall firewall add rule name="WSL Port 8080" dir=in action=allow pro
 ### Daily Usage
 ```bash
 # Check service status
-./bash/start_ui_service.sh status
+./bash/ui/start_ui_service.sh status
 
 # View logs if needed
-./bash/start_ui_service.sh logs
+./bash/ui/start_ui_service.sh logs
 
 # Restart if needed
-./bash/start_ui_service.sh restart
+./bash/ui/start_ui_service.sh restart
 ```
 
 ## Troubleshooting
@@ -165,10 +165,10 @@ netsh advfirewall firewall add rule name="WSL Port 8080" dir=in action=allow pro
 ### Debug Commands
 ```bash
 # Check service status
-./bash/start_ui_service.sh status
+./bash/ui/start_ui_service.sh status
 
 # View logs
-./bash/start_ui_service.sh logs
+./bash/ui/start_ui_service.sh logs
 
 # Test connectivity
 curl http://localhost:8080
@@ -216,14 +216,14 @@ hostname -I
 
 ### For Users
 1. **Run setup**: `./bash/setup_machine.sh`
-2. **Start UI**: `./bash/start_ui_service.sh start`
+2. **Start UI**: `./bash/ui/start_ui_service.sh start`
 3. **Access from Windows**: `http://[WSL_IP]:8080`
-4. **Monitor service**: `./bash/start_ui_service.sh status`
+4. **Monitor service**: `./bash/ui/start_ui_service.sh status`
 
 ### For Development
 1. **UI updates**: Edit files in `ui/` directory
-2. **Service restart**: `./bash/start_ui_service.sh restart`
-3. **Log monitoring**: `./bash/start_ui_service.sh logs`
+2. **Service restart**: `./bash/ui/start_ui_service.sh restart`
+3. **Log monitoring**: `./bash/ui/start_ui_service.sh logs`
 4. **Network testing**: Use debug commands
 
 The UI serving system is now fully integrated with the Pynance trading system and optimized for WSL Windows host access!

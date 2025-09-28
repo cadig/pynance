@@ -57,10 +57,10 @@ I've created comprehensive scripts to set up your machine for running the Pynanc
 ### Individual Setup Steps
 ```bash
 # 1. Setup conda environment
-./bash/check_conda_environment.sh
+./bash/setup/check_conda_environment.sh
 
 # 2. Setup logging directories
-./bash/setup_logging.sh
+./bash/setup/setup_logging.sh
 
 # 3. Setup cron jobs
 ./bash/setup_cron_jobs.sh

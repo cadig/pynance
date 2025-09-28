@@ -17,7 +17,7 @@ SCRIPT_ID="trendTrader"
 # Check if logs directory exists
 if [ ! -d "$LOGS_DIR" ]; then
     print_error "Logs directory not found at $LOGS_DIR"
-    print_status "Run setup_logging.sh first to create the logs directory"
+    print_status "Run bash/setup/setup_logging.sh first to create the logs directory"
     exit 1
 fi
 
@@ -25,7 +25,7 @@ fi
 SYSTEM_DIR="$LOGS_DIR/$SYSTEM_ID"
 if [ ! -d "$SYSTEM_DIR" ]; then
     print_error "System directory not found at $SYSTEM_DIR"
-    print_status "Run setup_logging.sh first to create the system directories"
+    print_status "Run bash/setup/setup_logging.sh first to create the system directories"
     exit 1
 fi
 
@@ -33,7 +33,7 @@ fi
 SCRIPT_DIR="$SYSTEM_DIR/$SCRIPT_ID"
 if [ ! -d "$SCRIPT_DIR" ]; then
     print_error "Script directory not found at $SCRIPT_DIR"
-    print_status "Run setup_logging.sh first to create the script directories"
+    print_status "Run bash/setup/setup_logging.sh first to create the script directories"
     exit 1
 fi
 

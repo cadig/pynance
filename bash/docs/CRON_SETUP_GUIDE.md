@@ -28,10 +28,10 @@ This guide explains the cron job setup for the Pynance trading system.
 ### Individual Setup Steps
 ```bash
 # 1. Setup conda environment
-./bash/check_conda_environment.sh
+./bash/setup/check_conda_environment.sh
 
 # 2. Setup logging directories
-./bash/setup_logging.sh
+./bash/setup/setup_logging.sh
 
 # 3. Setup cron jobs
 ./bash/setup_cron_jobs.sh
@@ -120,10 +120,10 @@ cd /path/to/pynance
 ./bash/view_logs.sh
 
 # View RiskManager logs
-./bash/view_risk_manager_logs.sh
+./bash/logs/view_risk_manager_logs.sh
 
 # View all logs
-./bash/view_all_logs.sh
+./bash/logs/view_all_logs.sh
 ```
 
 ## Log File Locations

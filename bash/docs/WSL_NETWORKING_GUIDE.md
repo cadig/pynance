@@ -33,7 +33,7 @@ If you need to configure networking manually:
 
 ```bash
 # Configure WSL networking
-./bash/configure_wsl_networking.sh 8080
+./bash/network/configure_wsl_networking.sh 8080
 
 # Start UI server
 ./bash/serve_ui.sh 8080
@@ -158,7 +158,7 @@ curl http://[WSL_IP]:8080
 ./bash/serve_ui.sh 8081
 
 # Configure networking for new port
-./bash/configure_wsl_networking.sh 8081
+./bash/network/configure_wsl_networking.sh 8081
 ```
 
 ## Security Considerations
@@ -240,7 +240,7 @@ pkill -f "http.server"
 ./bash/setup_machine.sh
 
 # 2. Configure WSL networking
-./bash/configure_wsl_networking.sh 8080
+./bash/network/configure_wsl_networking.sh 8080
 
 # 3. Start UI server
 ./bash/serve_ui.sh 8080

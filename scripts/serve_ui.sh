@@ -5,40 +5,12 @@
 
 set -e  # Exit on any error
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
-
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-print_header() {
-    echo -e "${CYAN}================================${NC}"
-    echo -e "${CYAN}$1${NC}"
-    echo -e "${CYAN}================================${NC}"
-}
+# Source common functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
 
 # Get the project root directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(get_project_root_direct)"
 UI_DIR="$PROJECT_ROOT/ui"
 
 # Default port
@@ -63,27 +35,23 @@ print_status "UI directory: $UI_DIR"
 print_status "Port: $PORT"
 
 # Check if port is already in use
-if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
+if ! check_port_available "$PORT"; then
     print_warning "Port $PORT is already in use"
     print_status "Trying to find an available port..."
     
     # Find an available port
-    for ((i=8080; i<=8090; i++)); do
-        if ! lsof -Pi :$i -sTCP:LISTEN -t >/dev/null 2>&1; then
-            PORT=$i
-            print_success "Found available port: $PORT"
-            break
-        fi
-    done
-    
-    if [ "$PORT" -gt 8090 ]; then
+    local available_port=$(find_available_port 8080 8090)
+    if [ -n "$available_port" ]; then
+        PORT=$available_port
+        print_success "Found available port: $PORT"
+    else
         print_error "No available ports found in range 8080-8090"
         exit 1
     fi
 fi
 
 # Get the local IP address for WSL
-LOCAL_IP=$(hostname -I | awk '{print $1}' 2>/dev/null || echo "localhost")
+LOCAL_IP=$(get_wsl_ip)
 
 print_status "UI will be available at:"
 print_status "  Local: http://localhost:$PORT"
@@ -91,11 +59,11 @@ print_status "  Network: http://$LOCAL_IP:$PORT"
 print_status "  Windows Host: http://$LOCAL_IP:$PORT"
 
 # Check if we're in WSL
-if grep -q Microsoft /proc/version 2>/dev/null; then
+if is_wsl; then
     print_status "WSL detected - configuring for Windows host access"
     
     # Check if Windows host IP is available
-    WINDOWS_HOST_IP=$(ip route | grep default | awk '{print $3}' 2>/dev/null || echo "")
+    WINDOWS_HOST_IP=$(get_windows_host_ip)
     if [ -n "$WINDOWS_HOST_IP" ]; then
         print_status "Windows host IP: $WINDOWS_HOST_IP"
         print_status "Windows host access: http://$WINDOWS_HOST_IP:$PORT"

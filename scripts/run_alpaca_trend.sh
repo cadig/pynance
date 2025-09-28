@@ -5,132 +5,39 @@
 
 set -e  # Exit on any error
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+# Source common functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
 
 # Check if we're in the right directory
-if [ ! -f "alpaca/trendTrader.py" ]; then
-    print_error "trendTrader.py not found. Please run this script from the project root directory."
-    exit 1
-fi
+check_project_directory "alpaca/trendTrader.py"
 
 # Check if conda is available
-if ! command -v conda &> /dev/null; then
-    print_error "Conda is not installed. Please run check_conda_environment.sh first."
+if ! check_conda; then
     exit 1
 fi
 
 # Source conda
-if [ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]; then
-    source "$HOME/miniconda3/etc/profile.d/conda.sh"
-elif [ -f "/opt/conda/etc/profile.d/conda.sh" ]; then
-    source "/opt/conda/etc/profile.d/conda.sh"
-fi
+source_conda
 
 # Check if pynance-v2.0 environment exists
-if ! conda env list | grep -q "pynance-v2.0"; then
-    print_error "pynance-v2.0 environment not found. Please run setup_environment.sh first."
+if ! check_pynance_env; then
     exit 1
 fi
 
 # Activate environment
-print_status "Activating pynance-v2.0 environment..."
-conda activate pynance-v2.0
+activate_pynance_env
 
-# Check if required config files exist (in sibling directory)
-CONFIG_DIR="../config"
-ALPACA_CONFIG_FILE="$CONFIG_DIR/alpaca-config.ini"
-FINNHUB_CONFIG_FILE="$CONFIG_DIR/finnhub-config.ini"
-
-if [ ! -f "$ALPACA_CONFIG_FILE" ]; then
-    print_warning "alpaca-config.ini not found. Creating template in sibling config directory..."
-    mkdir -p "$CONFIG_DIR"
-    cat > "$ALPACA_CONFIG_FILE" << EOF
-[paper]
-API_KEY = your_api_key_here
-API_SECRET = your_api_secret_here
-
-[live]
-API_KEY = your_live_api_key_here
-API_SECRET = your_live_api_secret_here
-EOF
-    print_warning "Please edit $ALPACA_CONFIG_FILE with your actual API credentials."
-fi
-
-if [ ! -f "$FINNHUB_CONFIG_FILE" ]; then
-    print_warning "finnhub-config.ini not found. Creating template in sibling config directory..."
-    mkdir -p "$CONFIG_DIR"
-    cat > "$FINNHUB_CONFIG_FILE" << EOF
-[finnhub]
-API_KEY = your_finnhub_api_key_here
-EOF
-    print_warning "Please edit $FINNHUB_CONFIG_FILE with your actual Finnhub API key."
-fi
-
-if [ ! -f "$ALPACA_CONFIG_FILE" ] || [ ! -f "$FINNHUB_CONFIG_FILE" ]; then
-    print_warning "The config directory is located outside the repository for security."
-    print_warning "The script will continue but may fail without proper credentials."
-fi
+# Setup config files
+setup_config_files
 
 # Set up logging directory structure
 print_status "Setting up logging directory structure..."
 LOGS_DIR="../logs"
 SYSTEM_ID="01_alpaca"
 SCRIPT_ID="trendTrader"
-CURRENT_DATE=$(date +%Y-%m-%d)
-CURRENT_YEAR_MONTH=$(date +%Y-%m)
-CURRENT_DAY_OF_WEEK=$(date +%A)
 
-# Create system directory if it doesn't exist
-SYSTEM_DIR="$LOGS_DIR/$SYSTEM_ID"
-if [ ! -d "$SYSTEM_DIR" ]; then
-    print_status "Creating system log directory: $SYSTEM_DIR"
-    mkdir -p "$SYSTEM_DIR"
-fi
-
-# Create script subdirectory if it doesn't exist
-SCRIPT_DIR="$SYSTEM_DIR/$SCRIPT_ID"
-if [ ! -d "$SCRIPT_DIR" ]; then
-    print_status "Creating script log directory: $SCRIPT_DIR"
-    mkdir -p "$SCRIPT_DIR"
-fi
-
-# Create year-month directory if it doesn't exist
-YEAR_MONTH_DIR="$SCRIPT_DIR/$CURRENT_YEAR_MONTH"
-if [ ! -d "$YEAR_MONTH_DIR" ]; then
-    print_status "Creating log directory: $YEAR_MONTH_DIR"
-    mkdir -p "$YEAR_MONTH_DIR"
-fi
-
-# Create log filename: YYYY-MM-DD-DayOfWeek.log
-LOG_FILENAME="${CURRENT_DATE}-${CURRENT_DAY_OF_WEEK}.log"
-LOG_FILE="$YEAR_MONTH_DIR/$LOG_FILENAME"
-
-# Convert to absolute path before changing directories
-LOG_FILE_ABS="$(realpath "$LOG_FILE")"
-
-print_status "Logging output to: $LOG_FILE_ABS"
+LOG_FILE_ABS=$(setup_logging_structure "$LOGS_DIR" "$SYSTEM_ID" "$SCRIPT_ID")
 
 # Change to alpaca directory to run the script
 print_status "Running trendTrader.py..."

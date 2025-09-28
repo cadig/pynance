@@ -6,35 +6,12 @@
 
 set -e  # Exit on any error
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+# Source common functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
 
 # Check if we're in the right directory
-if [ ! -f "envs/pynance-v2.0.yml" ]; then
-    print_error "pynance-v2.0.yml not found. Please run this script from the project root directory."
-    exit 1
-fi
+check_project_directory "envs/pynance-v2.0.yml"
 
 # Check if conda is installed
 if ! command -v conda &> /dev/null; then
@@ -75,11 +52,7 @@ else
 fi
 
 # Source conda to make sure it's available
-if [ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]; then
-    source "$HOME/miniconda3/etc/profile.d/conda.sh"
-elif [ -f "/opt/conda/etc/profile.d/conda.sh" ]; then
-    source "/opt/conda/etc/profile.d/conda.sh"
-fi
+source_conda
 
 # Check if pynance-v2.0 environment exists
 if conda env list | grep -q "pynance-v2.0"; then

@@ -5,90 +5,18 @@
 
 set -e  # Exit on any error
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
-
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-print_header() {
-    echo -e "${CYAN}================================${NC}"
-    echo -e "${CYAN}$1${NC}"
-    echo -e "${CYAN}================================${NC}"
-}
+# Source common functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
 
 # Get the project root directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(get_project_root_direct)"
 
 print_header "PYNANCE MACHINE SETUP"
 print_status "Setting up machine for Pynance trading system..."
 print_status "Project root: $PROJECT_ROOT"
 
-# Function to check if running as root
-check_root() {
-    if [ "$EUID" -eq 0 ]; then
-        print_warning "Running as root. This is not recommended for security reasons."
-        print_warning "Consider running as a regular user and using sudo when needed."
-        read -p "Continue anyway? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            print_error "Setup cancelled by user"
-            exit 1
-        fi
-    fi
-}
-
-# Function to check system requirements
-check_system_requirements() {
-    print_header "CHECKING SYSTEM REQUIREMENTS"
-    
-    # Check if we're on a supported OS
-    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        print_success "Linux system detected"
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        print_success "macOS system detected"
-    else
-        print_warning "Unsupported OS: $OSTYPE"
-        print_warning "This script is designed for Linux and macOS"
-    fi
-    
-    # Check available disk space
-    local available_space=$(df -BG "$PROJECT_ROOT" | awk 'NR==2 {print $4}' | sed 's/G//')
-    if [ "$available_space" -lt 5 ]; then
-        print_warning "Low disk space detected: ${available_space}GB available"
-        print_warning "Consider freeing up space before proceeding"
-    else
-        print_success "Sufficient disk space: ${available_space}GB available"
-    fi
-    
-    # Check if git is available
-    if command -v git &> /dev/null; then
-        print_success "Git is available"
-    else
-        print_error "Git is not installed. Please install git first."
-        exit 1
-    fi
-}
+# Note: check_root() and check_system_requirements() are now in common.sh
 
 # Function to setup conda environment
 setup_conda_environment() {
@@ -367,53 +295,7 @@ test_setup() {
     fi
 }
 
-# Function to show next steps
-show_next_steps() {
-    print_header "NEXT STEPS"
-    
-    echo "Your Pynance trading system is now set up! Here's what to do next:"
-    echo
-    echo "1. Configure your API credentials:"
-    echo "   Edit: $(dirname "$PROJECT_ROOT")/config/alpaca-config.ini"
-    echo "   Add your Alpaca API key and secret"
-    echo "   Edit: $(dirname "$PROJECT_ROOT")/config/finnhub-config.ini"
-    echo "   Add your Finnhub API key"
-    echo
-    echo "2. Test the system manually:"
-    echo "   cd $PROJECT_ROOT"
-    echo "   ./scripts/run_alpaca_trend.sh"
-    echo "   ./scripts/run_risk_manager.sh"
-    echo
-    echo "3. Monitor the logs:"
-    echo "   ./scripts/view_logs.sh"
-    echo "   ./scripts/view_risk_manager_logs.sh"
-    echo "   ./scripts/view_all_logs.sh"
-    echo
-    echo "4. Check cron jobs:"
-    echo "   crontab -l"
-    echo
-    echo "5. The system will automatically run:"
-    echo "   - trendTrader: Daily at adjusted local time (equivalent to 8:55 AM EST)"
-    echo "   - RiskManager: Every hour during adjusted local time (equivalent to 9 AM - 4 PM EST)"
-    echo "   - Times are automatically adjusted for your system timezone"
-    echo
-    echo "6. UI server is already running:"
-    echo "   - Access from WSL: http://localhost:8080"
-    echo "   - Access from Windows: http://[WSL_IP]:8080"
-    echo "   - Manage server: ./scripts/manage_ui_server.sh [start|stop|restart|status|logs|test]"
-    echo "   - View logs: ./scripts/manage_ui_server.sh logs"
-    echo "   - Follow logs: ./scripts/manage_ui_server.sh follow"
-    echo
-    echo "7. For DST transitions:"
-    echo "   - Check DST status: ./scripts/check_dst_status.sh"
-    echo "   - Re-run setup after DST transitions: ./scripts/setup_cron_jobs.sh"
-    echo
-    echo "8. For troubleshooting:"
-    echo "   - Check logs in: $(dirname "$PROJECT_ROOT")/logs/"
-    echo "   - View cron job logs: grep CRON /var/log/syslog (Linux) or /var/log/system.log (macOS)"
-    echo "   - Test UI access: curl http://localhost:8080"
-    echo
-}
+# Note: show_next_steps() is now in common.sh as show_setup_next_steps()
 
 # Main execution
 main() {
@@ -447,7 +329,7 @@ main() {
     test_setup
     
     # Show next steps
-    show_next_steps
+    show_setup_next_steps "$PROJECT_ROOT"
     
     print_success "Machine setup completed successfully!"
     print_status "Your Pynance trading system is ready to use!"

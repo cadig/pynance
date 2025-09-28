@@ -7,7 +7,7 @@ set -e  # Exit on any error
 
 # Source common functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/common.sh"
+source "$(dirname "$SCRIPT_DIR")/common.sh"
 
 # Check if conda is available
 if ! check_conda; then

@@ -7,7 +7,7 @@ set -e  # Exit on any error
 
 # Source common functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/common.sh"
+source "$(dirname "$SCRIPT_DIR")/common.sh"
 
 # Get project root
 PROJECT_ROOT="$(get_project_root_direct)"

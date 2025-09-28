@@ -7,7 +7,7 @@ set -e  # Exit on any error
 
 # Source common functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/common.sh"
+source "$(dirname "$SCRIPT_DIR")/common.sh"
 
 # Check if we're in the right directory
 check_project_directory "envs/pynance-v2.0.yml"

@@ -7,7 +7,7 @@ set -e  # Exit on any error
 
 # Source common functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/common.sh"
+source "$(dirname "$SCRIPT_DIR")/common.sh"
 
 # Default port
 PORT=${1:-8080}

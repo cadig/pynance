@@ -41,7 +41,7 @@ print_status "Creating logs directory at: $LOGS_DIR"
 mkdir -p "$LOGS_DIR"
 
 # Create system directories for different trading systems
-SYSTEMS=("01_alpacaTrend")
+SYSTEMS=("01_alpaca")
 
 for system in "${SYSTEMS[@]}"; do
     SYSTEM_DIR="$LOGS_DIR/$system"
@@ -52,18 +52,35 @@ for system in "${SYSTEMS[@]}"; do
     else
         print_success "System directory already exists: $SYSTEM_DIR"
     fi
+    
+    # Create script subdirectories for each system
+    SCRIPTS=("trendTrader" "RiskManager")
+    for script in "${SCRIPTS[@]}"; do
+        SCRIPT_DIR="$SYSTEM_DIR/$script"
+        if [ ! -d "$SCRIPT_DIR" ]; then
+            print_status "Creating script directory: $SCRIPT_DIR"
+            mkdir -p "$SCRIPT_DIR"
+            print_success "Created $SCRIPT_DIR"
+        else
+            print_success "Script directory already exists: $SCRIPT_DIR"
+        fi
+    done
 done
 
-# Create current month directory for alpacaTrend system
+# Create current month directories for alpaca system scripts
 CURRENT_YEAR_MONTH=$(date +%Y-%m)
-YEAR_MONTH_DIR="$LOGS_DIR/01_alpacaTrend/$CURRENT_YEAR_MONTH"
-if [ ! -d "$YEAR_MONTH_DIR" ]; then
-    print_status "Creating current month directory: $YEAR_MONTH_DIR"
-    mkdir -p "$YEAR_MONTH_DIR"
-    print_success "Created $YEAR_MONTH_DIR"
-else
-    print_success "Month directory already exists: $YEAR_MONTH_DIR"
-fi
+SCRIPTS=("trendTrader" "RiskManager")
+
+for script in "${SCRIPTS[@]}"; do
+    YEAR_MONTH_DIR="$LOGS_DIR/01_alpaca/$script/$CURRENT_YEAR_MONTH"
+    if [ ! -d "$YEAR_MONTH_DIR" ]; then
+        print_status "Creating current month directory: $YEAR_MONTH_DIR"
+        mkdir -p "$YEAR_MONTH_DIR"
+        print_success "Created $YEAR_MONTH_DIR"
+    else
+        print_success "Month directory already exists: $YEAR_MONTH_DIR"
+    fi
+done
 
 # Create a README for the logs directory
 README_FILE="$LOGS_DIR/README.md"
@@ -83,13 +100,19 @@ parent-directory/
 │   ├── scripts/
 │   └── ...
 └── logs/              # Log files (this directory)
-    ├── 01_alpacaTrend/    # Alpaca trading system logs
-    │   ├── 2024-01/       # Year-Month directories
-    │   │   ├── 2024-01-15-Monday.log
-    │   │   ├── 2024-01-16-Tuesday.log
+    ├── 01_alpaca/         # Alpaca trading system logs
+    │   ├── trendTrader/    # Trend trader script logs
+    │   │   ├── 2024-01/   # Year-Month directories
+    │   │   │   ├── 2024-01-15-Monday.log
+    │   │   │   ├── 2024-01-16-Tuesday.log
+    │   │   │   └── ...
+    │   │   ├── 2024-02/
     │   │   └── ...
-    │   ├── 2024-02/
-    │   └── ...
+    │   ├── RiskManager/    # Risk manager script logs
+    │   │   ├── 2024-01/
+    │   │   │   ├── 2024-01-15-Monday.log
+    │   │   │   └── ...
+    │   │   └── ...
     ├── 02_ibkrSystem/     # Interactive Brokers system logs
     │   ├── 2024-01/
     │   └── ...
@@ -99,7 +122,9 @@ parent-directory/
 
 ## System Identifiers
 
-- \`01_alpacaTrend\` - Alpaca paper/live trading system
+- \`01_alpaca\` - Alpaca trading system
+  - \`trendTrader\` - Trend trading script
+  - \`RiskManager\` - Risk management script
 
 ## Log File Naming
 

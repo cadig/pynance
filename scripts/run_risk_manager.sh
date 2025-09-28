@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to run trendTrader.py with proper environment activation
+# Script to run RiskManager.py with proper environment activation
 # This script assumes the pynance-v2.0 environment is already set up
 
 set -e  # Exit on any error
@@ -30,8 +30,8 @@ print_error() {
 }
 
 # Check if we're in the right directory
-if [ ! -f "alpaca/trendTrader.py" ]; then
-    print_error "trendTrader.py not found. Please run this script from the project root directory."
+if [ ! -f "alpaca/RiskManager.py" ]; then
+    print_error "RiskManager.py not found. Please run this script from the project root directory."
     exit 1
 fi
 
@@ -97,7 +97,7 @@ fi
 print_status "Setting up logging directory structure..."
 LOGS_DIR="../logs"
 SYSTEM_ID="01_alpaca"
-SCRIPT_ID="trendTrader"
+SCRIPT_ID="RiskManager"
 CURRENT_DATE=$(date +%Y-%m-%d)
 CURRENT_YEAR_MONTH=$(date +%Y-%m)
 CURRENT_DAY_OF_WEEK=$(date +%A)
@@ -133,17 +133,17 @@ LOG_FILE_ABS="$(realpath "$LOG_FILE")"
 print_status "Logging output to: $LOG_FILE_ABS"
 
 # Change to alpaca directory to run the script
-print_status "Running trendTrader.py..."
+print_status "Running RiskManager.py..."
 cd alpaca
 
 # Run the script and capture output
 # Redirect both stdout and stderr to the log file and also display in real-time using tee
-python trendTrader.py 2>&1 | tee "$LOG_FILE_ABS"
+python RiskManager.py 2>&1 | tee "$LOG_FILE_ABS"
 
 # Check exit status
 if [ $? -eq 0 ]; then
-    print_success "trendTrader.py completed successfully!"
+    print_success "RiskManager.py completed successfully!"
 else
-    print_error "trendTrader.py failed with exit code $?"
+    print_error "RiskManager.py failed with exit code $?"
     exit 1
 fi

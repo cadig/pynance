@@ -102,7 +102,7 @@ fi
 print_status "Verifying environment packages..."
 conda activate pynance-v2.0
 
-# Check for key packages that alpacaTrend.py needs
+# Check for key packages that trendTrader.py and RiskManager.py need
 REQUIRED_PACKAGES=("pandas" "numpy" "matplotlib" "alpaca-trade-api" "finvizfinance" "backtrader" "yfinance" "tradingview-datafeed")
 
 for package in "${REQUIRED_PACKAGES[@]}"; do

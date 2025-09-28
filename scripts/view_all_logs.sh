@@ -52,6 +52,17 @@ list_systems() {
                 latest_log=$(find "$system_dir" -name "*.log" -type f | sort -r | head -n 1)
                 latest_date=$(basename "$latest_log" | cut -d'-' -f1-3)
                 echo -e "${CYAN}$system_name${NC} - ${YELLOW}$log_count${NC} log files (latest: $latest_date)"
+                
+                # List scripts within the system
+                for script_dir in "$system_dir"/*; do
+                    if [ -d "$script_dir" ]; then
+                        script_name=$(basename "$script_dir")
+                        script_log_count=$(find "$script_dir" -name "*.log" -type f | wc -l)
+                        if [ "$script_log_count" -gt 0 ]; then
+                            echo -e "  ${BLUE}$script_name${NC} - ${YELLOW}$script_log_count${NC} log files"
+                        fi
+                    fi
+                done
             else
                 echo -e "${CYAN}$system_name${NC} - ${YELLOW}0${NC} log files"
             fi
@@ -71,13 +82,22 @@ list_system_logs() {
     
     print_status "Log files for $system_id:"
     echo
-    find "$system_dir" -name "*.log" -type f | sort -r | while read -r logfile; do
-        filename=$(basename "$logfile")
-        filedir=$(dirname "$logfile")
-        month_dir=$(basename "$filedir")
-        filesize=$(du -h "$logfile" | cut -f1)
-        mod_time=$(stat -c %y "$logfile" 2>/dev/null || stat -f %Sm "$logfile" 2>/dev/null)
-        echo -e "${BLUE}$month_dir/${GREEN}$filename${NC} (${YELLOW}$filesize${NC}) - $mod_time"
+    
+    # List all scripts within the system
+    for script_dir in "$system_dir"/*; do
+        if [ -d "$script_dir" ]; then
+            script_name=$(basename "$script_dir")
+            echo -e "${CYAN}=== $script_name ===${NC}"
+            find "$script_dir" -name "*.log" -type f | sort -r | while read -r logfile; do
+                filename=$(basename "$logfile")
+                filedir=$(dirname "$logfile")
+                month_dir=$(basename "$filedir")
+                filesize=$(du -h "$logfile" | cut -f1)
+                mod_time=$(stat -c %y "$logfile" 2>/dev/null || stat -f %Sm "$logfile" 2>/dev/null)
+                echo -e "${BLUE}$month_dir/${GREEN}$filename${NC} (${YELLOW}$filesize${NC}) - $mod_time"
+            done
+            echo
+        fi
     done
 }
 
@@ -216,9 +236,9 @@ case "${1:-systems}" in
         echo
         echo "Examples:"
         echo "  $0 systems"
-        echo "  $0 logs 01_alpacaTrend"
+        echo "  $0 logs 01_alpaca"
         echo "  $0 latest"
-        echo "  $0 view ../logs/01_alpacaTrend/2024-01/2024-01-15-Monday.log"
+        echo "  $0 view ../logs/01_alpaca/trendTrader/2024-01/2024-01-15-Monday.log"
         echo "  $0 search 'ERROR'"
         ;;
     *)

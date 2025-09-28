@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to view recent logs from alpacaTrend.py
+# Script to view recent logs from RiskManager.py
 # This script helps you navigate and view log files
 
 set -e  # Exit on any error
@@ -32,7 +32,7 @@ print_error() {
 # Get the logs directory
 LOGS_DIR="../logs"
 SYSTEM_ID="01_alpaca"
-SCRIPT_ID="trendTrader"
+SCRIPT_ID="RiskManager"
 
 # Check if logs directory exists
 if [ ! -d "$LOGS_DIR" ]; then
@@ -157,7 +157,7 @@ case "${1:-list}" in
         search_logs "$2"
         ;;
     "help"|"-h"|"--help")
-        echo "Pynance Log Viewer"
+        echo "Pynance Risk Manager Log Viewer"
         echo
         echo "Usage: $0 [command] [options]"
         echo

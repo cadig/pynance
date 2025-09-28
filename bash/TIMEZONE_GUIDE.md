@@ -128,7 +128,7 @@ crontab -e
 
 2. **Cron Jobs Running at Wrong Time**
    - Check: `crontab -l`
-   - Re-run: `./scripts/setup_cron_jobs.sh`
+   - Re-run: `./bash/setup_cron_jobs.sh`
 
 3. **Market Hours Mismatch**
    - Verify: `TZ=America/New_York date`
@@ -175,10 +175,10 @@ The setup script will show:
 ### Final Cron Jobs
 ```
 # TrendTrader - runs at 5:55 AM PDT (8:55 AM EST)
-55 5 * * 1-5 cd /path/to/pynance && ./scripts/run_alpaca_trend.sh
+55 5 * * 1-5 cd /path/to/pynance && ./bash/run_alpaca_trend.sh
 
 # RiskManager - runs 6:00 AM to 1:00 PM PDT (9:00 AM to 4:00 PM EST)
-0 6-13 * * 1-5 cd /path/to/pynance && ./scripts/run_risk_manager.sh
+0 6-13 * * 1-5 cd /path/to/pynance && ./bash/run_risk_manager.sh
 ```
 
 This ensures your trading system runs at the correct times regardless of your system's timezone!

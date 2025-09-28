@@ -31,10 +31,10 @@ Instead of changing your system timezone, the setup scripts now automatically ad
 ### Adjusted Cron Jobs
 ```bash
 # TrendTrader - runs at 5:55 AM PDT (8:55 AM EST)
-55 5 * * 1-5 cd /path/to/pynance && ./scripts/run_alpaca_trend.sh
+55 5 * * 1-5 cd /path/to/pynance && ./bash/run_alpaca_trend.sh
 
 # RiskManager - runs 6:00 AM to 1:00 PM PDT (9:00 AM to 4:00 PM EST)
-0 6-13 * * 1-5 cd /path/to/pynance && ./scripts/run_risk_manager.sh
+0 6-13 * * 1-5 cd /path/to/pynance && ./bash/run_risk_manager.sh
 ```
 
 ## Benefits of This Approach
@@ -103,8 +103,8 @@ TZ=America/New_York date
 Timezone: America/Los_Angeles (PDT, -0700)
 
 # Cron jobs
-55 5 * * 1-5 cd /path/to/pynance && ./scripts/run_alpaca_trend.sh
-0 6-13 * * 1-5 cd /path/to/pynance && ./scripts/run_risk_manager.sh
+55 5 * * 1-5 cd /path/to/pynance && ./bash/run_alpaca_trend.sh
+0 6-13 * * 1-5 cd /path/to/pynance && ./bash/run_risk_manager.sh
 
 # Eastern Time
 Mon Sep 28 15:30:00 EDT 2024
@@ -116,11 +116,11 @@ Mon Sep 28 15:30:00 EDT 2024
 ```bash
 # Test TrendTrader at 5:55 AM PDT
 cd /path/to/pynance
-./scripts/run_alpaca_trend.sh
+./bash/run_alpaca_trend.sh
 
 # Test RiskManager at 6:00 AM PDT
 cd /path/to/pynance
-./scripts/run_risk_manager.sh
+./bash/run_risk_manager.sh
 ```
 
 ### Verify Market Hours
@@ -143,7 +143,7 @@ For critical DST transition periods, you can manually verify and adjust:
 TZ=America/New_York date
 
 # Re-run setup if needed
-./scripts/setup_cron_jobs.sh
+./bash/setup_cron_jobs.sh
 ```
 
 ## Summary

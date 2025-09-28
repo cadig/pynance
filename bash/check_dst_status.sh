@@ -99,7 +99,7 @@ if crontab -l 2>/dev/null | grep -q "run_alpaca_trend.sh\|run_risk_manager.sh"; 
     done
 else
     print_warning "No trading cron jobs found"
-    print_status "Run ./scripts/setup_cron_jobs.sh to set up cron jobs"
+    print_status "Run ./bash/setup_cron_jobs.sh to set up cron jobs"
 fi
 
 # Recommendations
@@ -107,10 +107,10 @@ print_header "RECOMMENDATIONS"
 
 if [ "$CURRENT_MONTH" -eq 3 ] || [ "$CURRENT_MONTH" -eq 11 ]; then
     print_warning "DST transition month - take action:"
-    echo "1. Re-run setup script: ./scripts/setup_cron_jobs.sh"
+    echo "1. Re-run setup script: ./bash/setup_cron_jobs.sh"
     echo "2. Verify cron job times: crontab -l"
-    echo "3. Test the system: ./scripts/run_alpaca_trend.sh"
-    echo "4. Monitor logs: ./scripts/view_logs.sh"
+    echo "3. Test the system: ./bash/run_alpaca_trend.sh"
+    echo "4. Monitor logs: ./bash/view_logs.sh"
 else
     print_success "No immediate DST action needed"
     echo "1. Current setup should be working correctly"

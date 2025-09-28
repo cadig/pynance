@@ -25,7 +25,7 @@ Pynance UI (localhost:8080)
 The setup_machine.sh script automatically detects WSL and configures networking:
 
 ```bash
-./scripts/setup_machine.sh
+./bash/setup_machine.sh
 ```
 
 ### 2. **Manual Setup**
@@ -33,10 +33,10 @@ If you need to configure networking manually:
 
 ```bash
 # Configure WSL networking
-./scripts/configure_wsl_networking.sh 8080
+./bash/configure_wsl_networking.sh 8080
 
 # Start UI server
-./scripts/serve_ui.sh 8080
+./bash/serve_ui.sh 8080
 ```
 
 ## Access Methods
@@ -44,7 +44,7 @@ If you need to configure networking manually:
 ### From WSL (Local)
 ```bash
 # Start the server
-./scripts/serve_ui.sh
+./bash/serve_ui.sh
 
 # Access locally
 curl http://localhost:8080
@@ -99,7 +99,7 @@ lsof -i :8080
 ps aux | grep "http.server"
 
 # Restart server
-./scripts/serve_ui.sh
+./bash/serve_ui.sh
 ```
 
 #### 2. **Windows Can't Access WSL**
@@ -155,10 +155,10 @@ curl http://[WSL_IP]:8080
 ### Change Port
 ```bash
 # Use different port
-./scripts/serve_ui.sh 8081
+./bash/serve_ui.sh 8081
 
 # Configure networking for new port
-./scripts/configure_wsl_networking.sh 8081
+./bash/configure_wsl_networking.sh 8081
 ```
 
 ## Security Considerations
@@ -207,7 +207,7 @@ tail -f /var/log/syslog | grep "http.server"
 pkill -f "http.server"
 
 # Start server
-./scripts/serve_ui.sh
+./bash/serve_ui.sh
 ```
 
 ## Best Practices
@@ -237,13 +237,13 @@ pkill -f "http.server"
 ### Complete Setup
 ```bash
 # 1. Run setup script
-./scripts/setup_machine.sh
+./bash/setup_machine.sh
 
 # 2. Configure WSL networking
-./scripts/configure_wsl_networking.sh 8080
+./bash/configure_wsl_networking.sh 8080
 
 # 3. Start UI server
-./scripts/serve_ui.sh 8080
+./bash/serve_ui.sh 8080
 
 # 4. Test from WSL
 curl http://localhost:8080
@@ -255,7 +255,7 @@ curl http://localhost:8080
 ### Daily Usage
 ```bash
 # Start UI server
-./scripts/serve_ui.sh
+./bash/serve_ui.sh
 
 # Access from Windows browser
 # http://[WSL_IP]:8080

@@ -76,7 +76,7 @@ This directory contains log files from various Pynance trading systems.
 parent-directory/
 ├── pynance/           # Main repository
 │   ├── alpaca/
-│   ├── scripts/
+│   ├── bash/
 │   └── ...
 └── logs/              # Log files (this directory)
     ├── 01_alpaca/         # Alpaca trading system logs

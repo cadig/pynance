@@ -151,7 +151,7 @@ print_status "  From Windows: http://$WSL_IP:$PORT"
 
 print_status "Next Steps:"
 print_status "1. Run the Windows batch script to configure firewall"
-print_status "2. Start the UI server: ./scripts/serve_ui.sh $PORT"
+print_status "2. Start the UI server: ./bash/serve_ui.sh $PORT"
 print_status "3. Test access from Windows browser"
 
 print_warning "Important Notes:"

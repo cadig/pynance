@@ -154,6 +154,6 @@ for package in "${REQUIRED_PACKAGES[@]}"; do
 done
 
 print_success "Installation completed successfully!"
-print_status "To run alpacaTrend.py, use: ./scripts/run_alpaca_trend.sh"
+print_status "To run alpacaTrend.py, use: ./bash/run_alpaca_trend.sh"
 print_status "Make sure to configure your API credentials in ../config/alpaca-config.ini first!"
 print_status "The config directory is located outside the repository for security."

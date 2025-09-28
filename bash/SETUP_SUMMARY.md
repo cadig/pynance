@@ -39,31 +39,31 @@ I've created comprehensive scripts to set up your machine for running the Pynanc
 ### TrendTrader
 - **Schedule**: `55 8 * * 1-5` (8:55 AM EST, Monday-Friday)
 - **Purpose**: Runs before market opens
-- **Script**: `./scripts/run_alpaca_trend.sh`
+- **Script**: `./bash/run_alpaca_trend.sh`
 
 ### RiskManager
 - **Schedule**: `0 9-16 * * 1-5` (Every hour 9 AM - 4 PM EST, Monday-Friday)
 - **Purpose**: Runs during market hours
-- **Script**: `./scripts/run_risk_manager.sh`
+- **Script**: `./bash/run_risk_manager.sh`
 
 ## Usage
 
 ### Quick Setup (Recommended)
 ```bash
 # Run the comprehensive setup
-./scripts/setup_machine.sh
+./bash/setup_machine.sh
 ```
 
 ### Individual Setup Steps
 ```bash
 # 1. Setup conda environment
-./scripts/check_conda_environment.sh
+./bash/check_conda_environment.sh
 
 # 2. Setup logging directories
-./scripts/setup_logging.sh
+./bash/setup_logging.sh
 
 # 3. Setup cron jobs
-./scripts/setup_cron_jobs.sh
+./bash/setup_cron_jobs.sh
 ```
 
 ## What the Scripts Do
@@ -86,16 +86,16 @@ I've created comprehensive scripts to set up your machine for running the Pynanc
 
 ## Your Current Cron Job
 ```
-55 12 * * 1-5 cd /home/jjcadiga/github/pynance && ./scripts/run_alpaca_trend.sh
+55 12 * * 1-5 cd /home/jjcadiga/github/pynance && ./bash/run_alpaca_trend.sh
 ```
 
 ## New Cron Jobs (After Setup)
 ```
 # TrendTrader - before market opens
-55 8 * * 1-5 cd /home/jjcadiga/github/pynance && ./scripts/run_alpaca_trend.sh
+55 8 * * 1-5 cd /home/jjcadiga/github/pynance && ./bash/run_alpaca_trend.sh
 
 # RiskManager - during market hours
-0 9-16 * * 1-5 cd /home/jjcadiga/github/pynance && ./scripts/run_risk_manager.sh
+0 9-16 * * 1-5 cd /home/jjcadiga/github/pynance && ./bash/run_risk_manager.sh
 ```
 
 ## Key Features
@@ -146,7 +146,7 @@ The system requires two configuration files in the `../config/` directory:
 ## Next Steps
 
 1. **Pull the latest changes** from your repository
-2. **Run the setup script**: `./scripts/setup_machine.sh`
+2. **Run the setup script**: `./bash/setup_machine.sh`
 3. **Configure your API credentials** in both config files
 4. **Test the system** manually before relying on cron jobs
 5. **Monitor the logs** to ensure everything is working
@@ -162,10 +162,10 @@ The system requires two configuration files in the `../config/` directory:
 ## Files Created/Modified
 
 ### New Files
-- `scripts/setup_cron_jobs.sh`
-- `scripts/setup_machine.sh`
-- `scripts/CRON_SETUP_GUIDE.md`
-- `scripts/SETUP_SUMMARY.md`
+- `bash/setup_cron_jobs.sh`
+- `bash/setup_machine.sh`
+- `bash/CRON_SETUP_GUIDE.md`
+- `bash/SETUP_SUMMARY.md`
 
 ### Updated Files
 - All existing scripts updated for new structure

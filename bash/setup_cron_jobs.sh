@@ -17,12 +17,12 @@ print_status "Project root: $PROJECT_ROOT"
 
 # Ensure scripts are executable
 print_status "Making scripts executable..."
-chmod +x "$PROJECT_ROOT/scripts/run_alpaca_trend.sh"
-chmod +x "$PROJECT_ROOT/scripts/run_risk_manager.sh"
-chmod +x "$PROJECT_ROOT/scripts/setup_logging.sh"
-chmod +x "$PROJECT_ROOT/scripts/view_logs.sh"
-chmod +x "$PROJECT_ROOT/scripts/view_risk_manager_logs.sh"
-chmod +x "$PROJECT_ROOT/scripts/view_all_logs.sh"
+chmod +x "$PROJECT_ROOT/bash/run_alpaca_trend.sh"
+chmod +x "$PROJECT_ROOT/bash/run_risk_manager.sh"
+chmod +x "$PROJECT_ROOT/bash/setup_logging.sh"
+chmod +x "$PROJECT_ROOT/bash/view_logs.sh"
+chmod +x "$PROJECT_ROOT/bash/view_risk_manager_logs.sh"
+chmod +x "$PROJECT_ROOT/bash/view_all_logs.sh"
 print_success "Scripts are now executable"
 
 # Detect system timezone and adjust cron job times accordingly
@@ -185,8 +185,8 @@ else
 fi
 
 # Define the cron jobs with adjusted times
-TREND_TRADER_CRON="55 ${TREND_TRADER_HOUR} * * 1-5 cd $PROJECT_ROOT && ./scripts/run_alpaca_trend.sh"
-RISK_MANAGER_CRON="0 ${RISK_MANAGER_HOURS} * * 1-5 cd $PROJECT_ROOT && ./scripts/run_risk_manager.sh"
+TREND_TRADER_CRON="55 ${TREND_TRADER_HOUR} * * 1-5 cd $PROJECT_ROOT && ./bash/run_alpaca_trend.sh"
+RISK_MANAGER_CRON="0 ${RISK_MANAGER_HOURS} * * 1-5 cd $PROJECT_ROOT && ./bash/run_risk_manager.sh"
 
 # Function to check if a cron job exists
 cron_job_exists() {
@@ -252,7 +252,7 @@ validate_cron_job() {
     local job_name="$2"
     
     # Basic validation - check if the job contains the expected elements
-    if [[ "$job" == *"cd $PROJECT_ROOT"* ]] && [[ "$job" == *"scripts/"* ]]; then
+    if [[ "$job" == *"cd $PROJECT_ROOT"* ]] && [[ "$job" == *"bash/"* ]]; then
         print_success "$job_name cron job format is valid"
         return 0
     else
@@ -295,12 +295,12 @@ print_status "Additional setup recommendations:"
 echo
 echo "1. Ensure your system timezone is set correctly (EST/EDT for US market hours)"
 echo "2. Test the scripts manually before relying on cron jobs:"
-echo "   - Test trendTrader: cd $PROJECT_ROOT && ./scripts/run_alpaca_trend.sh"
-echo "   - Test RiskManager: cd $PROJECT_ROOT && ./scripts/run_risk_manager.sh"
+echo "   - Test trendTrader: cd $PROJECT_ROOT && ./bash/run_alpaca_trend.sh"
+echo "   - Test RiskManager: cd $PROJECT_ROOT && ./bash/run_risk_manager.sh"
 echo "3. Monitor logs to ensure scripts are running correctly:"
-echo "   - View trendTrader logs: ./scripts/view_logs.sh"
-echo "   - View RiskManager logs: ./scripts/view_risk_manager_logs.sh"
-echo "   - View all logs: ./scripts/view_all_logs.sh"
+echo "   - View trendTrader logs: ./bash/view_logs.sh"
+echo "   - View RiskManager logs: ./bash/view_risk_manager_logs.sh"
+echo "   - View all logs: ./bash/view_all_logs.sh"
 echo "4. Set up log rotation if needed to prevent disk space issues"
 echo
 
@@ -317,4 +317,4 @@ print_status "DST transitions occur on:"
 print_status "  - Spring Forward: Second Sunday in March (2:00 AM → 3:00 AM)"
 print_status "  - Fall Back: First Sunday in November (2:00 AM → 1:00 AM)"
 print_warning "You may need to re-run this script after DST transitions to ensure correct timing."
-print_status "To re-run: ./scripts/setup_cron_jobs.sh"
+print_status "To re-run: ./bash/setup_cron_jobs.sh"

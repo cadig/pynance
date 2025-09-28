@@ -23,9 +23,9 @@ setup_conda_environment() {
     print_header "SETTING UP CONDA ENVIRONMENT"
     
     # Run the conda environment check script
-    if [ -f "$PROJECT_ROOT/scripts/check_conda_environment.sh" ]; then
+    if [ -f "$PROJECT_ROOT/bash/check_conda_environment.sh" ]; then
         print_status "Running conda environment setup..."
-        bash "$PROJECT_ROOT/scripts/check_conda_environment.sh"
+        bash "$PROJECT_ROOT/bash/check_conda_environment.sh"
         print_success "Conda environment setup completed"
     else
         print_error "check_conda_environment.sh not found"
@@ -38,9 +38,9 @@ setup_logging() {
     print_header "SETTING UP LOGGING DIRECTORIES"
     
     # Run the logging setup script
-    if [ -f "$PROJECT_ROOT/scripts/setup_logging.sh" ]; then
+    if [ -f "$PROJECT_ROOT/bash/setup_logging.sh" ]; then
         print_status "Setting up logging directories..."
-        bash "$PROJECT_ROOT/scripts/setup_logging.sh"
+        bash "$PROJECT_ROOT/bash/setup_logging.sh"
         print_success "Logging setup completed"
     else
         print_error "setup_logging.sh not found"
@@ -53,9 +53,9 @@ setup_cron_jobs() {
     print_header "SETTING UP CRON JOBS"
     
     # Run the cron job setup script
-    if [ -f "$PROJECT_ROOT/scripts/setup_cron_jobs.sh" ]; then
+    if [ -f "$PROJECT_ROOT/bash/setup_cron_jobs.sh" ]; then
         print_status "Setting up cron jobs..."
-        bash "$PROJECT_ROOT/scripts/setup_cron_jobs.sh"
+        bash "$PROJECT_ROOT/bash/setup_cron_jobs.sh"
         print_success "Cron job setup completed"
     else
         print_error "setup_cron_jobs.sh not found"
@@ -86,9 +86,9 @@ setup_ui_serving() {
         print_status "WSL detected - configuring networking for Windows host access"
         
         # Run WSL networking configuration
-        if [ -f "$PROJECT_ROOT/scripts/configure_wsl_networking.sh" ]; then
+        if [ -f "$PROJECT_ROOT/bash/configure_wsl_networking.sh" ]; then
             print_status "Configuring WSL networking..."
-            bash "$PROJECT_ROOT/scripts/configure_wsl_networking.sh" 8080
+            bash "$PROJECT_ROOT/bash/configure_wsl_networking.sh" 8080
             print_success "WSL networking configuration completed"
         else
             print_warning "configure_wsl_networking.sh not found"
@@ -98,24 +98,24 @@ setup_ui_serving() {
     fi
     
     # Make UI serving scripts executable
-    if [ -f "$PROJECT_ROOT/scripts/serve_ui.sh" ]; then
-        chmod +x "$PROJECT_ROOT/scripts/serve_ui.sh"
+    if [ -f "$PROJECT_ROOT/bash/serve_ui.sh" ]; then
+        chmod +x "$PROJECT_ROOT/bash/serve_ui.sh"
         print_success "UI serving script is executable"
     else
         print_error "serve_ui.sh not found"
         return 1
     fi
     
-    if [ -f "$PROJECT_ROOT/scripts/start_ui_service.sh" ]; then
-        chmod +x "$PROJECT_ROOT/scripts/start_ui_service.sh"
+    if [ -f "$PROJECT_ROOT/bash/start_ui_service.sh" ]; then
+        chmod +x "$PROJECT_ROOT/bash/start_ui_service.sh"
         print_success "UI service management script is executable"
     else
         print_error "start_ui_service.sh not found"
         return 1
     fi
     
-    if [ -f "$PROJECT_ROOT/scripts/manage_ui_server.sh" ]; then
-        chmod +x "$PROJECT_ROOT/scripts/manage_ui_server.sh"
+    if [ -f "$PROJECT_ROOT/bash/manage_ui_server.sh" ]; then
+        chmod +x "$PROJECT_ROOT/bash/manage_ui_server.sh"
         print_success "UI server management script is executable"
     else
         print_error "manage_ui_server.sh not found"
@@ -244,11 +244,11 @@ EOF
     # Check if scripts are executable
     local scripts=("run_alpaca_trend.sh" "run_risk_manager.sh" "setup_logging.sh" "setup_cron_jobs.sh")
     for script in "${scripts[@]}"; do
-        if [ -x "$PROJECT_ROOT/scripts/$script" ]; then
+        if [ -x "$PROJECT_ROOT/bash/$script" ]; then
             print_success "$script is executable"
         else
             print_warning "$script is not executable. Fixing..."
-            chmod +x "$PROJECT_ROOT/scripts/$script"
+            chmod +x "$PROJECT_ROOT/bash/$script"
             print_success "$script is now executable"
         fi
     done
@@ -261,13 +261,13 @@ test_setup() {
     print_status "Testing script execution (dry run)..."
     
     # Test if we can run the scripts (they might fail due to missing config, but that's expected)
-    if bash -n "$PROJECT_ROOT/scripts/run_alpaca_trend.sh" 2>/dev/null; then
+    if bash -n "$PROJECT_ROOT/bash/run_alpaca_trend.sh" 2>/dev/null; then
         print_success "trendTrader script syntax is valid"
     else
         print_warning "trendTrader script has syntax issues"
     fi
     
-    if bash -n "$PROJECT_ROOT/scripts/run_risk_manager.sh" 2>/dev/null; then
+    if bash -n "$PROJECT_ROOT/bash/run_risk_manager.sh" 2>/dev/null; then
         print_success "RiskManager script syntax is valid"
     else
         print_warning "RiskManager script has syntax issues"

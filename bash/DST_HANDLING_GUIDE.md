@@ -44,13 +44,13 @@ The Pynance trading system now includes improved DST handling, but requires some
 
 2. **Check current DST status**:
    ```bash
-   ./scripts/setup_cron_jobs.sh
+   ./bash/setup_cron_jobs.sh
    ```
 
 ### After DST Transitions
 1. **Re-run the setup script**:
    ```bash
-   ./scripts/setup_cron_jobs.sh
+   ./bash/setup_cron_jobs.sh
    ```
 
 2. **Verify new cron job times**:
@@ -61,10 +61,10 @@ The Pynance trading system now includes improved DST handling, but requires some
 3. **Test the system**:
    ```bash
    # Test TrendTrader
-   ./scripts/run_alpaca_trend.sh
+   ./bash/run_alpaca_trend.sh
    
    # Test RiskManager
-   ./scripts/run_risk_manager.sh
+   ./bash/run_risk_manager.sh
    ```
 
 ## Example DST Transitions
@@ -73,38 +73,38 @@ The Pynance trading system now includes improved DST handling, but requires some
 **Before (PST → PDT)**:
 ```bash
 # TrendTrader: 5:55 AM PST (8:55 AM EST)
-55 5 * * 1-5 cd /path/to/pynance && ./scripts/run_alpaca_trend.sh
+55 5 * * 1-5 cd /path/to/pynance && ./bash/run_alpaca_trend.sh
 
 # RiskManager: 6:00 AM - 1:00 PM PST (9:00 AM - 4:00 PM EST)
-0 6-13 * * 1-5 cd /path/to/pynance && ./scripts/run_risk_manager.sh
+0 6-13 * * 1-5 cd /path/to/pynance && ./bash/run_risk_manager.sh
 ```
 
 **After (PDT)**:
 ```bash
 # TrendTrader: 5:55 AM PDT (8:55 AM EDT)
-55 5 * * 1-5 cd /path/to/pynance && ./scripts/run_alpaca_trend.sh
+55 5 * * 1-5 cd /path/to/pynance && ./bash/run_alpaca_trend.sh
 
 # RiskManager: 6:00 AM - 1:00 PM PDT (9:00 AM - 4:00 PM EDT)
-0 6-13 * * 1-5 cd /path/to/pynance && ./scripts/run_risk_manager.sh
+0 6-13 * * 1-5 cd /path/to/pynance && ./bash/run_risk_manager.sh
 ```
 
 ### Fall Back (November 2024)
 **Before (PDT → PST)**:
 ```bash
 # TrendTrader: 5:55 AM PDT (8:55 AM EDT)
-55 5 * * 1-5 cd /path/to/pynance && ./scripts/run_alpaca_trend.sh
+55 5 * * 1-5 cd /path/to/pynance && ./bash/run_alpaca_trend.sh
 
 # RiskManager: 6:00 AM - 1:00 PM PDT (9:00 AM - 4:00 PM EDT)
-0 6-13 * * 1-5 cd /path/to/pynance && ./scripts/run_risk_manager.sh
+0 6-13 * * 1-5 cd /path/to/pynance && ./bash/run_risk_manager.sh
 ```
 
 **After (PST)**:
 ```bash
 # TrendTrader: 4:55 AM PST (8:55 AM EST)
-55 4 * * 1-5 cd /path/to/pynance && ./scripts/run_alpaca_trend.sh
+55 4 * * 1-5 cd /path/to/pynance && ./bash/run_alpaca_trend.sh
 
 # RiskManager: 5:00 AM - 12:00 PM PST (9:00 AM - 4:00 PM EST)
-0 5-12 * * 1-5 cd /path/to/pynance && ./scripts/run_risk_manager.sh
+0 5-12 * * 1-5 cd /path/to/pynance && ./bash/run_risk_manager.sh
 ```
 
 ## Automated DST Handling (Future Enhancement)
@@ -134,7 +134,7 @@ TZ=America/New_York date
 date
 
 # Check DST status
-./scripts/setup_cron_jobs.sh
+./bash/setup_cron_jobs.sh
 ```
 
 ### Verify Market Hours
@@ -154,7 +154,7 @@ TZ=America/New_York date
 ### Solutions
 1. **Re-run setup script**:
    ```bash
-   ./scripts/setup_cron_jobs.sh
+   ./bash/setup_cron_jobs.sh
    ```
 
 2. **Check timezone settings**:
@@ -169,8 +169,8 @@ TZ=America/New_York date
 
 4. **Test manually**:
    ```bash
-   ./scripts/run_alpaca_trend.sh
-   ./scripts/run_risk_manager.sh
+   ./bash/run_alpaca_trend.sh
+   ./bash/run_risk_manager.sh
    ```
 
 ## Best Practices

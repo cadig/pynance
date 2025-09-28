@@ -9,32 +9,32 @@ This guide explains the cron job setup for the Pynance trading system.
 - **Schedule**: `55 8 * * 1-5`
 - **Time**: 8:55 AM EST (before market opens at 9:30 AM EST)
 - **Days**: Monday through Friday
-- **Command**: `cd /path/to/pynance && ./scripts/run_alpaca_trend.sh`
+- **Command**: `cd /path/to/pynance && ./bash/run_alpaca_trend.sh`
 
 ### 2. RiskManager (Hourly)
 - **Schedule**: `0 9-16 * * 1-5`
 - **Time**: Every hour from 9:00 AM to 4:00 PM EST
 - **Days**: Monday through Friday
-- **Command**: `cd /path/to/pynance && ./scripts/run_risk_manager.sh`
+- **Command**: `cd /path/to/pynance && ./bash/run_risk_manager.sh`
 
 ## Setup Scripts
 
 ### Quick Setup
 ```bash
 # Run the comprehensive machine setup
-./scripts/setup_machine.sh
+./bash/setup_machine.sh
 ```
 
 ### Individual Setup Steps
 ```bash
 # 1. Setup conda environment
-./scripts/check_conda_environment.sh
+./bash/check_conda_environment.sh
 
 # 2. Setup logging directories
-./scripts/setup_logging.sh
+./bash/setup_logging.sh
 
 # 3. Setup cron jobs
-./scripts/setup_cron_jobs.sh
+./bash/setup_cron_jobs.sh
 ```
 
 ## Manual Cron Job Management
@@ -58,16 +58,16 @@ crontab -r
 
 ### Your Current Job (will be updated)
 ```
-55 12 * * 1-5 cd /home/jjcadiga/github/pynance && ./scripts/run_alpaca_trend.sh
+55 12 * * 1-5 cd /home/jjcadiga/github/pynance && ./bash/run_alpaca_trend.sh
 ```
 
 ### New Jobs (after running setup)
 ```
 # TrendTrader - runs before market opens
-55 8 * * 1-5 cd /home/jjcadiga/github/pynance && ./scripts/run_alpaca_trend.sh
+55 8 * * 1-5 cd /home/jjcadiga/github/pynance && ./bash/run_alpaca_trend.sh
 
 # RiskManager - runs every hour during market hours
-0 9-16 * * 1-5 cd /home/jjcadiga/github/pynance && ./scripts/run_risk_manager.sh
+0 9-16 * * 1-5 cd /home/jjcadiga/github/pynance && ./bash/run_risk_manager.sh
 ```
 
 ## Timezone Considerations
@@ -107,23 +107,23 @@ grep "$(date +%b\ %d)" /var/log/syslog | grep CRON
 ```bash
 # Test trendTrader
 cd /path/to/pynance
-./scripts/run_alpaca_trend.sh
+./bash/run_alpaca_trend.sh
 
 # Test RiskManager
 cd /path/to/pynance
-./scripts/run_risk_manager.sh
+./bash/run_risk_manager.sh
 ```
 
 ### View Logs
 ```bash
 # View trendTrader logs
-./scripts/view_logs.sh
+./bash/view_logs.sh
 
 # View RiskManager logs
-./scripts/view_risk_manager_logs.sh
+./bash/view_risk_manager_logs.sh
 
 # View all logs
-./scripts/view_all_logs.sh
+./bash/view_all_logs.sh
 ```
 
 ## Log File Locations
@@ -154,7 +154,7 @@ logs/
 ### File Permissions
 ```bash
 # Ensure scripts are executable
-chmod +x scripts/*.sh
+chmod +x bash/*.sh
 
 # Protect config files
 chmod 600 config/alpaca-config.ini
@@ -168,7 +168,7 @@ chmod 600 config/alpaca-config.ini
 ## Troubleshooting Common Issues
 
 ### 1. Scripts Not Running
-- Check if scripts are executable: `ls -la scripts/`
+- Check if scripts are executable: `ls -la bash/`
 - Verify paths in cron jobs are correct
 - Check system timezone settings
 

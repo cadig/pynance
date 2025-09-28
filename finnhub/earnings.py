@@ -1,25 +1,81 @@
 """
-Earnings data retrieval using Finnhub API
+Earnings data retrieval using Finnhub API with local caching
 """
 import requests
 import json
+import os
+import pandas as pd
 from datetime import datetime, timedelta
 from .config_reader import get_finnhub_credentials
 
 
-def get_next_earnings_date(symbol):
-    """
-    Retrieve the next upcoming earnings date for a given ticker symbol
+def _get_cache_file_path():
+    """Get the path to the earnings cache CSV file"""
+    cache_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(cache_dir, 'finnhub_earnings_calendar.csv')
+
+
+def _load_earnings_cache():
+    """Load earnings data from cache CSV file"""
+    cache_file = _get_cache_file_path()
     
-    Args:
-        symbol (str): Stock ticker symbol (e.g., 'AAPL')
+    if not os.path.exists(cache_file):
+        return pd.DataFrame(columns=['Ticker', 'Next_Earnings_Date', 'Last_Updated'])
+    
+    try:
+        df = pd.read_csv(cache_file)
+        # Convert date column to datetime
+        if 'Next_Earnings_Date' in df.columns:
+            df['Next_Earnings_Date'] = pd.to_datetime(df['Next_Earnings_Date'], errors='coerce')
+        return df
+    except Exception as e:
+        print(f"Warning: Could not load earnings cache: {e}")
+        return pd.DataFrame(columns=['Ticker', 'Next_Earnings_Date', 'Last_Updated'])
+
+
+def _save_earnings_cache(df):
+    """Save earnings data to cache CSV file"""
+    cache_file = _get_cache_file_path()
+    
+    try:
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(cache_file), exist_ok=True)
         
-    Returns:
-        datetime or None: Next earnings date if found, None if no earnings found
+        # Convert datetime to string for CSV storage
+        df_to_save = df.copy()
+        if 'Next_Earnings_Date' in df_to_save.columns:
+            df_to_save['Next_Earnings_Date'] = df_to_save['Next_Earnings_Date'].dt.strftime('%Y-%m-%d')
         
-    Raises:
-        Exception: If API request fails or credentials are invalid
-    """
+        df_to_save.to_csv(cache_file, index=False)
+        return True
+    except Exception as e:
+        print(f"Warning: Could not save earnings cache: {e}")
+        return False
+
+
+def _clean_expired_cache_entries(df):
+    """Remove cache entries where the earnings date has passed"""
+    today = datetime.now().date()
+    
+    # Ensure Next_Earnings_Date column is datetime
+    if 'Next_Earnings_Date' in df.columns:
+        df['Next_Earnings_Date'] = pd.to_datetime(df['Next_Earnings_Date'], errors='coerce')
+    
+    # Filter out entries where earnings date is in the past
+    valid_entries = df[
+        (df['Next_Earnings_Date'].isna()) | 
+        (df['Next_Earnings_Date'].dt.date >= today)
+    ].copy()
+    
+    removed_count = len(df) - len(valid_entries)
+    if removed_count > 0:
+        print(f"Cleaned {removed_count} expired earnings cache entries")
+    
+    return valid_entries
+
+
+def _get_earnings_from_api(symbol):
+    """Get earnings date from Finnhub API"""
     try:
         # Get API credentials
         api_key = get_finnhub_credentials()
@@ -69,6 +125,81 @@ def get_next_earnings_date(symbol):
         raise Exception(f"API request failed: {str(e)}")
     except json.JSONDecodeError as e:
         raise Exception(f"Failed to parse API response: {str(e)}")
+    except Exception as e:
+        raise Exception(f"Error retrieving earnings data: {str(e)}")
+
+
+def get_next_earnings_date(symbol):
+    """
+    Retrieve the next upcoming earnings date for a given ticker symbol with caching
+    
+    Args:
+        symbol (str): Stock ticker symbol (e.g., 'AAPL')
+        
+    Returns:
+        datetime or None: Next earnings date if found, None if no earnings found
+        
+    Raises:
+        Exception: If API request fails or credentials are invalid
+    """
+    symbol_upper = symbol.upper()
+    
+    try:
+        # Load cache and clean expired entries
+        cache_df = _load_earnings_cache()
+        cache_df = _clean_expired_cache_entries(cache_df)
+        
+        # Check if ticker exists in cache
+        ticker_row = cache_df[cache_df['Ticker'] == symbol_upper]
+        
+        if not ticker_row.empty:
+            # Found in cache, check if earnings date is still valid (not in the past)
+            cached_date = ticker_row.iloc[0]['Next_Earnings_Date']
+            today = datetime.now().date()
+            
+            if pd.isna(cached_date) or cached_date.date() >= today:
+                # Cache is valid, return the cached date
+                return cached_date if not pd.isna(cached_date) else None
+            else:
+                # Cached date is in the past, remove from cache
+                cache_df = cache_df[cache_df['Ticker'] != symbol_upper]
+                print(f"Removed expired cache entry for {symbol_upper}")
+        
+        # Not in cache or expired, fetch from API
+        print(f"Fetching earnings data from API for {symbol_upper}")
+        next_earnings_date = _get_earnings_from_api(symbol_upper)
+        
+        # Update cache with new data
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        if next_earnings_date:
+            new_row = pd.DataFrame({
+                'Ticker': [symbol_upper],
+                'Next_Earnings_Date': [next_earnings_date],
+                'Last_Updated': [current_time]
+            })
+        else:
+            # Store None as NaN for no earnings found
+            new_row = pd.DataFrame({
+                'Ticker': [symbol_upper],
+                'Next_Earnings_Date': [pd.NaT],
+                'Last_Updated': [current_time]
+            })
+        
+        # Add or update the row in cache
+        if not ticker_row.empty:
+            # Update existing row
+            cache_df.loc[cache_df['Ticker'] == symbol_upper, 'Next_Earnings_Date'] = next_earnings_date
+            cache_df.loc[cache_df['Ticker'] == symbol_upper, 'Last_Updated'] = current_time
+        else:
+            # Add new row
+            cache_df = pd.concat([cache_df, new_row], ignore_index=True)
+        
+        # Save updated cache
+        _save_earnings_cache(cache_df)
+        
+        return next_earnings_date
+        
     except Exception as e:
         raise Exception(f"Error retrieving earnings data: {str(e)}")
 

@@ -135,6 +135,60 @@ setup_cron_jobs() {
     fi
 }
 
+# Function to setup UI serving
+setup_ui_serving() {
+    print_header "SETTING UP UI SERVING"
+    
+    # Check if UI directory exists
+    if [ ! -d "$PROJECT_ROOT/ui" ]; then
+        print_error "UI directory not found: $PROJECT_ROOT/ui"
+        return 1
+    fi
+    
+    # Check if index.html exists
+    if [ ! -f "$PROJECT_ROOT/ui/index.html" ]; then
+        print_error "index.html not found in UI directory"
+        return 1
+    fi
+    
+    print_success "UI directory found"
+    
+    # Check if we're in WSL
+    if grep -q Microsoft /proc/version 2>/dev/null; then
+        print_status "WSL detected - configuring networking for Windows host access"
+        
+        # Run WSL networking configuration
+        if [ -f "$PROJECT_ROOT/scripts/configure_wsl_networking.sh" ]; then
+            print_status "Configuring WSL networking..."
+            bash "$PROJECT_ROOT/scripts/configure_wsl_networking.sh" 8080
+            print_success "WSL networking configuration completed"
+        else
+            print_warning "configure_wsl_networking.sh not found"
+        fi
+    else
+        print_status "Not in WSL - standard networking configuration"
+    fi
+    
+    # Make UI serving scripts executable
+    if [ -f "$PROJECT_ROOT/scripts/serve_ui.sh" ]; then
+        chmod +x "$PROJECT_ROOT/scripts/serve_ui.sh"
+        print_success "UI serving script is executable"
+    else
+        print_error "serve_ui.sh not found"
+        return 1
+    fi
+    
+    if [ -f "$PROJECT_ROOT/scripts/start_ui_service.sh" ]; then
+        chmod +x "$PROJECT_ROOT/scripts/start_ui_service.sh"
+        print_success "UI service management script is executable"
+    else
+        print_error "start_ui_service.sh not found"
+        return 1
+    fi
+    
+    print_success "UI serving setup completed"
+}
+
 # Function to verify configuration
 verify_configuration() {
     print_header "VERIFYING CONFIGURATION"
@@ -263,13 +317,21 @@ show_next_steps() {
     echo "   - RiskManager: Every hour during adjusted local time (equivalent to 9 AM - 4 PM EST)"
     echo "   - Times are automatically adjusted for your system timezone"
     echo
-    echo "6. For DST transitions:"
+    echo "6. Start the UI server:"
+    echo "   - Start UI service: ./scripts/start_ui_service.sh start"
+    echo "   - Check status: ./scripts/start_ui_service.sh status"
+    echo "   - View logs: ./scripts/start_ui_service.sh logs"
+    echo "   - Access from WSL: http://localhost:8080"
+    echo "   - Access from Windows: http://[WSL_IP]:8080"
+    echo
+    echo "7. For DST transitions:"
     echo "   - Check DST status: ./scripts/check_dst_status.sh"
     echo "   - Re-run setup after DST transitions: ./scripts/setup_cron_jobs.sh"
     echo
-    echo "7. For troubleshooting:"
+    echo "8. For troubleshooting:"
     echo "   - Check logs in: $(dirname "$PROJECT_ROOT")/logs/"
     echo "   - View cron job logs: grep CRON /var/log/syslog (Linux) or /var/log/system.log (macOS)"
+    echo "   - Test UI access: curl http://localhost:8080"
     echo
 }
 
@@ -291,6 +353,9 @@ main() {
     
     # Setup cron jobs
     setup_cron_jobs
+    
+    # Setup UI serving
+    setup_ui_serving
     
     # Verify configuration
     verify_configuration

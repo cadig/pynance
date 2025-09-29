@@ -410,6 +410,10 @@ class CombinedResearch:
             "above_200ma": bool(above_200ma)
         }
         
+        # Add VIX close price if VIX data is available
+        if 'VIX_close' in self.combined_data.columns:
+            results["VIX_close"] = float(latest_data['VIX_close'])
+        
         # Add signal statuses for enabled modules
         if COMBINED_CONFIG['nyse_cumulative_ad_zscore']['enabled']:
             regime_signal = self.apply_nyse_cumulative_ad_zscore_module()

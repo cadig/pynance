@@ -60,6 +60,17 @@ def get_regime_based_risk():
         print(f"Above 200MA: {regime_detector.is_above_200ma()}")
         print(f"Combined MM Signals: {regime_detector.get_combined_mm_signals()}")
         
+        # Get VIX close price and check threshold
+        vix_close = regime_detector.get_vix_close()
+        if vix_close is not None:
+            print(f"VIX Close: {vix_close:.2f}")
+            if vix_close > 25:
+                print("WARNING: VIX above 25 - no new entries allowed due to high volatility")
+            else:
+                print("VIX below 25 - volatility levels acceptable for new entries")
+        else:
+            print("VIX Close: Not available")
+        
         return risk_percentage
         
     except Exception as e:
@@ -525,6 +536,7 @@ def main():
     
     # === Check if positions can be entered based on regime ===
     can_enter = False  # Default to conservative approach
+    vix_ok = True  # Default to allowing entries if VIX data unavailable
     try:
         regime_detector = RegimeDetector()
         regime_data = regime_detector.get_regime_info()
@@ -533,6 +545,16 @@ def main():
         risk_manager = RiskManager()
         can_enter = risk_manager.can_enter_positions(background_color)
         
+        # Check VIX threshold
+        vix_close = regime_detector.get_vix_close()
+        if vix_close is not None:
+            vix_ok = vix_close <= 25
+            if not vix_ok:
+                print(f"VIX is {vix_close:.2f} (above 25) - no new positions allowed due to high volatility.")
+                return
+        else:
+            print("VIX data not available - proceeding with caution")
+            
         if not can_enter:
             print(f"Market regime is {background_color.upper()} - no new positions allowed.")
             return
@@ -541,6 +563,7 @@ def main():
         print(f"Error checking regime for position entry: {e}")
         print("Proceeding with caution...")
         can_enter = False  # Default to conservative approach
+        vix_ok = False  # Default to conservative approach
     
     # === Check SPY Trend for Entry Eligibility ===
     spy_above_ma = spy_above_long_ma()
@@ -662,11 +685,11 @@ def main():
     entry_candidates = []
     entry_counter = 0
 
-    # Only look for new entries if both market regime and SPY conditions allow it
-    can_enter_new_positions = can_enter and spy_above_ma
+    # Only look for new entries if market regime, SPY conditions, and VIX conditions allow it
+    can_enter_new_positions = can_enter and spy_above_ma and vix_ok
     
     if can_enter_new_positions:
-        print("Both market regime and SPY trend allow new entries - scanning for candidates...")
+        print("Market regime, SPY trend, and VIX conditions allow new entries - scanning for candidates...")
         
         for ticker in tickers:
             if ticker in held_symbols:
@@ -691,6 +714,8 @@ def main():
             print("Market regime blocks new entries.")
         if not spy_above_ma:
             print("SPY trend blocks new entries.")
+        if not vix_ok:
+            print("VIX volatility blocks new entries.")
         print("Skipping entry candidate scanning.")
 
     available_slots = MAX_POSITIONS - len(held_symbols)

@@ -154,6 +154,18 @@ class RegimeDetector:
             raise ValueError("No regime data available. Call get_regime_info() first.")
         
         return self.regime_data.get('combined_mm_signals', 0)
+    
+    def get_vix_close(self) -> Optional[float]:
+        """
+        Get the VIX close price from the regime data
+        
+        Returns:
+            VIX close price as float, or None if not available
+        """
+        if not self.regime_data:
+            raise ValueError("No regime data available. Call get_regime_info() first.")
+        
+        return self.regime_data.get('VIX_close')
 
 def get_current_regime() -> Dict[str, Any]:
     """

@@ -91,14 +91,14 @@ setup_logging_structure() {
     # Create system directory if it doesn't exist
     local system_dir="$logs_dir/$system_id"
     if [ ! -d "$system_dir" ]; then
-        print_status "Creating system log directory: $system_dir"
+        print_status "Creating system log directory: $system_dir" >&2
         mkdir -p "$system_dir"
     fi
     
     # Create script subdirectory if it doesn't exist
     local script_dir="$system_dir/$script_id"
     if [ ! -d "$script_dir" ]; then
-        print_status "Creating script log directory: $script_dir"
+        print_status "Creating script log directory: $script_dir" >&2
         mkdir -p "$script_dir"
     fi
     
@@ -106,7 +106,7 @@ setup_logging_structure() {
     local current_year_month=$(date +%Y-%m)
     local year_month_dir="$script_dir/$current_year_month"
     if [ ! -d "$year_month_dir" ]; then
-        print_status "Creating log directory: $year_month_dir"
+        print_status "Creating log directory: $year_month_dir" >&2
         mkdir -p "$year_month_dir"
     fi
     
@@ -116,10 +116,16 @@ setup_logging_structure() {
     local log_filename="${current_date}-${current_day_of_week}.log"
     local log_file="$year_month_dir/$log_filename"
     
+    # Create the log file if it doesn't exist
+    if [ ! -f "$log_file" ]; then
+        print_status "Creating log file: $log_file" >&2
+        touch "$log_file"
+    fi
+    
     # Convert to absolute path
     local log_file_abs="$(realpath "$log_file")"
     
-    print_status "Logging output to: $log_file_abs"
+    print_status "Logging output to: $log_file_abs" >&2
     echo "$log_file_abs"
 }
 

@@ -48,22 +48,65 @@ get_project_root_direct() {
 
 # Source conda environment
 source_conda() {
-    if [ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]; then
-        source "$HOME/miniconda3/etc/profile.d/conda.sh"
-    elif [ -f "/opt/conda/etc/profile.d/conda.sh" ]; then
-        source "/opt/conda/etc/profile.d/conda.sh"
-    else
-        print_warning "Conda not found in standard locations"
-        return 1
-    fi
+    # Try multiple conda installation locations
+    local conda_paths=(
+        "$HOME/miniconda3/etc/profile.d/conda.sh"
+        "/opt/conda/etc/profile.d/conda.sh"
+        "/usr/local/miniconda3/etc/profile.d/conda.sh"
+        "/usr/local/anaconda3/etc/profile.d/conda.sh"
+        "/opt/miniconda3/etc/profile.d/conda.sh"
+        "/opt/anaconda3/etc/profile.d/conda.sh"
+    )
+    
+    for conda_path in "${conda_paths[@]}"; do
+        if [ -f "$conda_path" ]; then
+            print_status "Sourcing conda from: $conda_path"
+            source "$conda_path"
+            return 0
+        fi
+    done
+    
+    # If conda.sh not found, try to find conda binary and add to PATH
+    local conda_bin_paths=(
+        "$HOME/miniconda3/bin"
+        "/opt/conda/bin"
+        "/usr/local/miniconda3/bin"
+        "/usr/local/anaconda3/bin"
+        "/opt/miniconda3/bin"
+        "/opt/anaconda3/bin"
+    )
+    
+    for conda_bin_path in "${conda_bin_paths[@]}"; do
+        if [ -f "$conda_bin_path/conda" ]; then
+            print_status "Adding conda to PATH: $conda_bin_path"
+            export PATH="$conda_bin_path:$PATH"
+            return 0
+        fi
+    done
+    
+    print_warning "Conda not found in standard locations"
+    return 1
 }
 
 # Check if conda is available
 check_conda() {
+    # First try to source conda if it's not in PATH
     if ! command -v conda &> /dev/null; then
-        print_error "Conda is not installed. Please run check_conda_environment.sh first."
+        print_status "Conda not found in PATH, attempting to source conda..."
+        if source_conda; then
+            print_status "Successfully sourced conda"
+        else
+            print_error "Conda is not installed. Please run check_conda_environment.sh first."
+            return 1
+        fi
+    fi
+    
+    # Verify conda is now available
+    if ! command -v conda &> /dev/null; then
+        print_error "Conda is still not available after sourcing. Please check your conda installation."
         return 1
     fi
+    
     return 0
 }
 

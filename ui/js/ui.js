@@ -3,6 +3,21 @@
  */
 
 /**
+ * Clean symbol by removing emojis and warning text
+ */
+function cleanSymbol(symbol) {
+    if (!symbol) return '';
+    
+    // Remove stop loss indicator (🛡️) and warning text
+    let cleaned = symbol.replace(/🛡️/g, '').replace(/⚠️/g, '').replace(/NO STOP LOSS/g, '').trim();
+    
+    // Remove any extra whitespace
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+    
+    return cleaned;
+}
+
+/**
  * Render positions list
  */
 function renderPositions() {
@@ -36,7 +51,7 @@ function renderPositions() {
         const pnlPercentageColor = pnlPercentage > 0 ? 'green' : pnlPercentage < 0 ? 'red' : 'neutral';
         
         return `
-            <div class="ticker-item ${warningClass}" onclick="selectTicker('${position.symbol}')">
+            <div class="ticker-item ${warningClass}" onclick="selectTickerFromElement(this)" data-symbol="${position.symbol}" tabindex="0">
                 <div class="ticker-symbol">
                     ${position.symbol} ${stopLossIndicator} ${!hasStopLoss ? '<span>NO STOP LOSS</span>' : ''}
                 </div>
@@ -85,7 +100,7 @@ function renderOpenOrders() {
         const statusClass = order.status.replace('_', '-');
         
         return `
-            <div class="order-item" onclick="selectTicker('${order.symbol}')">
+            <div class="order-item" onclick="selectTickerFromElement(this)" data-symbol="${order.symbol}" tabindex="0">
                 <div class="order-symbol">${order.symbol}</div>
                 <div class="order-info">
                     Qty: ${order.qty} | 
@@ -133,7 +148,7 @@ function renderStopLossOrders() {
         const statusClass = order.status.replace('_', '-');
         
         return `
-            <div class="order-item" onclick="selectTicker('${order.symbol}')">
+            <div class="order-item" onclick="selectTickerFromElement(this)" data-symbol="${order.symbol}" tabindex="0">
                 <div class="order-symbol">${order.symbol}</div>
                 <div class="order-info">
                     Qty: ${order.qty} | 
@@ -161,7 +176,7 @@ function renderTrades() {
     }
 
     container.innerHTML = historicalTrades.map(trade => `
-        <div class="ticker-item" onclick="selectTicker('${trade.symbol}')">
+        <div class="ticker-item" onclick="selectTickerFromElement(this)" data-symbol="${trade.symbol}" tabindex="0">
             <div class="ticker-symbol">${trade.symbol}</div>
             <div class="ticker-info">
                 ${trade.orders.length} orders | 
@@ -203,6 +218,105 @@ function updateTickerSelection(selectedElement) {
         selectedElement.classList.add('selected');
     }
 }
+
+/**
+ * Get all selectable items in the current active tab
+ */
+function getCurrentSelectableItems() {
+    const activePanel = document.querySelector('.tab-panel.active');
+    if (!activePanel) return [];
+    
+    // Get all selectable items in the active panel
+    return Array.from(activePanel.querySelectorAll('.ticker-item, .order-item'));
+}
+
+/**
+ * Get the currently selected item index
+ */
+function getCurrentSelectedIndex() {
+    const items = getCurrentSelectableItems();
+    const selectedItem = document.querySelector('.ticker-item.selected, .order-item.selected');
+    if (!selectedItem) return -1;
+    
+    return items.indexOf(selectedItem);
+}
+
+/**
+ * Navigate to the next/previous item using keyboard
+ */
+function navigateItems(direction) {
+    const items = getCurrentSelectableItems();
+    if (items.length === 0) return;
+    
+    const currentIndex = getCurrentSelectedIndex();
+    let newIndex;
+    
+    // If no item is currently selected, start with the first item
+    if (currentIndex === -1) {
+        newIndex = 0;
+    } else if (direction === 'up') {
+        newIndex = currentIndex <= 0 ? items.length - 1 : currentIndex - 1;
+    } else if (direction === 'down') {
+        newIndex = currentIndex >= items.length - 1 ? 0 : currentIndex + 1;
+    }
+    
+    if (newIndex >= 0 && newIndex < items.length) {
+        const newItem = items[newIndex];
+        
+        // Extract symbol from the data attribute first
+        const symbol = newItem.getAttribute('data-symbol');
+        if (symbol) {
+            // Focus the new item for keyboard navigation (blue border)
+            newItem.focus();
+            
+            // Call selectTicker with the element to handle both chart loading and visual selection
+            selectTicker(symbol, newItem);
+            
+            // Scroll the selected item into view
+            newItem.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'nearest' 
+            });
+        }
+    }
+}
+
+/**
+ * Handle keyboard navigation
+ */
+function handleKeyboardNavigation(event) {
+    // Only handle arrow keys when no input is focused
+    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+        return;
+    }
+    
+    if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        navigateItems('up');
+    } else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        navigateItems('down');
+    }
+}
+
+/**
+ * Select ticker from element using data attribute
+ */
+function selectTickerFromElement(element) {
+    const symbol = element.getAttribute('data-symbol');
+    if (symbol) {
+        // Focus the element for consistency (blue border)
+        element.focus();
+        
+        // Call selectTicker with the element to handle both chart loading and visual selection
+        selectTicker(symbol, element);
+    }
+}
+
+// Make functions globally available
+window.handleKeyboardNavigation = handleKeyboardNavigation;
+window.cleanSymbol = cleanSymbol;
+window.selectTickerFromElement = selectTickerFromElement;
 
 /**
  * Show loading state for positions

@@ -99,6 +99,18 @@ body {
     color: white;
 }
 
+.ticker-item:focus,
+.order-item:focus {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+/* When an item is both selected and focused, prioritize the selected state */
+.ticker-item.selected:focus,
+.order-item.selected:focus {
+    outline: none; /* Remove focus outline when selected */
+}
+
 .ticker-symbol {
     font-weight: bold;
     font-size: 16px;

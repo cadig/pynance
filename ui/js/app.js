@@ -281,15 +281,17 @@ async function init() {
 /**
  * Select a ticker and load its data
  */
-async function selectTicker(symbol) {
+async function selectTicker(symbol, element = null) {
     selectedSymbol = symbol;
     updateSelectedSymbol(symbol);
     
     // Clear previous overlays
     clearChartOverlays();
     
-    // Update UI
-    updateTickerSelection(event.target.closest('.ticker-item, .order-item'));
+    // Update UI - only if element is provided (for keyboard navigation)
+    if (element) {
+        updateTickerSelection(element);
+    }
 
     try {
         // Try to load chart data first
@@ -947,3 +949,6 @@ function sortPositionsByPnl(positions) {
     
     return sorted;
 }
+
+// Add keyboard navigation event listener
+document.addEventListener('keydown', handleKeyboardNavigation);

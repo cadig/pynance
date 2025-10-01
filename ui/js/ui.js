@@ -682,3 +682,127 @@ function updatePortfolioMetrics() {
         `;
     }
 }
+
+// ============================================================================
+// THEME MANAGEMENT
+// ============================================================================
+
+/**
+ * Initialize theme system
+ */
+function initializeTheme() {
+    // Check for saved theme preference
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+        setTheme(savedTheme);
+    } else {
+        // Auto-detect system theme
+        setTheme('auto');
+    }
+    
+    // Listen for system theme changes
+    if (window.matchMedia) {
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        mediaQuery.addEventListener('change', handleSystemThemeChange);
+    }
+}
+
+/**
+ * Set the current theme
+ * @param {string} theme - 'auto', 'light', or 'dark'
+ */
+function setTheme(theme) {
+    const root = document.documentElement;
+    
+    // Remove existing theme classes
+    root.removeAttribute('data-theme');
+    
+    if (theme === 'auto') {
+        // Use system preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            root.setAttribute('data-theme', 'dark');
+        }
+        // If light mode or no preference, don't set data-theme (uses light by default)
+    } else if (theme === 'dark') {
+        root.setAttribute('data-theme', 'dark');
+    }
+    // For light mode, don't set data-theme (uses light by default)
+    
+    // Save preference
+    localStorage.setItem('theme', theme);
+    
+    // Update theme toggle button if it exists
+    updateThemeToggleButton(theme);
+}
+
+/**
+ * Get the current effective theme (resolves 'auto' to actual theme)
+ */
+function getCurrentTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'auto';
+    
+    if (savedTheme === 'auto') {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return 'dark';
+        }
+        return 'light';
+    }
+    
+    return savedTheme;
+}
+
+/**
+ * Toggle between light and dark themes
+ */
+function toggleTheme() {
+    const current = getCurrentTheme();
+    const newTheme = current === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+}
+
+/**
+ * Handle system theme changes when in 'auto' mode
+ */
+function handleSystemThemeChange(e) {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'auto') {
+        setTheme('auto');
+    }
+}
+
+/**
+ * Update theme toggle button appearance
+ */
+function updateThemeToggleButton(theme) {
+    const button = document.getElementById('theme-toggle');
+    if (button) {
+        const icon = button.querySelector('.theme-icon');
+        if (icon) {
+            if (theme === 'auto') {
+                icon.textContent = '🌓';
+                icon.title = 'Auto (System)';
+            } else if (theme === 'dark') {
+                icon.textContent = '🌙';
+                icon.title = 'Dark Mode';
+            } else {
+                icon.textContent = '☀️';
+                icon.title = 'Light Mode';
+            }
+        }
+    }
+}
+
+/**
+ * Create theme toggle button
+ */
+function createThemeToggle() {
+    const currentTheme = getCurrentTheme();
+    const icon = currentTheme === 'dark' ? '🌙' : currentTheme === 'light' ? '☀️' : '🌓';
+    const title = currentTheme === 'dark' ? 'Dark Mode' : currentTheme === 'light' ? 'Light Mode' : 'Auto (System)';
+    
+    return `
+        <button id="theme-toggle" onclick="toggleTheme()" class="theme-toggle-btn" title="${title}">
+            <span class="theme-icon">${icon}</span>
+        </button>
+    `;
+}

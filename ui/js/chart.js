@@ -169,6 +169,7 @@ function initChart() {
     });
 }
 
+
 /**
  * Load chart data for a symbol
  */

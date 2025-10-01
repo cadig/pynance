@@ -142,6 +142,86 @@
   --chart-pink: #ec4899;
 }
 
+/* Dark Mode Variables */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark Mode Color Palette */
+    --color-primary: #3b82f6;
+    --color-primary-hover: #2563eb;
+    --color-primary-light: #1e3a8a;
+    --color-primary-border: #1e40af;
+    
+    /* Dark Mode Neutral Colors */
+    --color-white: #0f172a;
+    --color-gray-50: #1e293b;
+    --color-gray-100: #334155;
+    --color-gray-200: #475569;
+    --color-gray-300: #64748b;
+    --color-gray-400: #94a3b8;
+    --color-gray-500: #cbd5e1;
+    --color-gray-600: #e2e8f0;
+    --color-gray-700: #f1f5f9;
+    --color-gray-800: #f8fafc;
+    --color-gray-900: #ffffff;
+    
+    /* Dark Mode Background Colors */
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --bg-overlay: #475569;
+    
+    /* Dark Mode Text Colors */
+    --text-primary: #ffffff;
+    --text-secondary: #e2e8f0;
+    --text-tertiary: #cbd5e1;
+    --text-inverse: #0f172a;
+    
+    /* Dark Mode Border Colors */
+    --border-primary: #475569;
+    --border-secondary: #64748b;
+    --border-focus: #3b82f6;
+  }
+}
+
+/* Manual Dark Mode Toggle */
+[data-theme="dark"] {
+  /* Dark Mode Color Palette */
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-primary-light: #1e3a8a;
+  --color-primary-border: #1e40af;
+  
+  /* Dark Mode Neutral Colors */
+  --color-white: #0f172a;
+  --color-gray-50: #1e293b;
+  --color-gray-100: #334155;
+  --color-gray-200: #475569;
+  --color-gray-300: #64748b;
+  --color-gray-400: #94a3b8;
+  --color-gray-500: #cbd5e1;
+  --color-gray-600: #e2e8f0;
+  --color-gray-700: #f1f5f9;
+  --color-gray-800: #f8fafc;
+  --color-gray-900: #ffffff;
+  
+  /* Dark Mode Background Colors */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-overlay: #475569;
+  
+  /* Dark Mode Text Colors */
+  --text-primary: #ffffff;
+  --text-secondary: #e2e8f0;
+  --text-tertiary: #cbd5e1;
+  --text-inverse: #0f172a;
+  
+  /* Dark Mode Border Colors */
+  --border-primary: #475569;
+  --border-secondary: #64748b;
+  --border-focus: #3b82f6;
+}
+
 /* Base styles */
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -169,7 +249,18 @@ body {
     background: var(--color-primary);
     color: var(--text-inverse);
     padding: var(--space-1) var(--space-3);
-    text-align: center;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: var(--container-max-width);
+    margin: 0 auto;
+}
+
+.header-text {
+    text-align: left;
 }
 
 .header h1 {
@@ -182,6 +273,110 @@ body {
     font-size: var(--text-sm);
     margin: 0;
     opacity: 0.9;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+/* Theme Toggle Button */
+.theme-toggle-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-lg);
+    padding: var(--space-2) var(--space-3);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    color: var(--text-inverse);
+}
+
+.theme-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.theme-toggle-btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.theme-icon {
+    font-size: var(--text-lg);
+    line-height: 1;
+}
+
+/* Dark Mode Specific Styling */
+@media (prefers-color-scheme: dark) {
+  .ticker-symbol {
+    color: var(--text-primary);
+    font-weight: var(--font-bold);
+  }
+  
+  .ticker-info {
+    color: var(--text-secondary);
+  }
+  
+  .metric-subtitle {
+    color: var(--text-secondary);
+  }
+  
+  .equity-value {
+    color: var(--text-primary);
+  }
+  
+  .metric-value {
+    color: var(--text-primary);
+  }
+  
+  .header h1 {
+    color: var(--text-inverse);
+  }
+  
+  .header p {
+    color: var(--text-inverse);
+    opacity: 0.9;
+  }
+}
+
+[data-theme="dark"] {
+  .ticker-symbol {
+    color: var(--text-primary);
+    font-weight: var(--font-bold);
+  }
+  
+  .ticker-info {
+    color: var(--text-secondary);
+  }
+  
+  .metric-subtitle {
+    color: var(--text-secondary);
+  }
+  
+  .equity-value {
+    color: var(--text-primary);
+  }
+  
+  .metric-value {
+    color: var(--text-primary);
+  }
+  
+  .header h1 {
+    color: var(--text-inverse);
+  }
+  
+  .header p {
+    color: var(--text-inverse);
+    opacity: 0.9;
+  }
 }
 
 .main-content {

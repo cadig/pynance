@@ -78,11 +78,14 @@
                         
                         <div id="orders-panel" class="tab-panel">
                             <div class="orders-section">
-                                <div class="section-header">
+                                <div class="section-header collapsible-header" onclick="toggleOrdersSection('open-orders')" id="open-orders-header">
                                     <div class="section-title">Open Orders</div>
+                                    <span class="toggle-icon">▼</span>
                                 </div>
-                                <div id="open-orders-list" class="ticker-list">
-                                    <div class="loading">Loading open orders...</div>
+                                <div class="section-content" id="open-orders-content">
+                                    <div id="open-orders-list" class="ticker-list">
+                                        <div class="loading">Loading open orders...</div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="orders-divider"></div>

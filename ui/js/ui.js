@@ -67,6 +67,32 @@ function renderPositions() {
 }
 
 /**
+ * Toggle orders section (Open Orders)
+ */
+function toggleOrdersSection(sectionId) {
+    const header = document.getElementById(`${sectionId}-header`);
+    const content = document.getElementById(`${sectionId}-content`);
+    const ordersSection = header ? header.closest('.orders-section') : null;
+    
+    if (!header || !content || !ordersSection) return;
+    
+    // Toggle collapsed state
+    const isCollapsed = header.classList.contains('collapsed');
+    
+    if (isCollapsed) {
+        // Expand
+        header.classList.remove('collapsed');
+        content.classList.remove('collapsed');
+        ordersSection.classList.remove('collapsed');
+    } else {
+        // Collapse
+        header.classList.add('collapsed');
+        content.classList.add('collapsed');
+        ordersSection.classList.add('collapsed');
+    }
+}
+
+/**
  * Render open orders list
  */
 function renderOpenOrders() {
@@ -90,9 +116,27 @@ function renderOpenOrders() {
     
     console.log('Open buy orders found:', openBuyOrders.length, openBuyOrders);
     
+    // Auto-collapse if no orders
+    const header = document.getElementById('open-orders-header');
+    const content = document.getElementById('open-orders-content');
+    const ordersSection = header ? header.closest('.orders-section') : null;
+    
     if (openBuyOrders.length === 0) {
         container.innerHTML = '<div class="loading">No open buy orders</div>';
+        // Auto-collapse the section when there are no orders
+        if (header && content && ordersSection) {
+            header.classList.add('collapsed');
+            content.classList.add('collapsed');
+            ordersSection.classList.add('collapsed');
+        }
         return;
+    } else {
+        // Auto-expand if there are orders
+        if (header && content && ordersSection) {
+            header.classList.remove('collapsed');
+            content.classList.remove('collapsed');
+            ordersSection.classList.remove('collapsed');
+        }
     }
 
     container.innerHTML = openBuyOrders.map(order => {
@@ -162,6 +206,84 @@ function renderStopLossOrders() {
 }
 
 /**
+ * Calculate PnL for completed trades by matching buy and sell orders
+ */
+function calculateTradePnL(orders) {
+    if (!orders || orders.length === 0) {
+        return { pnl: 0, isCompleted: false, matchedTrades: [] };
+    }
+    
+    // Separate buy and sell orders
+    const buyOrders = orders.filter(order => order.side === 'buy' && order.status === 'filled');
+    const sellOrders = orders.filter(order => order.side === 'sell' && order.status === 'filled');
+    
+    if (buyOrders.length === 0 || sellOrders.length === 0) {
+        return { pnl: 0, isCompleted: false, matchedTrades: [] };
+    }
+    
+    // Sort orders by creation time
+    buyOrders.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    sellOrders.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    
+    let totalPnL = 0;
+    const matchedTrades = [];
+    const usedBuyOrders = new Set();
+    const usedSellOrders = new Set();
+    
+    // Try to match buy and sell orders with same quantity
+    for (let i = 0; i < buyOrders.length; i++) {
+        if (usedBuyOrders.has(i)) continue;
+        
+        const buyOrder = buyOrders[i];
+        const buyQty = parseFloat(buyOrder.qty);
+        const buyPrice = parseFloat(buyOrder.filled_avg_price);
+        
+        if (isNaN(buyQty) || isNaN(buyPrice) || buyQty <= 0 || buyPrice <= 0) continue;
+        
+        // Look for matching sell order with same quantity
+        for (let j = 0; j < sellOrders.length; j++) {
+            if (usedSellOrders.has(j)) continue;
+            
+            const sellOrder = sellOrders[j];
+            const sellQty = parseFloat(sellOrder.qty);
+            const sellPrice = parseFloat(sellOrder.filled_avg_price);
+            
+            if (isNaN(sellQty) || isNaN(sellPrice) || sellQty <= 0 || sellPrice <= 0) continue;
+            
+            // Check if quantities match (allowing for small floating point differences)
+            if (Math.abs(buyQty - sellQty) < 0.01) {
+                // Calculate PnL for this matched trade
+                const tradePnL = (sellPrice - buyPrice) * buyQty;
+                totalPnL += tradePnL;
+                
+                matchedTrades.push({
+                    buyOrder,
+                    sellOrder,
+                    qty: buyQty,
+                    buyPrice,
+                    sellPrice,
+                    pnl: tradePnL
+                });
+                
+                // Mark these orders as used
+                usedBuyOrders.add(i);
+                usedSellOrders.add(j);
+                break;
+            }
+        }
+    }
+    
+    // Check if we have any completed trades
+    const isCompleted = matchedTrades.length > 0;
+    
+    return {
+        pnl: totalPnL,
+        isCompleted,
+        matchedTrades
+    };
+}
+
+/**
  * Render trades list
  */
 function renderTrades() {
@@ -175,15 +297,37 @@ function renderTrades() {
         return;
     }
 
-    container.innerHTML = historicalTrades.map(trade => `
-        <div class="ticker-item" onclick="selectTickerFromElement(this)" data-symbol="${trade.symbol}" tabindex="0">
-            <div class="ticker-symbol">${trade.symbol}</div>
-            <div class="ticker-info">
-                ${trade.orders.length} orders | 
-                Last: ${new Date(trade.orders[trade.orders.length - 1].created_at).toLocaleDateString()}
+    container.innerHTML = historicalTrades.map(trade => {
+        const tradeAnalysis = calculateTradePnL(trade.orders);
+        const pnl = tradeAnalysis.pnl;
+        const isCompleted = tradeAnalysis.isCompleted;
+        
+        // Determine styling based on PnL
+        let itemClass = 'ticker-item';
+        let pnlDisplay = '';
+        
+        if (isCompleted) {
+            if (pnl > 0) {
+                itemClass += ' trade-win';
+                pnlDisplay = ` | PnL: <span class="pnl-value pnl-green">+$${pnl.toFixed(2)}</span>`;
+            } else if (pnl < 0) {
+                itemClass += ' trade-loss';
+                pnlDisplay = ` | PnL: <span class="pnl-value pnl-red">$${pnl.toFixed(2)}</span>`;
+            } else {
+                pnlDisplay = ` | PnL: <span class="pnl-value pnl-neutral">$${pnl.toFixed(2)}</span>`;
+            }
+        }
+        
+        return `
+            <div class="${itemClass}" onclick="selectTickerFromElement(this)" data-symbol="${trade.symbol}" tabindex="0">
+                <div class="ticker-symbol">${trade.symbol}</div>
+                <div class="ticker-info">
+                    ${trade.orders.length} orders | 
+                    Last: ${new Date(trade.orders[trade.orders.length - 1].created_at).toLocaleDateString()}${pnlDisplay}
+                </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 /**
@@ -317,6 +461,7 @@ function selectTickerFromElement(element) {
 window.handleKeyboardNavigation = handleKeyboardNavigation;
 window.cleanSymbol = cleanSymbol;
 window.selectTickerFromElement = selectTickerFromElement;
+window.toggleOrdersSection = toggleOrdersSection;
 
 /**
  * Show loading state for positions

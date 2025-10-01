@@ -859,6 +859,66 @@ body {
     min-height: 0;
 }
 
+/* When Open Orders section is collapsed, make it take minimal space */
+.orders-section:first-child.collapsed {
+    flex: 0 0 auto;
+    min-height: auto;
+}
+
+.orders-section:first-child.collapsed .section-content {
+    display: none;
+}
+
+.orders-section:first-child.collapsed .collapsible-header {
+    margin-bottom: 4px;
+    padding: 6px 12px;
+}
+
+/* Collapsible orders section */
+.orders-section .collapsible-header {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.orders-section .collapsible-header:hover {
+    background: #f1f5f9;
+}
+
+.orders-section .collapsible-header .toggle-icon {
+    font-size: 12px;
+    transition: transform 0.3s ease;
+    color: #64748b;
+}
+
+.orders-section .collapsible-header.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.orders-section .section-content {
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, margin 0.3s ease;
+    max-height: 1000px;
+    opacity: 1;
+    padding: 0 8px;
+    margin: 0 0 8px 0;
+}
+
+.orders-section .section-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+    padding: 0;
+    margin: 0;
+}
+
 .orders-divider {
     height: 1px;
     background: #e2e8f0;
@@ -903,6 +963,69 @@ body {
 
 .order-item.selected .order-info {
     color: #e2e8f0;
+}
+
+/* Trade win/loss styling */
+.ticker-item.trade-win {
+    border: 2px solid #059669;
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    position: relative;
+}
+
+.ticker-item.trade-win::before {
+    content: "💰";
+    position: absolute;
+    top: 5px;
+    right: 8px;
+    font-size: 16px;
+}
+
+.ticker-item.trade-win .ticker-symbol {
+    color: #166534;
+    font-weight: 900;
+}
+
+.ticker-item.trade-win .ticker-info {
+    color: #166534;
+    font-weight: 600;
+}
+
+.ticker-item.trade-win:hover {
+    background: linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 100%);
+    border-color: #047857;
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+.ticker-item.trade-loss {
+    border: 2px solid #dc2626;
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    position: relative;
+}
+
+.ticker-item.trade-loss::before {
+    content: "📉";
+    position: absolute;
+    top: 5px;
+    right: 8px;
+    font-size: 16px;
+}
+
+.ticker-item.trade-loss .ticker-symbol {
+    color: #991b1b;
+    font-weight: 900;
+}
+
+.ticker-item.trade-loss .ticker-info {
+    color: #991b1b;
+    font-weight: 600;
+}
+
+.ticker-item.trade-loss:hover {
+    background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+    border-color: #b91c1c;
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
 }
 
 /* Order status indicators */

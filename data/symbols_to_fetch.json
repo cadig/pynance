@@ -78,13 +78,6 @@
             "shouldFetch": false
         },
         {
-            "symbol": "BTCUSD",
-            "exchange": "INDEX",
-            "filename": "BTCUSD.csv",
-            "description": "Bitcoin Price",
-            "shouldFetch": false
-        },
-        {
             "symbol": "VIX",
             "exchange": "CBOE",
             "filename": "VIX.csv",
@@ -159,7 +152,21 @@
             "exchange": "TVC",
             "filename": "GOLD.csv",
             "description": "Gold Price",
-            "shouldFetch": false
+            "shouldFetch": true
+        },
+        {
+            "symbol": "BTCUSD",
+            "exchange": "INDEX",
+            "filename": "BTCUSD.csv",
+            "description": "Bitcoin Price",
+            "shouldFetch": true
+        },
+        {
+            "symbol": "TQQQ",
+            "exchange": "NASDAQ",
+            "filename": "TQQQ.csv",
+            "description": "ProShares UltraPro QQQ ETF",
+            "shouldFetch": true
         },
         {
             "symbol": "BAMLH0A0HYM2",

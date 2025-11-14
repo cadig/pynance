@@ -1,0 +1,12 @@
+{
+  "datetime": "2025-11-14T22:37:29.697336",
+  "background_color": "orange",
+  "above_200ma": true,
+  "VIX_close": 19.83,
+  "nyse_cumulative_ad_zscore": true,
+  "mmth_cross": false,
+  "mmtw_cross": false,
+  "mmfi_cross": false,
+  "vix_bollinger_exit": false,
+  "combined_mm_signals": 2
+}

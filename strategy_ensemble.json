@@ -1,0 +1,20 @@
+{
+  "datetime": "2025-11-21T22:37:18.853934",
+  "tqqq-long-ensemble": {
+    "priceVs10sma": 0,
+    "priceVs20sma": 0,
+    "macdSignal": 0,
+    "allocation": 0.0
+  },
+  "gold-long-ensemble": {
+    "priceVs10smaWith200sma": 0,
+    "priceVs50smaWith200sma": 1,
+    "macdSignal": 0,
+    "allocation": 0.3333
+  },
+  "bitcoin-long-ensemble": {
+    "priceVs50smaWith200sma": 0,
+    "macdWith200sma": 0,
+    "allocation": 0.0
+  }
+}

@@ -1,13 +1,16 @@
 import time
+import os
+import sys
 from datetime import datetime
 from typing import TypedDict, Dict, Tuple
 from ib_insync import IB
 
-import sys
-sys.path.append('..')
-from ibkr.IbkrTrader import IbkrTrader as IbkrClient
+# Add project root to Python path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
-sys.path.append('..')
+from ibkr.IbkrTrader import IbkrTrader as IbkrClient
 from time_utils import getMarketHours
 from data.finvizConsolidateRecentGainers import gather_tickers as gather_recent_gainers
 

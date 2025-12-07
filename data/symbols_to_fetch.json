@@ -148,6 +148,13 @@
             "shouldFetch": false
         },
         {
+            "symbol": "BAMLH0A0HYM2",
+            "exchange": "ICE",
+            "filename": "BAMLH0A0HYM2-bofa-highyield-spread.csv",
+            "description": "BOFA US High Yield Index Option-Adjusted Spread",
+            "shouldFetch": false
+        },
+        {
             "symbol": "GOLD",
             "exchange": "TVC",
             "filename": "GOLD.csv",
@@ -169,10 +176,31 @@
             "shouldFetch": true
         },
         {
-            "symbol": "BAMLH0A0HYM2",
-            "exchange": "ICE",
-            "filename": "BAMLH0A0HYM2-bofa-highyield-spread.csv",
-            "description": "BOFA US High Yield Index Option-Adjusted Spread",
+            "symbol": "SPXL",
+            "exchange": "",
+            "filename": "SPXL.csv",
+            "description": "Direxion Daily S&P500 Bull 3X Shares",
+            "shouldFetch": false
+        },
+        {
+            "symbol": "KMLM",
+            "exchange": "INDEX",
+            "filename": "KMLM.csv",
+            "description": "Krebs Managed Futures Index",
+            "shouldFetch": false
+        },
+        {
+            "symbol": "DBMF",
+            "exchange": "INDEX",
+            "filename": "DBMF.csv",
+            "description": "DB Managed Futures Index",
+            "shouldFetch": false
+        },
+        {
+            "symbol": "CTA",
+            "exchange": "INDEX",
+            "filename": "CTA.csv",
+            "description": "CTA Index",
             "shouldFetch": false
         }
     ]

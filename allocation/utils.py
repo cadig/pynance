@@ -8,7 +8,16 @@ import pandas as pd
 import json
 from pathlib import Path
 import logging
+import time
 from typing import Dict, List, Optional
+
+# Try to import yfinance, but don't fail if it's not available
+try:
+    import yfinance as yf
+    YFINANCE_AVAILABLE = True
+except ImportError:
+    YFINANCE_AVAILABLE = False
+    logging.warning("yfinance not available. CSV fallback will be used.")
 
 
 def get_data_dir() -> Path:
@@ -18,7 +27,7 @@ def get_data_dir() -> Path:
     Returns:
         Path: Path to the data directory
     """
-    return Path(__file__).parent.parent.parent / 'data'
+    return Path(__file__).parent.parent / 'data'
 
 
 def get_docs_dir() -> Path:
@@ -28,7 +37,7 @@ def get_docs_dir() -> Path:
     Returns:
         Path: Path to the docs directory
     """
-    return Path(__file__).parent.parent.parent / 'docs'
+    return Path(__file__).parent.parent / 'docs'
 
 
 def load_spx_regime_data() -> Dict:
@@ -56,6 +65,60 @@ def load_spx_regime_data() -> Dict:
     except json.JSONDecodeError as e:
         logging.error(f"Failed to parse SPX regime data: {e}")
         raise
+
+
+def fetch_data_via_yfinance(symbol: str, retries: int = 3, delay: int = 2) -> pd.DataFrame:
+    """
+    Fetch data for a symbol using yfinance API.
+    
+    Args:
+        symbol: Ticker symbol (e.g., 'VEA', 'SPY')
+        retries: Number of retry attempts
+        delay: Delay between retries in seconds
+        
+    Returns:
+        pd.DataFrame: DataFrame with datetime index and OHLCV columns
+        
+    Raises:
+        ImportError: If yfinance is not available
+        Exception: If data fetch fails after all retries
+    """
+    if not YFINANCE_AVAILABLE:
+        raise ImportError("yfinance is not available. Install it with: pip install yfinance")
+    
+    for attempt in range(retries):
+        try:
+            logging.info(f"Fetching data for {symbol} via yfinance (attempt {attempt + 1}/{retries})...")
+            ticker_obj = yf.Ticker(symbol)
+            # Fetch up to 2 years of daily data to ensure we have enough for 12-month returns
+            data = ticker_obj.history(period='2y', interval='1d')
+            
+            if data.empty:
+                logging.warning(f"Empty data returned for {symbol}")
+                if attempt < retries - 1:
+                    time.sleep(delay)
+                    continue
+                raise ValueError(f"Empty data returned for {symbol} after {retries} attempts")
+            
+            # Ensure column names are lowercase to match CSV format
+            data.columns = [col.lower() for col in data.columns]
+            
+            # Rename 'date' index if it exists, or ensure index is datetime
+            if not isinstance(data.index, pd.DatetimeIndex):
+                data.index = pd.to_datetime(data.index)
+            
+            logging.info(f"Successfully fetched {len(data)} rows for {symbol} via yfinance")
+            return data
+            
+        except Exception as e:
+            logging.warning(f"Attempt {attempt + 1} failed for {symbol}: {e}")
+            if attempt < retries - 1:
+                time.sleep(delay)
+            else:
+                logging.error(f"Failed to retrieve data for {symbol} after {retries} attempts")
+                raise
+    
+    raise Exception(f"Failed to fetch data for {symbol} after {retries} attempts")
 
 
 def load_csv_data(filename: str, data_dir: Optional[Path] = None) -> pd.DataFrame:
@@ -87,6 +150,50 @@ def load_csv_data(filename: str, data_dir: Optional[Path] = None) -> pd.DataFram
     except Exception as e:
         logging.error(f"Failed to load data from {filepath}: {e}")
         raise
+
+
+def load_etf_data(symbol: str, data_dir: Optional[Path] = None) -> pd.DataFrame:
+    """
+    Load ETF data using hybrid approach: try CSV first, fallback to yfinance.
+    
+    Args:
+        symbol: ETF ticker symbol (e.g., 'VEA', 'SPY')
+        data_dir: Optional path to data directory. If None, uses default data directory.
+        
+    Returns:
+        pd.DataFrame: DataFrame with datetime index and OHLCV columns
+        
+    Raises:
+        Exception: If both CSV and yfinance fail
+    """
+    filename = f"{symbol}.csv"
+    
+    # Try CSV first
+    try:
+        if data_dir is None:
+            data_dir = get_data_dir()
+        filepath = data_dir / filename
+        
+        if filepath.exists():
+            df = load_csv_data(filename, data_dir)
+            logging.info(f"Loaded {symbol} from CSV file")
+            return df
+        else:
+            logging.info(f"CSV file not found for {symbol}, trying yfinance...")
+    except Exception as e:
+        logging.warning(f"Failed to load CSV for {symbol}: {e}, trying yfinance...")
+    
+    # Fallback to yfinance
+    if YFINANCE_AVAILABLE:
+        try:
+            df = fetch_data_via_yfinance(symbol)
+            logging.info(f"Loaded {symbol} from yfinance")
+            return df
+        except Exception as e:
+            logging.error(f"Failed to fetch {symbol} via yfinance: {e}")
+            raise Exception(f"Failed to load data for {symbol} from both CSV and yfinance")
+    else:
+        raise ImportError(f"CSV file not found for {symbol} and yfinance is not available")
 
 
 def load_multiple_csv_files(filenames: List[str], data_dir: Optional[Path] = None) -> Dict[str, pd.DataFrame]:

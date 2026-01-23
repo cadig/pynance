@@ -128,7 +128,7 @@ class SPXBacktest:
         self.combined_data = pd.concat(dfs, axis=1)
         
         # Forward fill any missing values
-        self.combined_data = self.combined_data.fillna(method='ffill')
+        self.combined_data = self.combined_data.ffill()
         
         # Calculate returns
         self.calculate_returns()

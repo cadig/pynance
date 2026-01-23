@@ -83,12 +83,12 @@ SLEEVE_CONFIG = {
     'equity': {
         'enabled': True,
         'sub_modules': {
-            'ex_us': {'enabled': True},
-            'us_large_cap': {'enabled': True},
-            'small_caps': {'enabled': True},
-            'total_market': {'enabled': True},
-            'sector_etfs': {'enabled': True},
-            'custom_etfs': {'enabled': True}
+            'us_large_cap': {'enabled': True, 'symbols': ['SPY', 'QQQ', 'NTSX', 'SCHD', 'USMV', 'RSP' ]},
+            'ex_us': {'enabled': True, 'symbols': ['CWI', 'EEM', 'DFIV', 'FXI']},
+            'small_caps': {'enabled': True, 'symbols': ['IWM', 'AVUV']},
+            'total_market': {'enabled': True, 'symbols': ['VTI']},
+            'sector_etfs': {'enabled': False, 'symbols': ['XLRE', 'XLB', 'XLE', 'XLK', 'XLV', 'XLF', 'XLP', 'XLU', 'XLI', 'XLC']},
+            'custom_etfs': {'enabled': True, 'symbols': ['CHAT', 'TOPT', 'MAGS', 'BRK-B']}
         }
     },
     'commodities': {

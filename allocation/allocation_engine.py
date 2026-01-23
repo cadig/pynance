@@ -5,21 +5,35 @@ This is the entry point for the allocation strategy system.
 """
 
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict
 
-from .regime_allocator import get_allocation_summary
-from .config import SLEEVE_CONFIG, OUTPUT_CONFIG
-from .utils import get_data_dir, get_docs_dir, save_results, load_spx_regime_data
-
-# Import sleeve analyzers
-from .sleeves import equity
-from .sleeves import commodities
-from .sleeves import crypto
-from .sleeves import managed_futures
-from .sleeves import alternatives
-from .sleeves import fixed_income
+# Handle both direct execution and module import
+if __name__ == "__main__":
+    # Add parent directory to path for direct execution
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from allocation.regime_allocator import get_allocation_summary
+    from allocation.config import SLEEVE_CONFIG, OUTPUT_CONFIG
+    from allocation.utils import get_data_dir, get_docs_dir, save_results, load_spx_regime_data
+    from allocation.sleeves import equity
+    from allocation.sleeves import commodities
+    from allocation.sleeves import crypto
+    from allocation.sleeves import managed_futures
+    from allocation.sleeves import alternatives
+    from allocation.sleeves import fixed_income
+else:
+    # Relative imports for module execution
+    from .regime_allocator import get_allocation_summary
+    from .config import SLEEVE_CONFIG, OUTPUT_CONFIG
+    from .utils import get_data_dir, get_docs_dir, save_results, load_spx_regime_data
+    from .sleeves import equity
+    from .sleeves import commodities
+    from .sleeves import crypto
+    from .sleeves import managed_futures
+    from .sleeves import alternatives
+    from .sleeves import fixed_income
 
 
 def run_allocation_analysis() -> Dict:

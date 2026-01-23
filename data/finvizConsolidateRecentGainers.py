@@ -46,8 +46,8 @@ def gather_tickers(additional_filters: dict = None) -> [str]:
         'Average Volume': 'Over 200K',
         'Current Volume': 'Over 100K', # NOTE: do not use Current Volume when mrkt is open, 
         '200-Day Simple Moving Average': 'Price above SMA200',
-        'Market Cap.': '+Large (over $10bln)',
-        # 'Market Cap.': '+Mid (over $2bln)',
+        # 'Market Cap.': '+Large (over $10bln)',
+        'Market Cap.': '+Mid (over $2bln)',
         # 'Market Cap.': '+Small (over $300mln)',
         'Performance': 'Quarter Up'
     }

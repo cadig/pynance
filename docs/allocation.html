@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Allocation Engine - Pynance</title>
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@5.0.0/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: #fff;
+            border-right: 1px solid #e0e0e0;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .sidebar h2 {
+            margin: 0 0 16px 0;
+            font-size: 1.1rem;
+            color: #333;
+        }
+        .sidebar-section {
+            margin-bottom: 24px;
+        }
+        .sidebar-section h3 {
+            margin: 0 0 8px 0;
+            font-size: 0.85rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .regime-grid {
+            display: grid;
+            gap: 8px;
+        }
+        .regime-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9rem;
+        }
+        .regime-row:last-child { border-bottom: none; }
+        .regime-label { color: #666; }
+        .regime-value { font-weight: 500; color: #333; }
+        .regime-color {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        .allocation-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .allocation-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9rem;
+        }
+        .allocation-list li:last-child { border-bottom: none; }
+        .allocation-name { color: #333; text-transform: capitalize; }
+        .allocation-pct { font-weight: 600; color: #1976d2; }
+        .main {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .main h1 {
+            margin: 0 0 20px 0;
+            font-size: 1.5rem;
+            color: #333;
+        }
+        .chart-block {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            margin-bottom: 24px;
+            padding: 16px;
+        }
+        .chart-block h3 {
+            margin: 0 0 12px 0;
+            font-size: 1rem;
+            color: #333;
+        }
+        .chart-block .chart-container {
+            width: 100%;
+            height: 320px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 16px;
+            color: #007bff;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .loading, .error {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+        }
+        .loading { background: #e3f2fd; color: #1565c0; }
+        .error { background: #ffebee; color: #c62828; }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <h2>Regime & Allocation</h2>
+            <div id="sidebar-content">
+                <div class="loading">Loading data...</div>
+            </div>
+        </aside>
+        <main class="main">
+            <a href="index.html" class="back-link">← Back to SPX Regime</a>
+            <h1>Equities</h1>
+            <div id="charts-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const SIDEBAR = document.getElementById('sidebar-content');
+        const CHARTS_CONTAINER = document.getElementById('charts-container');
+
+        function renderSidebar(data) {
+            const regime = data.regime || {};
+            const alloc = data.allocation_percentages || {};
+            const regimeColor = (regime.background_color || 'gray').toLowerCase();
+            const colorMap = {
+                green: '#4caf50',
+                yellow: '#ffeb3b',
+                orange: '#ff9800',
+                red: '#f44336',
+                gray: '#9e9e9e'
+            };
+            const bgColor = colorMap[regimeColor] || colorMap.gray;
+            const dateStr = regime.datetime ? new Date(regime.datetime).toLocaleString() : '—';
+
+            let allocHtml = '';
+            for (const [name, pct] of Object.entries(alloc)) {
+                const pctStr = (pct * 100).toFixed(1) + '%';
+                allocHtml += `<li><span class="allocation-name">${name.replace(/_/g, ' ')}</span><span class="allocation-pct">${pctStr}</span></li>`;
+            }
+
+            SIDEBAR.innerHTML = `
+                <div class="sidebar-section">
+                    <h3>Regime</h3>
+                    <div class="regime-grid">
+                        <div class="regime-row">
+                            <span class="regime-label">Background</span>
+                            <span class="regime-value"><span class="regime-color" style="background:${bgColor}"></span>${regime.background_color || '—'}</span>
+                        </div>
+                        <div class="regime-row">
+                            <span class="regime-label">Above 200 MA</span>
+                            <span class="regime-value">${regime.above_200ma === true ? 'Yes' : regime.above_200ma === false ? 'No' : '—'}</span>
+                        </div>
+                        <div class="regime-row">
+                            <span class="regime-label">VIX Close</span>
+                            <span class="regime-value">${regime.vix_close != null ? regime.vix_close : '—'}</span>
+                        </div>
+                        <div class="regime-row">
+                            <span class="regime-label">Date</span>
+                            <span class="regime-value">${dateStr}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="sidebar-section">
+                    <h3>Allocation %</h3>
+                    <ul class="allocation-list">${allocHtml}</ul>
+                </div>
+            `;
+        }
+
+        function formatTime(ts) {
+            const d = new Date(ts * 1000);
+            const y = d.getUTCFullYear();
+            const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(d.getUTCDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        async function fetchYahooBars(symbol) {
+            const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(symbol) + '?interval=1d&range=120d';
+            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+            const res = await fetch(proxyUrl);
+            if (!res.ok) throw new Error(res.statusText);
+            const json = await res.json();
+            const chart = json.chart;
+            if (!chart || !chart.result || !chart.result[0]) throw new Error('No chart result');
+            const result = chart.result[0];
+            const timestamps = result.timestamp || [];
+            const quote = (result.indicators && result.indicators.quote && result.indicators.quote[0]) || {};
+            const o = quote.open || [];
+            const h = quote.high || [];
+            const l = quote.low || [];
+            const c = quote.close || [];
+            const bars = [];
+            for (let i = 0; i < timestamps.length; i++) {
+                const open = o[i], high = h[i], low = l[i], close = c[i];
+                if (open == null || high == null || low == null || close == null) continue;
+                bars.push({
+                    time: formatTime(timestamps[i]),
+                    open: open,
+                    high: high,
+                    low: low,
+                    close: close
+                });
+            }
+            return bars;
+        }
+
+        function createBarChart(container, symbol, bars) {
+            if (!bars || bars.length === 0) return null;
+            const chart = LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: 300,
+                layout: { backgroundColor: '#ffffff', textColor: '#333' },
+                grid: { vertLines: { color: '#f0f0f0' }, horzLines: { color: '#f0f0f0' } },
+                rightPriceScale: { borderColor: '#ccc' },
+                timeScale: { borderColor: '#ccc', timeVisible: true, secondsVisible: false }
+            });
+            const barSeries = chart.addSeries(LightweightCharts.BarSeries, {
+                upColor: '#26a69a',
+                downColor: '#ef5350',
+                borderVisible: false
+            });
+            barSeries.setData(bars);
+            chart.timeScale().fitContent();
+            return chart;
+        }
+
+        async function loadAllocationAndCharts() {
+            try {
+                const res = await fetch('allocation-results.json');
+                if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+                const data = await res.json();
+                renderSidebar(data);
+
+                const equity = (data.sleeve_analyses && data.sleeve_analyses.equity) || {};
+                const tickers = equity.final_assets || [];
+
+                if (tickers.length === 0) {
+                    CHARTS_CONTAINER.innerHTML = '<p class="loading">No final_assets in equity sleeve.</p>';
+                    return;
+                }
+
+                CHARTS_CONTAINER.innerHTML = '';
+
+                for (const symbol of tickers) {
+                    const block = document.createElement('div');
+                    block.className = 'chart-block';
+                    block.innerHTML = '<h3>' + symbol + '</h3><div class="chart-container"></div>';
+                    CHARTS_CONTAINER.appendChild(block);
+                    const chartDiv = block.querySelector('.chart-container');
+
+                    try {
+                        const bars = await fetchYahooBars(symbol);
+                        createBarChart(chartDiv, symbol, bars);
+                    } catch (err) {
+                        chartDiv.parentElement.innerHTML = '<h3>' + symbol + '</h3><div class="error">Could not load chart: ' + err.message + '</div>';
+                    }
+                }
+            } catch (err) {
+                SIDEBAR.innerHTML = '<div class="error">Failed to load allocation-results.json: ' + err.message + '</div>';
+                CHARTS_CONTAINER.innerHTML = '<div class="error">' + err.message + '</div>';
+            }
+        }
+
+        loadAllocationAndCharts();
+    </script>
+</body>
+</html>

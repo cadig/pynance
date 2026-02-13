@@ -40,15 +40,15 @@ jobs:
         
         # Install additional packages via pip
         conda activate pynance-v2.0
-        pip install tradingview-datafeed
-        
+        pip install tradingview-datafeed yfinance
+
     - name: Activate conda environment and run analysis
       shell: bash -l {0}
       run: |
         conda activate pynance-v2.0
         python data/fetch_data.py
         python research/combined-research.py
-        python research/strategy_ensemble.py
+        python allocation/allocation_engine.py
       env:
         TRADINGVIEW_USERNAME: ${{ secrets.TRADINGVIEW_USERNAME }}
         TRADINGVIEW_PASSWORD: ${{ secrets.TRADINGVIEW_PASSWORD }}

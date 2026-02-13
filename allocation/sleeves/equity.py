@@ -15,19 +15,39 @@ import numpy as np
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from ..utils import load_csv_data
+from ..utils import load_etf_data
 
 
 # Configuration for return period weights
 RETURN_PERIOD_WEIGHTS = {
-    1: 0.32,   # 1 month weight
-    3: 0.27,   # 3 month weight
-    6: 0.22,   # 6 month weight
-    12: 0.17  # 12 month weight
+    1: 0.50,   # 1 month weight
+    3: 0.25,   # 3 month weight
+    6: 0.15,   # 6 month weight
+    12: 0.10  # 12 month weight
 }
 
 # Trading days per month (approximate)
 TRADING_DAYS_PER_MONTH = 21
+
+
+def is_above_200dma(df: pd.DataFrame) -> bool:
+    """
+    Return True if the most recent close is above the 200-day moving average.
+
+    Assumes daily bars. If insufficient history or missing 'close', returns False.
+    """
+    if df is None or df.empty:
+        return False
+    if 'close' not in df.columns:
+        return False
+    if len(df) < 200:
+        return False
+
+    close = df['close'].iloc[-1]
+    sma_200 = df['close'].rolling(window=200, min_periods=200).mean().iloc[-1]
+    if pd.isna(close) or pd.isna(sma_200):
+        return False
+    return bool(close > sma_200)
 
 
 def calculate_period_return(df: pd.DataFrame, months: int) -> float:
@@ -58,6 +78,7 @@ def calculate_period_return(df: pd.DataFrame, months: int) -> float:
 def calculate_returns_for_symbol(symbol: str, data_dir: Path) -> Dict[str, float]:
     """
     Calculate 1, 3, 6, and 12 month returns for a symbol.
+    Uses hybrid approach: tries CSV first, falls back to yfinance.
     
     Args:
         symbol: ETF ticker symbol
@@ -67,17 +88,14 @@ def calculate_returns_for_symbol(symbol: str, data_dir: Path) -> Dict[str, float
         dict: Dictionary with return periods as keys and returns as values
     """
     try:
-        filename = f"{symbol}.csv"
-        df = load_csv_data(filename, data_dir)
+        # Use hybrid load function that tries CSV first, then yfinance
+        df = load_etf_data(symbol, data_dir)
         
         returns = {}
         for months in [1, 3, 6, 12]:
             returns[months] = calculate_period_return(df, months)
         
         return returns
-    except FileNotFoundError:
-        logging.warning(f"Data file not found for symbol {symbol}")
-        return {1: np.nan, 3: np.nan, 6: np.nan, 12: np.nan}
     except Exception as e:
         logging.error(f"Error calculating returns for {symbol}: {e}")
         return {1: np.nan, 3: np.nan, 6: np.nan, 12: np.nan}
@@ -92,40 +110,83 @@ def rank_etfs_by_composite_score(symbols: List[str], data_dir: Path) -> List[Tup
         data_dir: Path to data directory containing CSV files
         
     Returns:
-        list: List of tuples (symbol, composite_score, returns_dict) sorted by composite score (ascending, best first)
+        list: List of tuples (symbol, composite_score, returns_dict) sorted by composite score (descending, best first)
     """
-    # Calculate returns for all symbols
-    symbol_returns = {}
+    # Calculate returns for all symbols (skip any ETF not above its 200DMA)
+    symbol_returns: Dict[str, Dict[int, float]] = {}
     for symbol in symbols:
-        returns = calculate_returns_for_symbol(symbol, data_dir)
-        symbol_returns[symbol] = returns
-    
+        try:
+            df = load_etf_data(symbol, data_dir)
+            if not df.index.is_monotonic_increasing:
+                df = df.sort_index()
+
+            # Log the most recent bar so we can verify the data used
+            try:
+                tail_rows = df.tail(3)
+                logging.info(f"\n=== {symbol} most recent bars (tail) ===\n{tail_rows}\n")
+                last_ts = df.index[-1] if len(df) else None
+                last_row = df.iloc[-1] if len(df) else None
+                ohlc_cols = [c for c in ['open', 'high', 'low', 'close'] if c in df.columns]
+                last_ohlc = last_row[ohlc_cols].to_dict() if (last_row is not None and ohlc_cols) else {}
+                logging.info(f"{symbol} last bar: {last_ts} OHLC={last_ohlc}")
+            except Exception as log_err:
+                logging.warning(f"{symbol}: failed to log tail/last bar: {log_err}")
+
+            if not is_above_200dma(df):
+                close = df['close'].iloc[-1] if ('close' in df.columns and len(df)) else None
+                sma_200 = (
+                    df['close'].rolling(window=200, min_periods=200).mean().iloc[-1]
+                    if ('close' in df.columns and len(df) >= 200)
+                    else None
+                )
+                logging.info(
+                    f"{symbol}: excluded (not above 200DMA). close={close} sma200={sma_200}"
+                )
+                continue
+
+            returns: Dict[int, float] = {}
+            for months in [1, 3, 6, 12]:
+                returns[months] = calculate_period_return(df, months)
+            symbol_returns[symbol] = returns
+        except Exception as e:
+            logging.error(f"Error loading/calculating returns for {symbol}: {e}")
+            continue
+
+    if not symbol_returns:
+        logging.warning("No ETFs passed the 200DMA filter; nothing to rank.")
+        return []
+
     # Create DataFrame with returns
-    returns_df = pd.DataFrame(symbol_returns).T
-    returns_df.columns = [1, 3, 6, 12]  # Column names are months
+    returns_df = pd.DataFrame.from_dict(symbol_returns, orient='index')
+    returns_df = returns_df.reindex(columns=[1, 3, 6, 12])  # Column names are months
     
     # Rank returns for each period (1 = best return, higher number = worse return)
     # Using method='min' so ties get the same rank, and ascending=False so higher returns get lower ranks
     ranks_df = returns_df.rank(method='min', ascending=False, na_option='keep')
     
     # Calculate composite score for each symbol
+    # Invert ranks so higher composite_score = better performance
+    num_symbols = len(returns_df.index)
     results = []
-    for symbol in symbols:
+    for symbol in returns_df.index:
         composite_score = 0.0
         returns_dict = symbol_returns[symbol]
         
         for months, weight in RETURN_PERIOD_WEIGHTS.items():
             rank = ranks_df.loc[symbol, months]
             if pd.notna(rank):
-                composite_score += rank * weight
+                # Invert rank: rank 1 (best) becomes num_symbols (highest score)
+                # rank N (worst) becomes 1 (lowest score)
+                inverted_rank = num_symbols + 1 - rank
+                composite_score += inverted_rank * weight
             else:
-                # If data is missing, assign worst rank (number of symbols + 1)
-                composite_score += (len(symbols) + 1) * weight
+                # If data is missing, assign worst score (0)
+                composite_score += 0.0
         
         results.append((symbol, composite_score, returns_dict))
     
-    # Sort by composite score (ascending - lower is better)
-    results.sort(key=lambda x: x[1])
+    # Sort by composite score (descending - higher is better)
+    results.sort(key=lambda x: x[1], reverse=True)
     
     return results
 
@@ -203,9 +264,11 @@ def analyze_ex_us(data_dir: Path, symbols: Optional[List[str]] = None) -> Dict:
     logging.info("Analyzing Ex-US equity opportunities")
     
     if symbols is None:
-        # Default Ex-US equity ETFs (can be configured later)
-        symbols = []
-        logging.warning("No symbols provided for Ex-US equity analysis")
+        # Read symbols from config
+        from ..config import SLEEVE_CONFIG
+        symbols = SLEEVE_CONFIG['equity']['sub_modules'].get('ex_us', {}).get('symbols', [])
+        if not symbols:
+            logging.warning("No symbols provided for Ex-US equity analysis")
     
     return analyze_equity_sub_sleeve(symbols, data_dir, 'ex_us')
 
@@ -224,9 +287,11 @@ def analyze_us_large_cap(data_dir: Path, symbols: Optional[List[str]] = None) ->
     logging.info("Analyzing US Large Cap equity opportunities")
     
     if symbols is None:
-        # Default US Large Cap ETFs (can be configured later)
-        symbols = []
-        logging.warning("No symbols provided for US Large Cap analysis")
+        # Read symbols from config
+        from ..config import SLEEVE_CONFIG
+        symbols = SLEEVE_CONFIG['equity']['sub_modules'].get('us_large_cap', {}).get('symbols', [])
+        if not symbols:
+            logging.warning("No symbols provided for US Large Cap analysis")
     
     return analyze_equity_sub_sleeve(symbols, data_dir, 'us_large_cap')
 
@@ -245,9 +310,11 @@ def analyze_small_caps(data_dir: Path, symbols: Optional[List[str]] = None) -> D
     logging.info("Analyzing Small Caps equity opportunities")
     
     if symbols is None:
-        # Default Small Caps ETFs (can be configured later)
-        symbols = []
-        logging.warning("No symbols provided for Small Caps analysis")
+        # Read symbols from config
+        from ..config import SLEEVE_CONFIG
+        symbols = SLEEVE_CONFIG['equity']['sub_modules'].get('small_caps', {}).get('symbols', [])
+        if not symbols:
+            logging.warning("No symbols provided for Small Caps analysis")
     
     return analyze_equity_sub_sleeve(symbols, data_dir, 'small_caps')
 
@@ -266,9 +333,11 @@ def analyze_total_market(data_dir: Path, symbols: Optional[List[str]] = None) ->
     logging.info("Analyzing Total Market equity opportunities")
     
     if symbols is None:
-        # Default Total Market ETFs (can be configured later)
-        symbols = []
-        logging.warning("No symbols provided for Total Market analysis")
+        # Read symbols from config
+        from ..config import SLEEVE_CONFIG
+        symbols = SLEEVE_CONFIG['equity']['sub_modules'].get('total_market', {}).get('symbols', [])
+        if not symbols:
+            logging.warning("No symbols provided for Total Market analysis")
     
     return analyze_equity_sub_sleeve(symbols, data_dir, 'total_market')
 
@@ -287,9 +356,11 @@ def analyze_sector_etfs(data_dir: Path, symbols: Optional[List[str]] = None) -> 
     logging.info("Analyzing Sector ETFs opportunities")
     
     if symbols is None:
-        # Default Sector ETFs (can be configured later)
-        symbols = []
-        logging.warning("No symbols provided for Sector ETFs analysis")
+        # Read symbols from config
+        from ..config import SLEEVE_CONFIG
+        symbols = SLEEVE_CONFIG['equity']['sub_modules'].get('sector_etfs', {}).get('symbols', [])
+        if not symbols:
+            logging.warning("No symbols provided for Sector ETFs analysis")
     
     return analyze_equity_sub_sleeve(symbols, data_dir, 'sector_etfs')
 
@@ -308,9 +379,11 @@ def analyze_custom_etfs(data_dir: Path, symbols: Optional[List[str]] = None) -> 
     logging.info("Analyzing Custom ETFs opportunities")
     
     if symbols is None:
-        # Default Custom ETFs (can be configured later)
-        symbols = []
-        logging.warning("No symbols provided for Custom ETFs analysis")
+        # Read symbols from config
+        from ..config import SLEEVE_CONFIG
+        symbols = SLEEVE_CONFIG['equity']['sub_modules'].get('custom_etfs', {}).get('symbols', [])
+        if not symbols:
+            logging.warning("No symbols provided for Custom ETFs analysis")
     
     return analyze_equity_sub_sleeve(symbols, data_dir, 'custom_etfs')
 
@@ -332,37 +405,73 @@ def analyze_equity_sleeve(data_dir: Path, allocation_percentage: float,
     
     # Default to all sub-modules enabled if not specified
     if enabled_sub_modules is None:
-        enabled_sub_modules = {
-            'ex_us': {'enabled': True},
-            'us_large_cap': {'enabled': True},
-            'small_caps': {'enabled': True},
-            'total_market': {'enabled': True},
-            'sector_etfs': {'enabled': True},
-            'custom_etfs': {'enabled': True}
-        }
+        from ..config import SLEEVE_CONFIG
+        enabled_sub_modules = SLEEVE_CONFIG['equity'].get('sub_modules', {})
     
     sub_module_results = []
     
     # Run each enabled sub-module
     if enabled_sub_modules.get('ex_us', {}).get('enabled', False):
-        sub_module_results.append(analyze_ex_us(data_dir))
+        symbols = enabled_sub_modules.get('ex_us', {}).get('symbols', None)
+        sub_module_results.append(analyze_ex_us(data_dir, symbols=symbols))
     
     if enabled_sub_modules.get('us_large_cap', {}).get('enabled', False):
-        sub_module_results.append(analyze_us_large_cap(data_dir))
+        symbols = enabled_sub_modules.get('us_large_cap', {}).get('symbols', None)
+        sub_module_results.append(analyze_us_large_cap(data_dir, symbols=symbols))
     
     if enabled_sub_modules.get('small_caps', {}).get('enabled', False):
-        sub_module_results.append(analyze_small_caps(data_dir))
+        symbols = enabled_sub_modules.get('small_caps', {}).get('symbols', None)
+        sub_module_results.append(analyze_small_caps(data_dir, symbols=symbols))
     
     if enabled_sub_modules.get('total_market', {}).get('enabled', False):
-        sub_module_results.append(analyze_total_market(data_dir))
+        symbols = enabled_sub_modules.get('total_market', {}).get('symbols', None)
+        sub_module_results.append(analyze_total_market(data_dir, symbols=symbols))
     
     if enabled_sub_modules.get('sector_etfs', {}).get('enabled', False):
-        sub_module_results.append(analyze_sector_etfs(data_dir))
+        symbols = enabled_sub_modules.get('sector_etfs', {}).get('symbols', None)
+        sub_module_results.append(analyze_sector_etfs(data_dir, symbols=symbols))
     
     if enabled_sub_modules.get('custom_etfs', {}).get('enabled', False):
-        sub_module_results.append(analyze_custom_etfs(data_dir))
+        symbols = enabled_sub_modules.get('custom_etfs', {}).get('symbols', None)
+        sub_module_results.append(analyze_custom_etfs(data_dir, symbols=symbols))
     
-    # Aggregate results
+    # Collect all rankings from all sub-modules with their sub_module names
+    all_rankings = []
+    for result in sub_module_results:
+        sub_module_name = result.get('sub_module', 'unknown')
+        rankings = result.get('rankings', [])
+        for ranking in rankings:
+            # Add sub_module info to each ranking
+            ranking_with_module = ranking.copy()
+            ranking_with_module['sub_module'] = sub_module_name
+            all_rankings.append(ranking_with_module)
+    
+    # Sort all rankings by composite_score (descending - higher is better)
+    all_rankings.sort(key=lambda x: x.get('composite_score', float('-inf')), reverse=True)
+    
+    # Select top 4 ETFs, ensuring no more than 2 from any sub-module
+    selected_etfs = []
+    sub_module_counts = {}  # Track how many ETFs selected from each sub-module
+    
+    for ranking in all_rankings:
+        if len(selected_etfs) >= 4:
+            break
+        
+        sub_module = ranking['sub_module']
+        current_count = sub_module_counts.get(sub_module, 0)
+        
+        # Only add if we haven't exceeded 2 per sub-module
+        if current_count < 2:
+            selected_etfs.append(ranking)
+            sub_module_counts[sub_module] = current_count + 1
+    
+    logging.info(f"Selected {len(selected_etfs)} ETFs from equity sleeve: {[etf['symbol'] for etf in selected_etfs]}")
+    
+    # Create final assets and weights dictionaries
+    final_assets = [etf['symbol'] for etf in selected_etfs]
+    final_weights = {}  # Will be populated based on allocation strategy
+    
+    # Aggregate all assets (for backward compatibility)
     all_assets = {}
     for result in sub_module_results:
         for asset, weight in result.get('weights', {}).items():
@@ -375,6 +484,9 @@ def analyze_equity_sleeve(data_dir: Path, allocation_percentage: float,
         'sleeve': 'equity',
         'allocation_percentage': allocation_percentage,
         'sub_modules': sub_module_results,
+        'selected_etfs': selected_etfs,  # Top 4 selected ETFs with rankings
         'aggregated_assets': all_assets,
+        'final_assets': final_assets,  # Final selected ETF symbols
+        'final_weights': final_weights,  # Final weights (to be populated)
         'total_allocation': sum(all_assets.values()) if all_assets else 0.0
     }

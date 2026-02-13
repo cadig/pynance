@@ -87,21 +87,81 @@
             font-size: 1.5rem;
             color: #333;
         }
+        .sleeve-accordion {
+            margin-bottom: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fff;
+            overflow: hidden;
+        }
+        .sleeve-accordion.disabled .sleeve-header {
+            cursor: not-allowed;
+            opacity: 0.65;
+        }
+        .sleeve-accordion.disabled .sleeve-header:hover {
+            background: #fafafa;
+        }
+        .sleeve-header {
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #333;
+            background: #fafafa;
+            border: none;
+            width: 100%;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .sleeve-header:hover {
+            background: #f0f0f0;
+        }
+        .sleeve-header .chevron {
+            font-size: 0.7rem;
+            color: #666;
+            transition: transform 0.2s ease;
+        }
+        .sleeve-accordion.expanded .sleeve-header .chevron {
+            transform: rotate(90deg);
+        }
+        .sleeve-body {
+            display: none;
+            padding: 16px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .sleeve-accordion.expanded .sleeve-body {
+            display: block;
+        }
+        .charts-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
         .chart-block {
+            flex: 1 1 260px;
+            min-width: 260px;
             background: #fff;
             border-radius: 8px;
             box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-            margin-bottom: 24px;
             padding: 16px;
+            border: 1px solid #eee;
         }
         .chart-block h3 {
             margin: 0 0 12px 0;
-            font-size: 1rem;
+            font-size: 0.85rem;
             color: #333;
         }
         .chart-block .chart-container {
             width: 100%;
-            height: 320px;
+            height: 280px;
+        }
+        .sleeve-placeholder {
+            padding: 20px;
+            text-align: center;
+            color: #999;
+            font-size: 0.85rem;
         }
         .back-link {
             display: inline-block;
@@ -131,14 +191,28 @@
         </aside>
         <main class="main">
             <a href="index.html" class="back-link">← Back to SPX Regime</a>
-            <h1>Equities</h1>
-            <div id="charts-container"></div>
+            <h1>Allocation Engine</h1>
+            <div id="sleeves-container"></div>
         </main>
     </div>
 
     <script>
         const SIDEBAR = document.getElementById('sidebar-content');
-        const CHARTS_CONTAINER = document.getElementById('charts-container');
+        const SLEEVES_CONTAINER = document.getElementById('sleeves-container');
+
+        const SLEEVE_KEYS = ['equity', 'commodities', 'crypto', 'managed_futures', 'alternatives', 'fixed_income'];
+
+        function sleeveTitle(key) {
+            const titles = {
+                equity: 'Equities',
+                commodities: 'Commodities',
+                crypto: 'Crypto',
+                managed_futures: 'Managed Futures',
+                alternatives: 'Alternatives',
+                fixed_income: 'Fixed Income'
+            };
+            return titles[key] || key.replace(/_/g, ' ');
+        }
 
         function renderSidebar(data) {
             const regime = data.regime || {};
@@ -231,7 +305,7 @@
             if (!bars || bars.length === 0) return null;
             const chart = LightweightCharts.createChart(container, {
                 width: container.clientWidth,
-                height: 300,
+                height: 280,
                 layout: { backgroundColor: '#ffffff', textColor: '#333' },
                 grid: { vertLines: { color: '#f0f0f0' }, horzLines: { color: '#f0f0f0' } },
                 rightPriceScale: { borderColor: '#ccc' },
@@ -247,40 +321,93 @@
             return chart;
         }
 
+        function buildSleeveAccordions(data) {
+            SLEEVES_CONTAINER.innerHTML = '';
+            const analyses = data.sleeve_analyses || {};
+
+            for (const key of SLEEVE_KEYS) {
+                const accordion = document.createElement('div');
+                const isEquity = key === 'equity';
+                accordion.className = 'sleeve-accordion' + (isEquity ? '' : ' disabled');
+                accordion.dataset.sleeve = key;
+
+                const header = document.createElement('button');
+                header.type = 'button';
+                header.className = 'sleeve-header';
+                header.innerHTML = '<span>' + sleeveTitle(key) + '</span><span class="chevron">▶</span>';
+                if (!isEquity) {
+                    header.disabled = true;
+                    header.setAttribute('aria-disabled', 'true');
+                }
+
+                const body = document.createElement('div');
+                body.className = 'sleeve-body';
+                if (isEquity) {
+                    body.innerHTML = '<div class="loading">Expand to load charts…</div>';
+                } else {
+                    body.innerHTML = '<div class="sleeve-placeholder">Charts coming soon.</div>';
+                }
+
+                accordion.appendChild(header);
+                accordion.appendChild(body);
+
+                if (isEquity) {
+                    header.addEventListener('click', function () {
+                        accordion.classList.toggle('expanded');
+                        if (accordion.classList.contains('expanded') && !body.dataset.loaded) {
+                            loadEquityCharts(data, body);
+                        }
+                    });
+                }
+
+                SLEEVES_CONTAINER.appendChild(accordion);
+            }
+        }
+
+        async function loadEquityCharts(data, bodyEl) {
+            const equity = (data.sleeve_analyses && data.sleeve_analyses.equity) || {};
+            const tickers = equity.final_assets || [];
+
+            if (tickers.length === 0) {
+                bodyEl.innerHTML = '<p class="loading">No final_assets in equity sleeve.</p>';
+                bodyEl.dataset.loaded = '1';
+                return;
+            }
+
+            bodyEl.innerHTML = '<div class="loading">Loading charts…</div>';
+            const row = document.createElement('div');
+            row.className = 'charts-row';
+            bodyEl.innerHTML = '';
+            bodyEl.appendChild(row);
+
+            for (const symbol of tickers) {
+                const block = document.createElement('div');
+                block.className = 'chart-block';
+                block.innerHTML = '<h3>' + symbol + '</h3><div class="chart-container"></div>';
+                row.appendChild(block);
+                const chartDiv = block.querySelector('.chart-container');
+
+                try {
+                    const bars = await fetchYahooBars(symbol);
+                    createBarChart(chartDiv, symbol, bars);
+                } catch (err) {
+                    block.innerHTML = '<h3>' + symbol + '</h3><div class="error">Could not load chart: ' + err.message + '</div>';
+                }
+            }
+
+            bodyEl.dataset.loaded = '1';
+        }
+
         async function loadAllocationAndCharts() {
             try {
                 const res = await fetch('allocation-results.json');
                 if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
                 const data = await res.json();
                 renderSidebar(data);
-
-                const equity = (data.sleeve_analyses && data.sleeve_analyses.equity) || {};
-                const tickers = equity.final_assets || [];
-
-                if (tickers.length === 0) {
-                    CHARTS_CONTAINER.innerHTML = '<p class="loading">No final_assets in equity sleeve.</p>';
-                    return;
-                }
-
-                CHARTS_CONTAINER.innerHTML = '';
-
-                for (const symbol of tickers) {
-                    const block = document.createElement('div');
-                    block.className = 'chart-block';
-                    block.innerHTML = '<h3>' + symbol + '</h3><div class="chart-container"></div>';
-                    CHARTS_CONTAINER.appendChild(block);
-                    const chartDiv = block.querySelector('.chart-container');
-
-                    try {
-                        const bars = await fetchYahooBars(symbol);
-                        createBarChart(chartDiv, symbol, bars);
-                    } catch (err) {
-                        chartDiv.parentElement.innerHTML = '<h3>' + symbol + '</h3><div class="error">Could not load chart: ' + err.message + '</div>';
-                    }
-                }
+                buildSleeveAccordions(data);
             } catch (err) {
                 SIDEBAR.innerHTML = '<div class="error">Failed to load allocation-results.json: ' + err.message + '</div>';
-                CHARTS_CONTAINER.innerHTML = '<div class="error">' + err.message + '</div>';
+                SLEEVES_CONTAINER.innerHTML = '<div class="error">' + err.message + '</div>';
             }
         }
 

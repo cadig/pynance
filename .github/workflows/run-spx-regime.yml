@@ -50,6 +50,12 @@ jobs:
           mv history/allocation-log.jsonl docs/history/allocation-log.jsonl && \
           rm -rf history/ || true
 
+    - name: Restore data cache from gh-pages
+      run: |
+        git checkout origin/gh-pages -- data-cache/ 2>/dev/null && \
+          cp data-cache/*.csv data/ && \
+          rm -rf data-cache/ || true
+
     - name: Activate conda environment and run analysis
       shell: bash -l {0}
       run: |
@@ -70,6 +76,11 @@ jobs:
     #     git add docs/spx-regime.png docs/spx-regime-results.json
     #     git diff --quiet && git diff --staged --quiet || git commit -m "Update SPX regime analysis [skip ci]"
     #     git push origin gh-pages
+
+    - name: Prepare data cache for deploy
+      run: |
+        mkdir -p docs/data-cache
+        cp data/*.csv docs/data-cache/ 2>/dev/null || true
 
     # Publish output files (PNG + JSON) to gh-pages without history
     - name: Deploy to gh-pages (force orphan)

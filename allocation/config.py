@@ -92,7 +92,10 @@ SLEEVE_CONFIG = {
         }
     },
     'commodities': {
-        'enabled': True
+        'enabled': True,
+        'symbols': ['DBC', 'GLD', 'SLV', 'GDX', 'SIL', 'COPX', 'URNM', 'USO', 'DBA'],
+        # Mutual exclusion pairs: only the higher-ranked of each pair is selected
+        'exclusive_pairs': [['GLD', 'GDX'], ['SLV', 'SIL']]
     },
     'crypto': {
         'enabled': True

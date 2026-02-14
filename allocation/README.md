@@ -81,11 +81,48 @@ The allocation engine runs daily in three steps:
 
 ---
 
+## Commodities / Metals Sleeve
+
+**Goal:** Own the strongest-trending commodity exposures across metals, miners, energy, and agriculture, while avoiding anything in a downtrend. Prevent over-concentration in a single commodity by enforcing mutual exclusion between correlated ETFs.
+
+**Universe:** 9 ETFs across 4 categories:
+- Broad commodities: DBC
+- Precious metals: GLD, SLV
+- Miners/materials: GDX (gold miners), SIL (silver miners), COPX (copper miners), URNM (uranium miners)
+- Energy: USO
+- Agriculture: DBA
+
+**How it picks:**
+
+1. **Load price data** for every ETF in the universe.
+
+2. **Filter by 200-day moving average.** Same hard gate as equity — if the ETF's price is below its 200-day SMA, it's excluded. Commodities can have extended drawdowns, and you don't want to hold broad commodity ETFs in a deflationary bust. No exceptions, no ATR buffer (unlike managed futures, these aren't structurally leveraged products with high daily noise).
+
+3. **Calculate momentum returns** over three periods: 1 month, 3 months, and 6 months. No 12-month lookback — commodities are cyclical and a 12-month return can span an entire boom-bust cycle, making it less useful for current positioning.
+
+4. **Risk-adjust the returns.** Each period's return is divided by the ETF's 63-day annualized realized volatility. This is important here because the universe mixes very different asset types: a broad commodity basket like DBC might have 12% annual vol, while a uranium miner ETF like URNM could have 40%+. Without risk-adjustment, the most volatile miner would dominate the rankings whenever it swings up, even if the risk-adjusted return is mediocre.
+
+5. **Rank by weighted composite score** of the risk-adjusted returns:
+   - 1-month: **50%** weight
+   - 3-month: **30%** weight
+   - 6-month: **20%** weight
+
+6. **Enforce mutual exclusion pairs.** Two pairs are configured:
+   - **GLD vs GDX:** Gold the metal vs gold miners. Both track the gold trade — keeping the higher-ranked one and dropping the other prevents doubling up on gold exposure.
+   - **SLV vs SIL:** Silver the metal vs silver miners. Same logic.
+
+   The higher-ranked member of each pair (by composite score) survives. If GLD ranks #2 and GDX ranks #5, GDX is removed. If neither passes the 200DMA filter, neither appears.
+
+7. **Output all surviving ETFs** ranked by final score.
+
+**What it doesn't do (yet):** Assign within-sleeve weights.
+
+---
+
 ## Stubs (Not Yet Implemented)
 
 The following sleeves exist in the config and are dispatched by the engine, but return empty results:
 
-- **Commodities** — Will cover metals, energy, and agricultural commodity ETFs.
 - **Fixed Income** — Will cover treasury, corporate bond, and TIPS ETFs.
 - **Crypto** — Will cover Bitcoin and Ethereum ETFs.
 - **Alternatives** — Placeholder; currently allocated 0% in all regimes.
@@ -100,6 +137,8 @@ The following sleeves exist in the config and are dispatched by the engine, but 
 
 **Why is the MF trend filter more lenient than the equity filter?** Equity uses a hard 200DMA gate with no buffer. Managed futures uses an ATR buffer because MF funds are structurally more volatile (they use leverage and trade volatile asset classes), so crossing below a moving average on normal noise doesn't carry the same signal.
 
-**Why risk-adjust MF returns but not equity returns?** The equity universe spans different asset classes (US large cap, international, small cap) where volatility differences are partly intentional — you might *want* more volatile small caps if they're trending. The MF universe is 5 funds all doing roughly the same thing (trend following), so volatility is pure noise/cost and should be normalized out.
+**Why risk-adjust MF and commodity returns but not equity returns?** The equity universe spans different asset classes (US large cap, international, small cap) where volatility differences are partly intentional — you might *want* more volatile small caps if they're trending. The MF universe is 5 funds all doing roughly the same thing (trend following), so volatility is pure noise/cost and should be normalized out. Commodities are similar — the universe mixes a 12%-vol broad basket (DBC) with 40%+ vol uranium miners (URNM), so without risk-adjustment the most volatile miner dominates the rankings whenever it happens to swing up.
+
+**Why mutual exclusion pairs in commodities?** GLD and GDX both track the gold trade (metal vs miners). If both pass the trend filter, holding both doubles your gold concentration. Same for SLV/SIL with silver. The system keeps whichever has the better risk-adjusted momentum and drops the other. This is configured in `config.py` so pairs can be added/removed without changing sleeve code.
 
 **Why are all prices dividend-adjusted?** yfinance returns adjusted prices by default. This matters most for managed futures funds (KMLM, DBMF, etc.) that pay large distributions — without adjustment, each ex-dividend date would look like a momentum loss and trigger false "below MA" signals.

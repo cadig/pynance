@@ -439,41 +439,56 @@
             }
         }
 
+        function getSleeveSymbols(sleeveData) {
+            // equity uses final_assets; other sleeves use selected_etfs[].symbol
+            if (sleeveData.final_assets && sleeveData.final_assets.length > 0) {
+                return sleeveData.final_assets;
+            }
+            if (sleeveData.selected_etfs && sleeveData.selected_etfs.length > 0) {
+                return sleeveData.selected_etfs.map(e => e.symbol);
+            }
+            return [];
+        }
+
         function buildSleeveAccordions(data) {
             SLEEVES_CONTAINER.innerHTML = '';
             const analyses = data.sleeve_analyses || {};
 
             for (const key of SLEEVE_KEYS) {
+                const sleeveData = analyses[key] || {};
+                const symbols = getSleeveSymbols(sleeveData);
+                const hasData = symbols.length > 0;
+
                 const accordion = document.createElement('div');
-                const isEquity = key === 'equity';
-                accordion.className = 'sleeve-accordion' + (isEquity ? '' : ' disabled');
+                accordion.className = 'sleeve-accordion' + (hasData ? '' : ' disabled');
                 accordion.dataset.sleeve = key;
 
                 const header = document.createElement('button');
                 header.type = 'button';
                 header.className = 'sleeve-header';
-                header.innerHTML = '<span>' + sleeveTitle(key) + '</span><span class="chevron">▶</span>';
-                if (!isEquity) {
+                const countBadge = hasData ? ' (' + symbols.length + ')' : '';
+                header.innerHTML = '<span>' + sleeveTitle(key) + countBadge + '</span><span class="chevron">▶</span>';
+                if (!hasData) {
                     header.disabled = true;
                     header.setAttribute('aria-disabled', 'true');
                 }
 
                 const body = document.createElement('div');
                 body.className = 'sleeve-body';
-                if (isEquity) {
+                if (hasData) {
                     body.innerHTML = '<div class="loading">Expand to load charts…</div>';
                 } else {
-                    body.innerHTML = '<div class="sleeve-placeholder">Charts coming soon.</div>';
+                    body.innerHTML = '<div class="sleeve-placeholder">No recommendations — sleeve not yet implemented or all ETFs filtered out.</div>';
                 }
 
                 accordion.appendChild(header);
                 accordion.appendChild(body);
 
-                if (isEquity) {
+                if (hasData) {
                     header.addEventListener('click', function () {
                         accordion.classList.toggle('expanded');
                         if (accordion.classList.contains('expanded') && !body.dataset.loaded) {
-                            loadEquityCharts(data, body);
+                            loadSleeveCharts(symbols, body);
                         }
                     });
                 }
@@ -482,12 +497,9 @@
             }
         }
 
-        async function loadEquityCharts(data, bodyEl) {
-            const equity = (data.sleeve_analyses && data.sleeve_analyses.equity) || {};
-            const tickers = equity.final_assets || [];
-
+        async function loadSleeveCharts(tickers, bodyEl) {
             if (tickers.length === 0) {
-                bodyEl.innerHTML = '<p class="loading">No final_assets in equity sleeve.</p>';
+                bodyEl.innerHTML = '<p class="loading">No ETFs selected for this sleeve.</p>';
                 bodyEl.dataset.loaded = '1';
                 return;
             }

@@ -1,192 +1,105 @@
-# Asset Allocation Strategy System
+# Allocation Engine — How Each Sleeve Works
 
-This module provides a comprehensive asset allocation system that determines investment allocations based on SPX regime analysis results and performs detailed analysis for each asset sleeve.
+This document explains the logic behind each asset sleeve in plain english. For code-level details, see the source files in `sleeves/`.
 
-## Overview
+## How the system decides what to buy
 
-The allocation system:
-1. Reads SPX regime analysis results from `docs/spx-regime-results.json`
-2. Determines asset allocation percentages based on regime conditions
-3. Analyzes each asset sleeve to determine specific investment opportunities
-4. Outputs results to `docs/allocation-results.json` for GitHub Pages
+The allocation engine runs daily in three steps:
 
-## Directory Structure
+1. **Determine the regime** — Read the SPX regime results (generated upstream by `combined-research.py`) to figure out the current market environment: risk-on, moderate, elevated, risk-off, or crisis.
 
-```
-allocation/
-├── __init__.py
-├── allocation_engine.py      # Main orchestrator
-├── regime_allocator.py        # Determines allocation percentages from regime
-├── config.py                  # Configuration and allocation rules
-├── utils.py                   # Shared utilities (data loading, I/O)
-├── README.md                  # This file
-└── sleeves/                   # Asset sleeve analyzers
-    ├── __init__.py
-    ├── equity.py              # Equity analysis (all sub-modules)
-    ├── commodities.py         # Commodities/Metals analysis
-    ├── crypto.py              # Crypto analysis
-    ├── managed_futures.py     # Managed Futures analysis
-    ├── alternatives.py        # Alternatives analysis
-    └── fixed_income.py        # Fixed Income analysis
-```
+2. **Set the allocation split** — Based on the regime, decide what percentage of the portfolio goes to each sleeve. In risk-on, equities get 50% and managed futures get 20%. In a crisis, that flips: equities drop to 5% and managed futures jump to 55%.
 
-## Key Components
+3. **Pick the best ETFs within each sleeve** — Each sleeve runs its own analysis to rank and select ETFs from its universe. The ranking methods differ by sleeve because the asset classes behave differently.
 
-### `allocation_engine.py`
-Main entry point that orchestrates the entire allocation process. It:
-- Loads SPX regime results
-- Determines allocation percentages
-- Runs analysis for each enabled sleeve
-- Aggregates and saves results
+---
 
-### `regime_allocator.py`
-Determines asset allocation percentages based on SPX regime conditions:
-- **Risk-On** (green background, above 200 MA, low VIX): Higher equity allocation
-- **Moderate Risk** (yellow background): Balanced allocation
-- **Elevated Risk** (orange background): Reduced equity, increased fixed income
-- **Risk-Off** (red background, below 200 MA, high VIX): Minimal equity, high fixed income
+## Equity Sleeve
 
-### `sleeves/equity.py`
-Contains all equity sub-module analyzers:
-- `analyze_ex_us()` - Ex-US equity analysis
-- `analyze_us_large_cap()` - US Large Cap analysis
-- `analyze_small_caps()` - Small Caps analysis
-- `analyze_total_market()` - Total Market analysis
-- `analyze_sector_etfs()` - Sector ETFs analysis
-- `analyze_custom_etfs()` - Custom ETFs analysis
-- `analyze_equity_sleeve()` - Main function that runs all enabled sub-modules
+**Goal:** Own the strongest-trending equity ETFs across geography and style, while avoiding anything in a downtrend.
 
-### Other Sleeve Analyzers
-Each sleeve has its own analyzer function:
-- `sleeves/commodities.py` - `analyze_commodities()`
-- `sleeves/crypto.py` - `analyze_crypto()`
-- `sleeves/managed_futures.py` - `analyze_managed_futures()`
-- `sleeves/alternatives.py` - `analyze_alternatives()`
-- `sleeves/fixed_income.py` - `analyze_fixed_income()`
+**Universe:** ~17 ETFs across 5 sub-modules (US Large Cap, Ex-US, Small Caps, Total Market, Custom). Sector ETFs are configured but currently disabled.
 
-## Usage
+**How it picks:**
 
-### Running the Allocation Engine
+1. **Load price data** for every ETF in each enabled sub-module.
 
-```python
-from allocation.allocation_engine import main
+2. **Filter by 200-day moving average.** If an ETF's current price is below its 200-day simple moving average, it's excluded entirely. This is a hard gate — no exceptions. The idea is to avoid catching falling knives. If QQQ is in a sustained downtrend, it doesn't matter how good its short-term momentum looks.
 
-# Configure logging first
-import logging
-logging.basicConfig(level=logging.INFO)
+3. **Calculate momentum returns** over four periods: 1 month, 3 months, 6 months, and 12 months.
 
-# Run the allocation analysis
-main()
-```
+4. **Rank all surviving ETFs** across each period. The ETF with the best 1-month return gets rank 1 for that period, the second-best gets rank 2, and so on.
 
-Or from command line:
-```bash
-python allocation/allocation_engine.py
-```
+5. **Compute a composite score** by weighting the ranks:
+   - 1-month return: **50%** weight (recent momentum matters most)
+   - 3-month return: **25%** weight
+   - 6-month return: **15%** weight
+   - 12-month return: **10%** weight (long-term trend is a tiebreaker)
 
-### Configuration
+   Ranks are inverted so that higher scores = better performance.
 
-Edit `config.py` to:
-- Adjust allocation rules for different regime conditions
-- Enable/disable specific sleeves
-- Configure equity sub-modules
-- Set output options (JSON, PNG, HTML)
+6. **Select the top 4 ETFs** from the combined rankings, with a cap of 2 per sub-module. This prevents the portfolio from, say, picking 4 US Large Cap funds and ignoring international exposure entirely.
 
-## Development Approach
+**What it doesn't do (yet):** Assign within-sleeve weights. The selected ETFs are identified and ranked, but the exact dollar allocation between them is not yet computed.
 
-This system is designed for incremental development:
+---
 
-1. **Phase 1**: ✅ Directory structure and skeleton files (completed)
-2. **Phase 2**: Implement `regime_allocator.py` with basic allocation logic (completed)
-3. **Phase 3**: Implement `allocation_engine.py` orchestrator (completed)
-4. **Phase 4**: Implement individual sleeve analyzers incrementally (in progress)
-5. **Phase 5**: Create GitHub workflow
-6. **Phase 6**: Add visualization/output formatting
+## Managed Futures Sleeve
 
-## Integration Points
+**Goal:** Own the trend-following funds that are currently capturing trends, while giving volatile funds a fair shake and not penalizing them for dividend distributions.
 
-- **Input**: `docs/spx-regime-results.json` (generated by SPX regime workflow)
-- **Data Access**: CSV files in `data/` directory (from `fetch_data.py`)
-- **Output**: `docs/allocation-results.json` (for GitHub Pages)
-- **Workflow**: Runs after SPX regime analysis completes
+**Universe:** 5 ETFs — KMLM, DBMF, CTA, WTMF, FMF. These are all managed futures / trend-following funds that trade across equities, bonds, commodities, and currencies.
 
-## Adding New Analysis Logic
+**How it picks:**
 
-To add analysis logic to a sleeve:
+1. **Load dividend-adjusted price data** for each ETF. yfinance returns adjusted prices by default, so distribution drops (which can be 8-10% annually for these funds) don't look like momentum losses.
 
-1. Open the appropriate sleeve file (e.g., `sleeves/equity.py`)
-2. Implement the analysis function (e.g., `analyze_ex_us()`)
-3. The function should:
-   - Load required data from `data/` directory
-   - Perform analysis
-   - Return a dictionary with:
-     - `assets`: List of recommended assets
-     - `weights`: Dictionary mapping assets to weights
-     - `allocation`: Total allocation percentage
+2. **Evaluate trend strength** using 4 signals, each worth 1 point (0-4 scale):
+   - Is the price above its 50-day moving average (with ATR buffer)?
+   - Is the price above its 200-day moving average (with ATR buffer)?
+   - Is the 50-day MA slope rising over the last 10 days?
+   - Is the 200-day MA slope rising over the last 10 days?
 
-Example:
-```python
-def analyze_ex_us(data_dir: Path, symbols: Optional[List[str]] = None) -> Dict:
-    # Load data
-    df = load_csv_data('VEA.csv', data_dir)  # Example: Vanguard FTSE Developed Markets
-    
-    # Perform analysis
-    # ... your analysis logic ...
-    
-    # Return results
-    return {
-        'sleeve': 'equity',
-        'sub_module': 'ex_us',
-        'assets': ['VEA', 'VXUS'],
-        'weights': {'VEA': 0.6, 'VXUS': 0.4},
-        'allocation': 0.15
-    }
-```
+3. **Apply ATR buffer to the MA comparisons.** Instead of checking "price > 50DMA" exactly, the sleeve checks "price > (50DMA minus 1x ATR)". ATR (Average True Range, 14-day) measures how much the fund typically moves in a day. A volatile fund like KMLM might have an ATR of $0.40, giving it that much cushion before it's considered "below" the moving average. A low-volatility fund like WTMF has a smaller ATR and therefore a smaller buffer. This prevents volatile funds from constantly whipsawing in and out of the trend filter on normal daily noise.
 
-## GitHub Workflow
+4. **Exclude any ETF with a trend score of 0.** If all four signals are negative — price below both MAs (even with the buffer) and both MAs falling — the fund isn't capturing any trend and shouldn't be held.
 
-The allocation strategy runs via GitHub Actions workflow (`.github/workflows/run-allocation-strategy.yml`) that:
-- Triggers after SPX regime analysis completes
-- Sets up Python/Conda environment
-- Runs `allocation/allocation_engine.py`
-- Deploys results to `gh-pages` branch
+5. **Calculate momentum returns** over three periods: 1 month, 3 months, and 6 months. No 12-month lookback because managed futures trends cycle faster than equities.
 
-## Output Format
+6. **Risk-adjust the returns.** Each period's return is divided by the fund's 63-day (3-month) annualized realized volatility. This means a fund returning 5% with 8% vol (ratio: 0.625) ranks higher than a fund returning 8% with 20% vol (ratio: 0.4). Without this adjustment, the most volatile fund would tend to rank first simply because it swings more in either direction.
 
-The allocation results JSON structure:
-```json
-{
-  "datetime": "2024-01-15T10:30:00",
-  "regime": {
-    "background_color": "green",
-    "above_200ma": true,
-    "vix_close": 15.5,
-    "datetime": "2024-01-15T10:00:00"
-  },
-  "allocation_percentages": {
-    "equity": 0.60,
-    "fixed_income": 0.20,
-    "commodities": 0.10,
-    "crypto": 0.05,
-    "managed_futures": 0.03,
-    "alternatives": 0.02
-  },
-  "sleeve_analyses": {
-    "equity": {
-      "sleeve": "equity",
-      "allocation_percentage": 0.60,
-      "sub_modules": [...],
-      "aggregated_assets": {...},
-      "total_allocation": 0.60
-    },
-    ...
-  }
-}
-```
+7. **Rank by weighted composite score** of the risk-adjusted returns:
+   - 1-month: **50%** weight (what's working right now)
+   - 3-month: **30%** weight
+   - 6-month: **20%** weight
 
-## Next Steps
+8. **Add a trend bonus.** The trend score (0-4) is scaled by 0.25 and added on top of the composite score. This acts as a tiebreaker: between two funds with similar risk-adjusted momentum, the one with stronger trend signals ranks higher.
 
-1. Implement analysis logic for each sleeve incrementally
-2. Test each sleeve analyzer independently
-3. Integrate with GitHub workflow
-4. Add visualization capabilities (PNG/HTML output)
+9. **Output all passing ETFs** ranked by final score. The universe is only 5 funds, so there's no need to cap at a top N — typically 3-5 pass the trend filter.
+
+**What it doesn't do (yet):** Assign within-sleeve weights.
+
+---
+
+## Stubs (Not Yet Implemented)
+
+The following sleeves exist in the config and are dispatched by the engine, but return empty results:
+
+- **Commodities** — Will cover metals, energy, and agricultural commodity ETFs.
+- **Fixed Income** — Will cover treasury, corporate bond, and TIPS ETFs.
+- **Crypto** — Will cover Bitcoin and Ethereum ETFs.
+- **Alternatives** — Placeholder; currently allocated 0% in all regimes.
+
+---
+
+## Key Design Decisions
+
+**Why weighted momentum ranks instead of raw returns?** Ranking normalizes across different return magnitudes. An ETF returning 15% vs 14% shouldn't score dramatically different from one returning 5% vs 4% — both are a one-rank difference. The weighting then controls how much we care about recency vs. persistence.
+
+**Why does equity use 4 return periods but managed futures only uses 3?** Equity trends tend to persist over longer horizons (12+ months), so a 12-month lookback helps identify sustained winners. Managed futures funds rotate their positions more frequently, so a 12-month return says less about what the fund is doing *now*.
+
+**Why is the MF trend filter more lenient than the equity filter?** Equity uses a hard 200DMA gate with no buffer. Managed futures uses an ATR buffer because MF funds are structurally more volatile (they use leverage and trade volatile asset classes), so crossing below a moving average on normal noise doesn't carry the same signal.
+
+**Why risk-adjust MF returns but not equity returns?** The equity universe spans different asset classes (US large cap, international, small cap) where volatility differences are partly intentional — you might *want* more volatile small caps if they're trending. The MF universe is 5 funds all doing roughly the same thing (trend following), so volatility is pure noise/cost and should be normalized out.
+
+**Why are all prices dividend-adjusted?** yfinance returns adjusted prices by default. This matters most for managed futures funds (KMLM, DBMF, etc.) that pay large distributions — without adjustment, each ex-dividend date would look like a momentum loss and trigger false "below MA" signals.

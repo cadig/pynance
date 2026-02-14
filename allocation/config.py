@@ -98,7 +98,8 @@ SLEEVE_CONFIG = {
         'enabled': True
     },
     'managed_futures': {
-        'enabled': True
+        'enabled': True,
+        'symbols': ['KMLM', 'DBMF', 'CTA', 'WTMF', 'FMF']
     },
     'alternatives': {
         'enabled': True

@@ -5,12 +5,27 @@ Provides common functions for data loading, file I/O, and data processing.
 """
 
 import pandas as pd
+import numpy as np
 import json
 from datetime import date
 from pathlib import Path
 import logging
 import time
 from typing import Dict, List, Optional
+
+
+class _NumpyEncoder(json.JSONEncoder):
+    """JSON encoder that handles numpy types."""
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
 
 # Try to import yfinance, but don't fail if it's not available
 try:
@@ -279,7 +294,7 @@ def save_results(results: Dict, filename: str, docs_dir: Optional[Path] = None) 
     
     try:
         with open(output_path, 'w') as f:
-            json.dump(results, f, indent=2)
+            json.dump(results, f, indent=2, cls=_NumpyEncoder)
         logging.info(f"Results saved to: {output_path}")
     except Exception as e:
         logging.error(f"Failed to save results to {output_path}: {e}")

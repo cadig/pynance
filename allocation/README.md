@@ -175,11 +175,39 @@ The allocation engine runs daily in three steps:
 
 ---
 
-## Stubs (Not Yet Implemented)
+## Alternatives / Volatility Hedge Sleeve
 
-The following sleeves exist in the config and are dispatched by the engine, but return empty results:
+**Goal:** Deploy capital into vol hedge instruments only when volatility is actively rising, and stay completely out otherwise. This is the only sleeve where "not being in it" is the default state.
 
-- **Alternatives** — Placeholder; currently allocated 0% in all regimes.
+**Universe:** 3 ETFs — UVXY (1.5x VIX short-term futures), TAIL (put-spread tail risk hedge), CAOS (tail risk via options)
+
+**How it picks:**
+
+This sleeve is fundamentally different from the others. It doesn't rank ETFs by momentum. Instead, it uses VIX conditions to decide whether to deploy at all, and then selects instruments by priority.
+
+1. **Evaluate VIX signal** using the VIX Bollinger Band %B:
+   - **Entry signal:** VIX > 20 AND %B > 0.8 (VIX is elevated and rising toward the upper Bollinger Band)
+   - **Spike signal:** VIX > 20 AND %B > 1.0 (VIX has broken above the upper Bollinger Band — active spike)
+   - **Exit signal:** VIX < 18 OR %B < 0.5 (VIX is low or mean-reverting back to normal)
+   - **Neutral:** VIX between thresholds — treated as inactive (conservative, since we don't persist state between runs)
+
+2. **If inactive (no signal or exit):** Return 0% allocation regardless of what the regime rules say. These instruments decay — holding them in calm markets destroys capital.
+
+3. **If active, select instruments by priority:**
+   - **During a spike (%B > 1.0):** UVXY first (pure VIX leverage, captures the spike), then TAIL for duration
+   - **During entry (%B 0.8–1.0):** TAIL first (structural put hedge, less decay than UVXY), then CAOS as backup
+   - UVXY is excluded from non-spike signals because its daily decay is too severe for sustained holding
+
+4. **Output the selected instruments** with rationale explaining the VIX conditions.
+
+**Allocation by regime:**
+- Risk-on: 0% (decay instruments, don't hold)
+- Moderate: 2% (small hedge if VIX triggers)
+- Elevated: 5% (meaningful hedge)
+- Risk-off: 9% (active hedge, reallocated from equities)
+- Crisis: 15% (maximum hedge, vol instruments pay off here)
+
+**What it doesn't do:** Track days held (no state persistence between runs), use VIX term structure (VIX9D/VIX3M data sources not yet enabled), assign within-sleeve weights.
 
 ---
 

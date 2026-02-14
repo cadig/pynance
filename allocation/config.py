@@ -8,7 +8,7 @@ Defines allocation rules based on regime conditions, sleeve parameters, and outp
 # Each rule maps regime conditions to allocation percentages
 ALLOCATION_RULES = {
     # Risk-on regime (green background, above 200 MA, low VIX)
-    # Strong Risk-On: Equities 50%, MF 20%, Commodities 20%, Crypto 5%, Bonds/Cash/Other 5%
+    # Strong Risk-On: Vol hedge instruments decay — don't hold
     'risk_on': {
         'equity': 0.50,
         'fixed_income': 0.05,
@@ -18,45 +18,44 @@ ALLOCATION_RULES = {
         'alternatives': 0.00
     },
     # Moderate risk regime (yellow background)
-    # Normal/Mixed: Equities 40%, MF 30%, Commodities 20%, Crypto 5%, Bonds/Cash/Other 5%
+    # Small hedge allocation available if VIX triggers entry
     'moderate_risk': {
-        'equity': 0.40,
+        'equity': 0.38,
         'fixed_income': 0.05,
         'commodities': 0.20,
         'crypto': 0.05,
         'managed_futures': 0.30,
-        'alternatives': 0.00
+        'alternatives': 0.02
     },
     # Elevated risk regime (orange background)
-    # Using Normal/Mixed allocation for orange as well
+    # Meaningful hedge allocation — VIX likely rising
     'elevated_risk': {
-        'equity': 0.40,
+        'equity': 0.35,
         'fixed_income': 0.05,
         'commodities': 0.20,
         'crypto': 0.05,
         'managed_futures': 0.30,
-        'alternatives': 0.00
+        'alternatives': 0.05
     },
     # Risk-off regime (red background, below 200 MA, high VIX)
-    # Risk-Off: Equities 15%, MF 45%, Commodities 25%, Crypto 0-2%, Bonds/Cash/Other 13-15%
-    # Using middle values: Crypto 1%, Bonds/Cash/Other 14%
+    # Active hedge — reallocated from equities
     'risk_off': {
-        'equity': 0.15,
-        'fixed_income': 0.14,
+        'equity': 0.10,
+        'fixed_income': 0.10,
         'commodities': 0.25,
         'crypto': 0.01,
         'managed_futures': 0.45,
-        'alternatives': 0.00
+        'alternatives': 0.09
     },
     # Crisis regime (extreme risk-off conditions)
-    # Crisis: Equities 5%, MF 55%, Commodities 20%, Crypto 0%, Bonds/Cash/Other 20%
+    # Max hedge allocation — vol instruments pay off here
     'crisis': {
-        'equity': 0.05,
-        'fixed_income': 0.20,
+        'equity': 0.00,
+        'fixed_income': 0.15,
         'commodities': 0.20,
         'crypto': 0.00,
-        'managed_futures': 0.55,
-        'alternatives': 0.00
+        'managed_futures': 0.50,
+        'alternatives': 0.15
     }
 }
 
@@ -106,7 +105,8 @@ SLEEVE_CONFIG = {
         'symbols': ['KMLM', 'DBMF', 'CTA', 'WTMF', 'FMF']
     },
     'alternatives': {
-        'enabled': True
+        'enabled': True,
+        'symbols': ['UVXY', 'TAIL', 'CAOS']
     },
     'fixed_income': {
         'enabled': True,

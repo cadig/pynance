@@ -105,7 +105,8 @@ def run_allocation_analysis() -> Dict:
         alternatives_allocation = allocation_percentages.get('alternatives', 0.0)
         alternatives_results = alternatives.analyze_alternatives(
             data_dir=data_dir,
-            allocation_percentage=alternatives_allocation
+            allocation_percentage=alternatives_allocation,
+            regime_key=regime_key
         )
         results['sleeve_analyses']['alternatives'] = alternatives_results
     

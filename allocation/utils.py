@@ -251,6 +251,56 @@ def load_etf_data(symbol: str, data_dir: Optional[Path] = None) -> pd.DataFrame:
         raise ImportError(f"CSV file not found for {symbol} and yfinance is not available")
 
 
+def compute_position_weights(selected_etfs: List[Dict], score_key: str = 'composite_score',
+                              min_weight: float = 0.10) -> Dict[str, float]:
+    """
+    Compute within-sleeve position weights from ranked ETF scores.
+
+    Uses score-proportional weighting with a minimum floor to prevent
+    near-zero allocations. Weights sum to 1.0.
+
+    Args:
+        selected_etfs: List of ETF dicts, each containing a score field and 'symbol'
+        score_key: Key to use for score-based weighting
+        min_weight: Minimum weight per position (prevents dust allocations)
+
+    Returns:
+        Dict mapping symbol to weight (summing to 1.0)
+    """
+    if not selected_etfs:
+        return {}
+
+    n = len(selected_etfs)
+    if n == 1:
+        return {selected_etfs[0]['symbol']: 1.0}
+
+    # Extract scores; fall back to equal weight if scores are missing or all zero
+    scores = []
+    for etf in selected_etfs:
+        s = etf.get(score_key, 0)
+        scores.append(max(s, 0) if s is not None else 0)
+
+    total_score = sum(scores)
+    if total_score == 0:
+        equal = round(1.0 / n, 4)
+        return {etf['symbol']: equal for etf in selected_etfs}
+
+    # Score-proportional weights
+    raw_weights = [s / total_score for s in scores]
+
+    # Enforce minimum weight floor
+    weights = [max(w, min_weight) for w in raw_weights]
+    total = sum(weights)
+    weights = [round(w / total, 4) for w in weights]
+
+    # Fix rounding so weights sum exactly to 1.0
+    diff = round(1.0 - sum(weights), 4)
+    if diff != 0 and weights:
+        weights[0] = round(weights[0] + diff, 4)
+
+    return {etf['symbol']: w for etf, w in zip(selected_etfs, weights)}
+
+
 def load_multiple_csv_files(filenames: List[str], data_dir: Optional[Path] = None) -> Dict[str, pd.DataFrame]:
     """
     Load multiple CSV files from the data directory.

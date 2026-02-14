@@ -15,7 +15,7 @@ import numpy as np
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional
-from ..utils import load_etf_data
+from ..utils import load_etf_data, compute_position_weights
 
 # Shorter lookback than other sleeves — crypto moves fast
 RETURN_PERIOD_WEIGHTS = {
@@ -200,11 +200,13 @@ def analyze_crypto(data_dir: Path, allocation_percentage: float,
     assets = [etf['symbol'] for etf in ranked]
     logging.info(f"Selected {len(ranked)} crypto ETFs: {assets}")
 
+    weights = compute_position_weights(ranked)
+
     return {
         'sleeve': 'crypto',
         'allocation_percentage': allocation_percentage,
         'structural_downtrend': structural_downtrend,
         'selected_etfs': ranked,
-        'weights': {},
+        'weights': weights,
         'total_allocation': allocation_percentage if ranked else 0.0
     }

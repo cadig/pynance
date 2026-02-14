@@ -16,7 +16,7 @@ import numpy as np
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional
-from ..utils import load_etf_data
+from ..utils import load_etf_data, compute_position_weights
 
 # Momentum weighting — same periods as MF (no 12mo; commodities are cyclical)
 RETURN_PERIOD_WEIGHTS = {
@@ -254,10 +254,12 @@ def analyze_commodities(data_dir: Path, allocation_percentage: float,
 
     logging.info(f"Selected {len(selected)} commodity ETFs: {assets}")
 
+    weights = compute_position_weights(selected)
+
     return {
         'sleeve': 'commodities',
         'allocation_percentage': allocation_percentage,
         'selected_etfs': selected,
-        'weights': {},  # to be populated by B+.3 (within-sleeve position sizing)
+        'weights': weights,
         'total_allocation': allocation_percentage if selected else 0.0
     }

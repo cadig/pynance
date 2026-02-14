@@ -15,7 +15,7 @@ import numpy as np
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from ..utils import load_etf_data
+from ..utils import load_etf_data, compute_position_weights
 
 
 # Configuration for return period weights
@@ -469,7 +469,7 @@ def analyze_equity_sleeve(data_dir: Path, allocation_percentage: float,
     
     # Create final assets and weights dictionaries
     final_assets = [etf['symbol'] for etf in selected_etfs]
-    final_weights = {}  # Will be populated based on allocation strategy
+    final_weights = compute_position_weights(selected_etfs)
     
     # Aggregate all assets (for backward compatibility)
     all_assets = {}

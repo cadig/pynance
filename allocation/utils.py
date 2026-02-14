@@ -39,10 +39,16 @@ except ImportError:
 def get_data_dir() -> Path:
     """
     Get the path to the data directory.
-    
+
+    Respects PYNANCE_DATA_DIR env var for local development with fixtures.
+
     Returns:
         Path: Path to the data directory
     """
+    import os
+    override = os.environ.get('PYNANCE_DATA_DIR')
+    if override:
+        return Path(override)
     return Path(__file__).parent.parent / 'data'
 
 

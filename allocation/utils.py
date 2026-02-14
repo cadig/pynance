@@ -6,6 +6,7 @@ Provides common functions for data loading, file I/O, and data processing.
 
 import pandas as pd
 import json
+from datetime import date
 from pathlib import Path
 import logging
 import time
@@ -152,47 +153,80 @@ def load_csv_data(filename: str, data_dir: Optional[Path] = None) -> pd.DataFram
         raise
 
 
+def _is_csv_fresh(filepath: Path) -> bool:
+    """Check if a CSV file was modified today."""
+    if not filepath.exists():
+        return False
+    mtime = date.fromtimestamp(filepath.stat().st_mtime)
+    return mtime == date.today()
+
+
+# Module-level flag toggled by --force-refresh CLI arg
+FORCE_REFRESH = False
+
+
 def load_etf_data(symbol: str, data_dir: Optional[Path] = None) -> pd.DataFrame:
     """
-    Load ETF data using hybrid approach: try CSV first, fallback to yfinance.
-    
+    Load ETF data using hybrid approach: try fresh CSV first, fallback to yfinance.
+
+    Write-through cache: after a successful yfinance fetch, saves to data/{SYMBOL}.csv
+    so subsequent calls (or local re-runs) use the cached file. A CSV is considered
+    fresh if it was modified today.
+
     Args:
         symbol: ETF ticker symbol (e.g., 'VEA', 'SPY')
         data_dir: Optional path to data directory. If None, uses default data directory.
-        
+
     Returns:
         pd.DataFrame: DataFrame with datetime index and OHLCV columns
-        
+
     Raises:
         Exception: If both CSV and yfinance fail
     """
+    if data_dir is None:
+        data_dir = get_data_dir()
+
     filename = f"{symbol}.csv"
-    
-    # Try CSV first
-    try:
-        if data_dir is None:
-            data_dir = get_data_dir()
-        filepath = data_dir / filename
-        
-        if filepath.exists():
-            df = load_csv_data(filename, data_dir)
-            logging.info(f"Loaded {symbol} from CSV file")
-            return df
-        else:
-            logging.info(f"CSV file not found for {symbol}, trying yfinance...")
-    except Exception as e:
-        logging.warning(f"Failed to load CSV for {symbol}: {e}, trying yfinance...")
-    
-    # Fallback to yfinance
+    filepath = data_dir / filename
+
+    # Try CSV first (must be from today, unless force-refresh bypasses cache entirely)
+    if not FORCE_REFRESH:
+        try:
+            if _is_csv_fresh(filepath):
+                df = load_csv_data(filename, data_dir)
+                logging.info(f"Loaded {symbol} from fresh CSV cache")
+                return df
+            elif filepath.exists():
+                logging.info(f"CSV for {symbol} is stale, refreshing via yfinance...")
+            else:
+                logging.info(f"No CSV for {symbol}, fetching via yfinance...")
+        except Exception as e:
+            logging.warning(f"Failed to load CSV for {symbol}: {e}, trying yfinance...")
+    else:
+        logging.info(f"Force refresh enabled, bypassing cache for {symbol}")
+
+    # Fetch from yfinance and write-through to CSV
     if YFINANCE_AVAILABLE:
         try:
             df = fetch_data_via_yfinance(symbol)
-            logging.info(f"Loaded {symbol} from yfinance")
+            # Write-through: save to CSV for future calls
+            try:
+                df.to_csv(filepath)
+                logging.info(f"Cached {symbol} to {filepath}")
+            except Exception as e:
+                logging.warning(f"Failed to cache {symbol} to CSV: {e}")
             return df
         except Exception as e:
+            # If yfinance fails but a stale CSV exists, use it as fallback
+            if filepath.exists():
+                logging.warning(f"yfinance failed for {symbol}, falling back to stale CSV")
+                return load_csv_data(filename, data_dir)
             logging.error(f"Failed to fetch {symbol} via yfinance: {e}")
             raise Exception(f"Failed to load data for {symbol} from both CSV and yfinance")
     else:
+        if filepath.exists():
+            logging.warning(f"yfinance not available, using existing CSV for {symbol}")
+            return load_csv_data(filename, data_dir)
         raise ImportError(f"CSV file not found for {symbol} and yfinance is not available")
 
 

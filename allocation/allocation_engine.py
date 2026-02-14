@@ -4,6 +4,7 @@ Main allocation engine that orchestrates the asset allocation process.
 This is the entry point for the allocation strategy system.
 """
 
+import argparse
 import logging
 import sys
 from datetime import datetime
@@ -158,10 +159,21 @@ def main():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run allocation engine")
+    parser.add_argument('--force-refresh', action='store_true',
+                        help="Bypass yfinance CSV cache and re-fetch all ETF data")
+    args = parser.parse_args()
+
     # Configure logging
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
-    
+
+    if args.force_refresh:
+        from allocation.utils import FORCE_REFRESH
+        import allocation.utils
+        allocation.utils.FORCE_REFRESH = True
+        logging.info("Force refresh enabled — bypassing yfinance cache")
+
     main()

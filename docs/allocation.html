@@ -163,6 +163,76 @@
             color: #999;
             font-size: 0.85rem;
         }
+        .daily-summary {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.85rem;
+            white-space: pre-line;
+            line-height: 1.5;
+        }
+        .daily-summary.no-action {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+        .daily-summary.action-required {
+            background: #fff3e0;
+            color: #e65100;
+            border: 1px solid #ffe0b2;
+        }
+        .daily-summary.first-run {
+            background: #e3f2fd;
+            color: #1565c0;
+            border: 1px solid #bbdefb;
+        }
+        .warnings-banner {
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            font-size: 0.8rem;
+            background: #fff8e1;
+            color: #f57f17;
+            border: 1px solid #ffecb3;
+        }
+        .portfolio-summary {
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fff;
+            overflow: hidden;
+        }
+        .portfolio-summary table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+        .portfolio-summary th {
+            background: #fafafa;
+            padding: 8px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .portfolio-summary td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #333;
+        }
+        .portfolio-summary tr:last-child td {
+            border-bottom: none;
+        }
+        .portfolio-summary .pct-cell {
+            font-weight: 600;
+            color: #1976d2;
+        }
+        .portfolio-summary .etf-list {
+            color: #555;
+        }
         .back-link {
             display: inline-block;
             margin-bottom: 16px;
@@ -233,6 +303,9 @@
         <main class="main">
             <a href="index.html" class="back-link">← Back to SPX Regime</a>
             <h1>Allocation Engine</h1>
+            <div id="daily-summary-container"></div>
+            <div id="warnings-container"></div>
+            <div id="portfolio-summary-container"></div>
             <div class="chart-options">
                 <span class="chart-options-label">Timeframe:</span>
                 <div class="chart-options-group" id="timeframe-btns">
@@ -550,6 +623,66 @@
             });
         }
 
+        function renderDailySummary(data) {
+            const container = document.getElementById('daily-summary-container');
+            const summary = data.daily_summary;
+            if (!summary) {
+                container.innerHTML = '';
+                return;
+            }
+            let cls = 'first-run';
+            if (summary.includes('NO ACTION TODAY')) cls = 'no-action';
+            else if (summary.includes('ACTION REQUIRED')) cls = 'action-required';
+            container.innerHTML = '<div class="daily-summary ' + cls + '">' + escapeHtml(summary) + '</div>';
+        }
+
+        function renderWarnings(data) {
+            const container = document.getElementById('warnings-container');
+            const warnings = data.warnings || [];
+            if (warnings.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            const items = warnings.map(w => '  - ' + escapeHtml(w)).join('\n');
+            container.innerHTML = '<div class="warnings-banner">⚠ Data warnings (' + warnings.length + '):\n' + items + '</div>';
+        }
+
+        function renderPortfolioSummary(data) {
+            const container = document.getElementById('portfolio-summary-container');
+            const analyses = data.sleeve_analyses || {};
+            const alloc = data.allocation_percentages || {};
+
+            let rows = '';
+            for (const key of SLEEVE_KEYS) {
+                const sleeve = analyses[key] || {};
+                const pct = alloc[key] || 0;
+                const symbols = getSleeveSymbols(sleeve);
+                const symStr = symbols.length > 0 ? symbols.join(', ') : '—';
+
+                // For alternatives, show VIX signal info
+                let extra = '';
+                if (key === 'alternatives' && sleeve.vix_signal) {
+                    const sig = sleeve.vix_signal;
+                    const status = sig.active ? 'ACTIVE (' + sig.signal + ')' : 'inactive';
+                    extra = ' [' + status + ']';
+                }
+
+                rows += '<tr><td>' + sleeveTitle(key) + '</td>' +
+                        '<td class="pct-cell">' + (pct * 100).toFixed(0) + '%</td>' +
+                        '<td class="etf-list">' + escapeHtml(symStr + extra) + '</td></tr>';
+            }
+
+            container.innerHTML = '<div class="portfolio-summary"><table>' +
+                '<tr><th>Sleeve</th><th>Alloc</th><th>Selected ETFs</th></tr>' +
+                rows + '</table></div>';
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
         async function loadAllocationAndCharts() {
             try {
                 const res = await fetch('allocation-results.json');
@@ -557,6 +690,9 @@
                 const data = await res.json();
                 allocationData = data;
                 renderSidebar(data);
+                renderDailySummary(data);
+                renderWarnings(data);
+                renderPortfolioSummary(data);
                 buildSleeveAccordions(data);
             } catch (err) {
                 SIDEBAR.innerHTML = '<div class="error">Failed to load allocation-results.json: ' + err.message + '</div>';

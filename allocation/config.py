@@ -109,7 +109,19 @@ SLEEVE_CONFIG = {
         'enabled': True
     },
     'fixed_income': {
-        'enabled': True
+        'enabled': True,
+        'symbols': ['TLT', 'SGOV', 'TIP', 'AGG'],
+        # Which ETFs are eligible in each regime.
+        # Risk-on/moderate: no long duration (TLT excluded) — rates may rise.
+        # Elevated: TLT allowed as a hedge option.
+        # Risk-off/crisis: all eligible — long duration rallies in flight to quality.
+        'regime_eligible': {
+            'risk_on':       ['SGOV', 'AGG', 'TIP'],
+            'moderate_risk': ['SGOV', 'AGG', 'TIP'],
+            'elevated_risk': ['SGOV', 'AGG', 'TIP', 'TLT'],
+            'risk_off':      ['TLT', 'AGG', 'TIP', 'SGOV'],
+            'crisis':        ['TLT', 'AGG', 'TIP', 'SGOV'],
+        }
     }
 }
 

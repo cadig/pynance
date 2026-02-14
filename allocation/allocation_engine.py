@@ -52,6 +52,7 @@ def run_allocation_analysis() -> Dict:
     # Get allocation summary (regime info + allocation percentages)
     allocation_summary = get_allocation_summary(regime_data)
     allocation_percentages = allocation_summary['allocation']
+    regime_key = allocation_summary.get('regime_key', 'moderate_risk')
     
     logging.info(f"Determined allocation percentages: {allocation_percentages}")
     
@@ -112,7 +113,8 @@ def run_allocation_analysis() -> Dict:
         fixed_income_allocation = allocation_percentages.get('fixed_income', 0.0)
         fixed_income_results = fixed_income.analyze_fixed_income(
             data_dir=data_dir,
-            allocation_percentage=fixed_income_allocation
+            allocation_percentage=fixed_income_allocation,
+            regime_key=regime_key
         )
         results['sleeve_analyses']['fixed_income'] = fixed_income_results
     

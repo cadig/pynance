@@ -147,11 +147,38 @@ The allocation engine runs daily in three steps:
 
 ---
 
+## Fixed Income Sleeve
+
+**Goal:** Own the best-performing bond ETFs appropriate for the current market regime. In risk-on environments, keep duration short and avoid long-term treasuries. In risk-off or crisis, let long-duration bonds into the universe so flight-to-quality rallies can be captured.
+
+**Universe:** 4 ETFs — TLT (long-term treasuries), SGOV (short-term / cash-like), TIP (inflation-protected), AGG (core aggregate bonds).
+
+**How it picks:**
+
+1. **Filter by regime eligibility.** Unlike other sleeves that use a 200DMA gate, fixed income uses the market regime to determine which ETFs are even candidates. The mapping:
+   - **Risk-on / moderate:** SGOV, AGG, TIP only. TLT is excluded because long-duration treasuries tend to lose value when the economy is strong and rates may rise.
+   - **Elevated risk:** All four eligible — TLT is allowed as a hedge option since the market may be about to deteriorate.
+   - **Risk-off / crisis:** All four eligible — long-duration treasuries rally hardest in flight-to-quality environments. TLT will naturally rank highest by momentum when bonds are rallying.
+
+2. **Calculate momentum returns** over three periods: 1 month, 3 months, and 6 months.
+
+3. **Rank by weighted composite score** of raw returns (not risk-adjusted):
+   - 1-month: **50%** weight
+   - 3-month: **30%** weight
+   - 6-month: **20%** weight
+
+   Raw returns are used (not risk-adjusted) because the four ETFs are intentionally different in duration and risk profile. You *want* to pick the best-performing type of bond, not normalize away the differences between a 1-month T-bill and a 20-year treasury.
+
+4. **Output all eligible ETFs** ranked by score. The universe is only 3-4 depending on regime, so no additional cap is needed.
+
+**What it doesn't do (yet):** Assign within-sleeve weights.
+
+---
+
 ## Stubs (Not Yet Implemented)
 
 The following sleeves exist in the config and are dispatched by the engine, but return empty results:
 
-- **Fixed Income** — Will cover treasury, corporate bond, and TIPS ETFs.
 - **Alternatives** — Placeholder; currently allocated 0% in all regimes.
 
 ---
@@ -167,5 +194,9 @@ The following sleeves exist in the config and are dispatched by the engine, but 
 **Why risk-adjust MF and commodity returns but not equity returns?** The equity universe spans different asset classes (US large cap, international, small cap) where volatility differences are partly intentional — you might *want* more volatile small caps if they're trending. The MF universe is 5 funds all doing roughly the same thing (trend following), so volatility is pure noise/cost and should be normalized out. Commodities are similar — the universe mixes a 12%-vol broad basket (DBC) with 40%+ vol uranium miners (URNM), so without risk-adjustment the most volatile miner dominates the rankings whenever it happens to swing up.
 
 **Why mutual exclusion pairs in commodities?** GLD and GDX both track the gold trade (metal vs miners). If both pass the trend filter, holding both doubles your gold concentration. Same for SLV/SIL with silver. The system keeps whichever has the better risk-adjusted momentum and drops the other. This is configured in `config.py` so pairs can be added/removed without changing sleeve code.
+
+**Why does fixed income use regime eligibility instead of a 200DMA filter?** Bond prices are driven by interest rate cycles, not equity-style momentum trends. A 200DMA gate would frequently exclude long-duration treasuries during normal environments, then allow them in too late after a crisis rally is already underway. Regime-based filtering is more forward-looking: it uses the market regime (which reflects equity conditions via breadth, VIX, and SPX trend) to decide what *type* of bond exposure is appropriate *now*. In risk-on, short duration is correct; in crisis, long duration is correct. The momentum ranking then picks the best performer within the eligible set.
+
+**Why raw returns for fixed income but risk-adjusted for commodities/MF?** The FI universe (TLT, SGOV, TIP, AGG) is intentionally diverse in duration and risk. You want to pick the best-performing *type* of bond, not the one with the best Sharpe ratio. If TLT is up 8% in a risk-off rally, that's the signal — normalizing by its higher vol would dilute that signal. In contrast, the MF and commodity universes contain funds doing similar things at different vol levels, where normalizing removes noise.
 
 **Why are all prices dividend-adjusted?** yfinance returns adjusted prices by default. This matters most for managed futures funds (KMLM, DBMF, etc.) that pay large distributions — without adjustment, each ex-dividend date would look like a momentum loss and trigger false "below MA" signals.

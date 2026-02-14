@@ -174,3 +174,6 @@ logs/*
 
 ui/config.js
 ui/*.json
+
+docs/allocation-results.json
+docs/spx-regime-results.json

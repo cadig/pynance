@@ -75,7 +75,7 @@ The allocation engine runs daily in three steps:
 
 8. **Add a trend bonus.** The trend score (0-4) is scaled by 0.25 and added on top of the composite score. This acts as a tiebreaker: between two funds with similar risk-adjusted momentum, the one with stronger trend signals ranks higher.
 
-9. **Output all passing ETFs** ranked by final score. The universe is only 5 funds, so there's no need to cap at a top N — typically 3-5 pass the trend filter.
+9. **Select the top 3 ETFs** from those that passed the trend filter. Even though the universe is only 5 funds, capping at 3 concentrates capital in the strongest performers rather than spreading across mediocre trend-followers.
 
 **What it doesn't do (yet):** Assign within-sleeve weights.
 
@@ -113,7 +113,7 @@ The allocation engine runs daily in three steps:
 
    The higher-ranked member of each pair (by composite score) survives. If GLD ranks #2 and GDX ranks #5, GDX is removed. If neither passes the 200DMA filter, neither appears.
 
-7. **Output all surviving ETFs** ranked by final score.
+7. **Select the top 4 surviving ETFs** ranked by final score. This keeps the sleeve focused on the strongest commodity trends rather than holding a broad basket.
 
 **What it doesn't do (yet):** Assign within-sleeve weights.
 
@@ -132,6 +132,8 @@ The allocation engine runs daily in three steps:
 2. **Filter by 200-day moving average.** Same hard gate as equity and commodities. Crypto is high-vol and high-beta — when BTC is below its 200DMA, you don't want exposure at all. This single filter avoids the worst of bear markets.
 
    **Exception for young ETFs:** Some crypto ETFs have less than 200 days of trading history (they launched recently). If there isn't enough data to compute the 200DMA, the ETF bypasses the filter with a warning and is included anyway. This prevents new but legitimately trending ETFs from being silently dropped.
+
+   **Structural downtrend override:** If all three major crypto ETFs (IBIT, ETHA, BITO) are below their 200DMA, the entire crypto market is in a structural bear. In this case, young ETFs like NODE are excluded too — the young-ETF bypass is blocked. There's no reason to hold a crypto-adjacent equity fund when the underlying crypto assets are all in downtrends.
 
 3. **Calculate momentum returns** over two periods only: 1 month and 3 months. No 6-month or 12-month lookback — crypto moves too fast for those to be useful. A 3-month crypto return can span an entire rally or crash.
 

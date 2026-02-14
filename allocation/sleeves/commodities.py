@@ -243,7 +243,10 @@ def analyze_commodities(data_dir: Path, allocation_percentage: float,
     # Enforce mutual exclusion pairs (GLD/GDX, SLV/SIL)
     selected = apply_exclusive_pairs(ranked, exclusive_pairs)
 
-    # Re-assign ranks after exclusion
+    # Cap to top 4 after exclusion
+    selected = selected[:4]
+
+    # Re-assign ranks after exclusion and capping
     for i, etf in enumerate(selected, start=1):
         etf['rank'] = i
 

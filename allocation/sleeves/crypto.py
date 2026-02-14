@@ -52,17 +52,36 @@ def is_above_200dma(df: pd.DataFrame) -> bool:
     return bool(close > sma_200)
 
 
-def rank_crypto(symbols: List[str], data_dir: Path) -> List[Dict]:
+def _detect_structural_downtrend(etf_data: Dict[str, pd.DataFrame]) -> bool:
+    """
+    Detect crypto structural downtrend: all three major crypto ETFs
+    (IBIT, ETHA, BITO) are below their 200DMA.
+
+    When the entire crypto market is in a structural bear, crypto-adjacent
+    assets like NODE should not be included via the young-ETF bypass.
+    """
+    major_symbols = ['IBIT', 'ETHA', 'BITO']
+    for sym in major_symbols:
+        if sym not in etf_data:
+            continue
+        df = etf_data[sym]
+        if len(df) >= 200 and is_above_200dma(df):
+            return False
+    return True
+
+
+def rank_crypto(symbols: List[str], data_dir: Path) -> tuple:
     """
     Rank crypto ETFs by raw composite momentum.
 
     Process:
     1. Load data for each symbol
-    2. Filter by 200-day MA (hard gate)
-    3. Compute 1/3 month returns (raw, not risk-adjusted)
-    4. Rank by weighted composite score
+    2. Detect structural downtrend (all majors below 200DMA)
+    3. Filter by 200-day MA (hard gate)
+    4. Compute 1/3 month returns (raw, not risk-adjusted)
+    5. Rank by weighted composite score
 
-    Returns list of dicts sorted by composite_score descending.
+    Returns (ranked_list, structural_downtrend_bool).
     """
     etf_data = {}
     for symbol in symbols:
@@ -76,13 +95,19 @@ def rank_crypto(symbols: List[str], data_dir: Path) -> List[Dict]:
 
     if not etf_data:
         logging.warning("No crypto ETF data loaded; nothing to rank.")
-        return []
+        return [], False
+
+    # Check if crypto is in a structural downtrend
+    structural_downtrend = _detect_structural_downtrend(etf_data)
+    if structural_downtrend:
+        logging.info("Crypto structural downtrend detected (IBIT/ETHA/BITO all below 200DMA)")
 
     # Filter by 200DMA and compute returns
     candidates = {}
     for symbol, df in etf_data.items():
         # Some crypto ETFs are young (<200 days of history). If insufficient
-        # data for the 200DMA, skip the filter and let them through with a warning.
+        # data for the 200DMA, skip the filter and let them through with a warning —
+        # UNLESS we're in a structural downtrend, in which case exclude them too.
         if len(df) >= 200:
             if not is_above_200dma(df):
                 close = df['close'].iloc[-1] if 'close' in df.columns else None
@@ -90,6 +115,9 @@ def rank_crypto(symbols: List[str], data_dir: Path) -> List[Dict]:
                 logging.info(f"{symbol}: excluded (below 200DMA). close={close} sma200={sma_200}")
                 continue
         else:
+            if structural_downtrend:
+                logging.info(f"{symbol}: excluded (young ETF bypass blocked — crypto structural downtrend)")
+                continue
             logging.warning(f"{symbol}: insufficient history for 200DMA ({len(df)} bars), including anyway")
 
         returns = {}
@@ -100,7 +128,7 @@ def rank_crypto(symbols: List[str], data_dir: Path) -> List[Dict]:
 
     if not candidates:
         logging.warning("No crypto ETFs passed 200DMA filter; nothing to rank.")
-        return []
+        return [], structural_downtrend
 
     # Build returns DataFrame for ranking (raw returns, no risk adjustment)
     returns_df = pd.DataFrame(
@@ -135,7 +163,7 @@ def rank_crypto(symbols: List[str], data_dir: Path) -> List[Dict]:
     for i, r in enumerate(results, start=1):
         r['rank'] = i
 
-    return results
+    return results, structural_downtrend
 
 
 def analyze_crypto(data_dir: Path, allocation_percentage: float,
@@ -167,7 +195,7 @@ def analyze_crypto(data_dir: Path, allocation_percentage: float,
             'total_allocation': 0.0
         }
 
-    ranked = rank_crypto(symbols, data_dir)
+    ranked, structural_downtrend = rank_crypto(symbols, data_dir)
 
     assets = [etf['symbol'] for etf in ranked]
     logging.info(f"Selected {len(ranked)} crypto ETFs: {assets}")
@@ -175,6 +203,7 @@ def analyze_crypto(data_dir: Path, allocation_percentage: float,
     return {
         'sleeve': 'crypto',
         'allocation_percentage': allocation_percentage,
+        'structural_downtrend': structural_downtrend,
         'selected_etfs': ranked,
         'weights': {},
         'total_allocation': allocation_percentage if ranked else 0.0

@@ -304,8 +304,8 @@ def analyze_managed_futures(data_dir: Path, allocation_percentage: float,
 
     ranked = rank_managed_futures(symbols, data_dir)
 
-    # Select top ETFs (all that pass the trend filter — universe is small)
-    selected = ranked  # typically 3-5 ETFs; no need to cap further
+    # Select top 3 ETFs from those passing the trend filter
+    selected = ranked[:3]
 
     assets = [etf['symbol'] for etf in selected]
 

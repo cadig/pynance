@@ -23,7 +23,7 @@ FIXTURE_DIR = Path(__file__).parent / 'fixtures'
 
 # All configured sleeve names
 EXPECTED_SLEEVES = {'equity', 'commodities', 'crypto', 'managed_futures',
-                    'alternatives', 'fixed_income'}
+                    'vol_hedges', 'fixed_income'}
 
 
 @pytest.fixture

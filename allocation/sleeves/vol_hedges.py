@@ -1,5 +1,5 @@
 """
-Alternatives / Volatility Hedge sleeve analyzer.
+Volatility Hedge sleeve analyzer.
 
 Event-driven tactical overlay that deploys capital only when volatility is
 rising. Unlike other sleeves, the default state is "inactive" — no position.
@@ -216,11 +216,11 @@ def _instrument_rationale(symbol: str, vix_signal: Dict) -> str:
     return f"Vol hedge — VIX={vix}, %B={pctb_str}"
 
 
-def analyze_alternatives(data_dir: Path, allocation_percentage: float,
-                         symbols: Optional[List[str]] = None,
-                         regime_key: str = 'moderate_risk') -> Dict:
+def analyze_vol_hedges(data_dir: Path, allocation_percentage: float,
+                       symbols: Optional[List[str]] = None,
+                       regime_key: str = 'moderate_risk') -> Dict:
     """
-    Analyze Alternatives / Volatility Hedge opportunities.
+    Analyze Volatility Hedge opportunities.
 
     This sleeve is event-driven: it only deploys capital when VIX signals
     indicate rising volatility. When inactive, it returns 0% allocation
@@ -228,18 +228,18 @@ def analyze_alternatives(data_dir: Path, allocation_percentage: float,
 
     Args:
         data_dir: Path to data directory containing CSV files
-        allocation_percentage: Target allocation percentage for alternatives sleeve
+        allocation_percentage: Target allocation percentage for vol hedges sleeve
         symbols: Optional list of specific symbols to analyze
         regime_key: Current regime key (passed through for output context)
 
     Returns:
         dict: Analysis results with hedge status, selected instruments, and weights
     """
-    logging.info(f"Analyzing Alternatives with {allocation_percentage:.2%} allocation")
+    logging.info(f"Analyzing Vol Hedges with {allocation_percentage:.2%} allocation")
 
     if symbols is None:
         from ..config import SLEEVE_CONFIG
-        symbols = SLEEVE_CONFIG['alternatives'].get('symbols', DEFAULT_SYMBOLS)
+        symbols = SLEEVE_CONFIG['vol_hedges'].get('symbols', DEFAULT_SYMBOLS)
 
     # Evaluate VIX conditions
     vix_signal = evaluate_vix_signal(data_dir)
@@ -257,7 +257,7 @@ def analyze_alternatives(data_dir: Path, allocation_percentage: float,
                      f"instruments: {assets}")
 
     return {
-        'sleeve': 'alternatives',
+        'sleeve': 'vol_hedges',
         'allocation_percentage': allocation_percentage,
         'regime_key': regime_key,
         'vix_signal': vix_signal,

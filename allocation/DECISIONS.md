@@ -4,7 +4,7 @@ Records design choices made during autonomous implementation. Review and overrid
 
 ---
 
-## Sprint 5 — Alternatives / Volatility Hedge Sleeve
+## Sprint 5 — Vol Hedges / Volatility Hedge Sleeve
 
 ### Decision 1: VIX Data Source
 **Options:**
@@ -22,18 +22,18 @@ Records design choices made during autonomous implementation. Review and overrid
 
 **Selected:** Option 2 — Skip term structure for initial implementation. The VIX3M/VIX9D CSVs exist but may be stale (shouldFetch is false). Per the plan, enabling new TradingView symbols requires user validation. VIX level + Bollinger %B already provides meaningful entry/exit signals. Can add term structure later when the user enables those data sources.
 
-### Decision 3: Alternatives Allocation Budget (Where Do Percentages Come From?)
+### Decision 3: Vol Hedges Allocation Budget (Where Do Percentages Come From?)
 **Options:**
-1. Add alternatives allocation ON TOP of existing 100% (over-allocate, requires scaling down all sleeves)
-2. Reduce equity and crypto to make room for alternatives in elevated/risk-off/crisis regimes
+1. Add vol_hedges allocation ON TOP of existing 100% (over-allocate, requires scaling down all sleeves)
+2. Reduce equity and crypto to make room for vol_hedges in elevated/risk-off/crisis regimes
 3. Reduce managed futures slightly to make room
 
-**Selected:** Option 2 — Take allocation from equity (primary) and crypto (secondary) since alternatives serve as a hedge when equities are weak. Specifically:
-- Risk-on: 0% alternatives (unchanged — decay instruments, don't hold)
-- Moderate: 2% alternatives (from equity: 40% → 38%)
-- Elevated: 5% alternatives (from equity: 40% → 35%)
-- Risk-off: 5% alternatives (from equity: 15% → 10%)
-- Crisis: 5% alternatives (from equity: 5% → 0%, but equity shouldn't be 0 — take from MF instead: 55% → 50%)
+**Selected:** Option 2 — Take allocation from equity (primary) and crypto (secondary) since vol_hedges serve as a hedge when equities are weak. Specifically:
+- Risk-on: 0% vol_hedges (unchanged — decay instruments, don't hold)
+- Moderate: 2% vol_hedges (from equity: 40% → 38%)
+- Elevated: 5% vol_hedges (from equity: 40% → 35%)
+- Risk-off: 5% vol_hedges (from equity: 15% → 10%)
+- Crisis: 5% vol_hedges (from equity: 5% → 0%, but equity shouldn't be 0 — take from MF instead: 55% → 50%)
 
 ### Decision 4: Entry/Exit Signal Design
 **Options:**
@@ -65,7 +65,7 @@ risk_off:      equity 10%, MF 45%, commodities 25%, FI 10%, crypto 1%, alt 9% (e
 crisis:        equity 0%, MF 50%, commodities 20%, FI 15%, crypto 0%, alt 15% (equity -5, MF -5, FI -5, alt +15)
 ```
 
-**Rationale:** In risk-off/crisis, alternatives (vol hedges) should have the highest allocation since that's when they pay off. In crisis, equity goes to 0% because UVXY/TAIL should be the better risk-reward at that point. All rows sum to 100%.
+**Rationale:** In risk-off/crisis, vol_hedges (vol hedges) should have the highest allocation since that's when they pay off. In crisis, equity goes to 0% because UVXY/TAIL should be the better risk-reward at that point. All rows sum to 100%.
 
 ---
 

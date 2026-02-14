@@ -15,7 +15,7 @@ ALLOCATION_RULES = {
         'commodities': 0.20,
         'crypto': 0.05,
         'managed_futures': 0.20,
-        'alternatives': 0.00
+        'vol_hedges': 0.00
     },
     # Moderate risk regime (yellow background)
     # Small hedge allocation available if VIX triggers entry
@@ -25,7 +25,7 @@ ALLOCATION_RULES = {
         'commodities': 0.20,
         'crypto': 0.05,
         'managed_futures': 0.30,
-        'alternatives': 0.02
+        'vol_hedges': 0.02
     },
     # Elevated risk regime (orange background)
     # Meaningful hedge allocation — VIX likely rising
@@ -35,7 +35,7 @@ ALLOCATION_RULES = {
         'commodities': 0.20,
         'crypto': 0.05,
         'managed_futures': 0.30,
-        'alternatives': 0.05
+        'vol_hedges': 0.05
     },
     # Risk-off regime (red background, below 200 MA, high VIX)
     # Active hedge — reallocated from equities
@@ -45,7 +45,7 @@ ALLOCATION_RULES = {
         'commodities': 0.25,
         'crypto': 0.01,
         'managed_futures': 0.45,
-        'alternatives': 0.09
+        'vol_hedges': 0.09
     },
     # Crisis regime (extreme risk-off conditions)
     # Max hedge allocation — vol instruments pay off here
@@ -55,7 +55,7 @@ ALLOCATION_RULES = {
         'commodities': 0.20,
         'crypto': 0.00,
         'managed_futures': 0.50,
-        'alternatives': 0.15
+        'vol_hedges': 0.15
     }
 }
 
@@ -104,7 +104,7 @@ SLEEVE_CONFIG = {
         'enabled': True,
         'symbols': ['KMLM', 'DBMF', 'CTA', 'WTMF', 'FMF']
     },
-    'alternatives': {
+    'vol_hedges': {
         'enabled': True,
         'symbols': ['UVXY', 'TAIL', 'CAOS']
     },

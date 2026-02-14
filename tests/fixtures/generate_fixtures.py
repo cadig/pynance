@@ -106,7 +106,7 @@ def main():
         df = generate_ohlcv(sym, base_price=RNG.uniform(80, 120), vol=0.005, above_200dma=True)
         df.to_csv(FIXTURE_DIR / f'{sym}.csv')
 
-    # Alternatives (vol hedge)
+    # Vol hedges
     for sym in ['UVXY', 'TAIL', 'CAOS']:
         df = generate_ohlcv(sym, base_price=RNG.uniform(10, 30), vol=0.03, above_200dma=False)
         df.to_csv(FIXTURE_DIR / f'{sym}.csv')

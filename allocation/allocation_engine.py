@@ -23,7 +23,7 @@ if __name__ == "__main__":
     from allocation.sleeves import commodities
     from allocation.sleeves import crypto
     from allocation.sleeves import managed_futures
-    from allocation.sleeves import alternatives
+    from allocation.sleeves import vol_hedges
     from allocation.sleeves import fixed_income
 else:
     # Relative imports for module execution
@@ -35,7 +35,7 @@ else:
     from .sleeves import commodities
     from .sleeves import crypto
     from .sleeves import managed_futures
-    from .sleeves import alternatives
+    from .sleeves import vol_hedges
     from .sleeves import fixed_income
 
 
@@ -145,14 +145,14 @@ def run_allocation_analysis() -> Dict:
         )
         results['sleeve_analyses']['managed_futures'] = managed_futures_results
     
-    if SLEEVE_CONFIG['alternatives']['enabled']:
-        alternatives_allocation = allocation_percentages.get('alternatives', 0.0)
-        alternatives_results = alternatives.analyze_alternatives(
+    if SLEEVE_CONFIG['vol_hedges']['enabled']:
+        vol_hedges_allocation = allocation_percentages.get('vol_hedges', 0.0)
+        vol_hedges_results = vol_hedges.analyze_vol_hedges(
             data_dir=data_dir,
-            allocation_percentage=alternatives_allocation,
+            allocation_percentage=vol_hedges_allocation,
             regime_key=regime_key
         )
-        results['sleeve_analyses']['alternatives'] = alternatives_results
+        results['sleeve_analyses']['vol_hedges'] = vol_hedges_results
     
     if SLEEVE_CONFIG['fixed_income']['enabled']:
         fixed_income_allocation = allocation_percentages.get('fixed_income', 0.0)

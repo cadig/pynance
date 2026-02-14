@@ -175,7 +175,7 @@ The allocation engine runs daily in three steps:
 
 ---
 
-## Alternatives / Volatility Hedge Sleeve
+## Vol Hedges Sleeve
 
 **Goal:** Deploy capital into vol hedge instruments only when volatility is actively rising, and stay completely out otherwise. This is the only sleeve where "not being in it" is the default state.
 

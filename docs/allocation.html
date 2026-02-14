@@ -328,7 +328,7 @@
         const SIDEBAR = document.getElementById('sidebar-content');
         const SLEEVES_CONTAINER = document.getElementById('sleeves-container');
 
-        const SLEEVE_KEYS = ['equity', 'commodities', 'crypto', 'managed_futures', 'alternatives', 'fixed_income'];
+        const SLEEVE_KEYS = ['equity', 'commodities', 'crypto', 'managed_futures', 'vol_hedges', 'fixed_income'];
         const BAR_OPTIONS = [30, 90, 120, 250];
 
         let chartTimeframe = '1d';
@@ -341,7 +341,7 @@
                 commodities: 'Commodities',
                 crypto: 'Crypto',
                 managed_futures: 'Managed Futures',
-                alternatives: 'Alternatives',
+                vol_hedges: 'Vol Hedges',
                 fixed_income: 'Fixed Income'
             };
             return titles[key] || key.replace(/_/g, ' ');
@@ -659,9 +659,9 @@
                 const symbols = getSleeveSymbols(sleeve);
                 const symStr = symbols.length > 0 ? symbols.join(', ') : '—';
 
-                // For alternatives, show VIX signal info
+                // For vol_hedges, show VIX signal info
                 let extra = '';
-                if (key === 'alternatives' && sleeve.vix_signal) {
+                if (key === 'vol_hedges' && sleeve.vix_signal) {
                     const sig = sleeve.vix_signal;
                     const status = sig.active ? 'ACTIVE (' + sig.signal + ')' : 'inactive';
                     extra = ' [' + status + ']';

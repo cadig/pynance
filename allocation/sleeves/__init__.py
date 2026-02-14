@@ -6,6 +6,6 @@ This module contains analyzers for each asset allocation sleeve:
 - Commodities/Metals
 - Crypto
 - Managed Futures
-- Alternatives
+- Vol Hedges
 - Fixed Income
 """

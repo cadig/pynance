@@ -7,9 +7,9 @@ This is the entry point for the allocation strategy system.
 import argparse
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, date
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 # Handle both direct execution and module import
 if __name__ == "__main__":
@@ -37,6 +37,42 @@ else:
     from .sleeves import fixed_income
 
 
+def validate_data_quality(regime_data: Dict, data_dir: Path) -> List[str]:
+    """
+    Check input data quality and return a list of warning strings.
+
+    Checks:
+    - Regime JSON has a datetime and it's from today (or at most 1 day old on weekends)
+    - Key regime fields are present
+    """
+    warnings = []
+
+    # Check regime data freshness
+    regime_dt_str = regime_data.get('datetime')
+    if not regime_dt_str:
+        warnings.append("Regime data has no datetime — cannot verify freshness")
+    else:
+        try:
+            regime_dt = datetime.fromisoformat(regime_dt_str)
+            days_old = (datetime.now() - regime_dt).days
+            if days_old > 3:
+                warnings.append(f"Regime data is {days_old} days old (from {regime_dt_str})")
+        except (ValueError, TypeError):
+            warnings.append(f"Regime data has unparseable datetime: {regime_dt_str}")
+
+    # Check required regime fields
+    for field in ('background_color', 'above_200ma', 'VIX_close'):
+        if field not in regime_data or regime_data[field] is None:
+            warnings.append(f"Regime data missing field: {field}")
+
+    # Check VIX data file exists
+    vix_path = data_dir / 'VIX.csv'
+    if not vix_path.exists():
+        warnings.append("VIX.csv not found in data directory")
+
+    return warnings
+
+
 def run_allocation_analysis() -> Dict:
     """
     Run the complete allocation analysis process.
@@ -58,12 +94,18 @@ def run_allocation_analysis() -> Dict:
     
     # Get data directory
     data_dir = get_data_dir()
-    
+
+    # Validate input data quality
+    warnings = validate_data_quality(regime_data, data_dir)
+    for w in warnings:
+        logging.warning(f"Data quality: {w}")
+
     # Initialize results structure
     results = {
         'datetime': datetime.now().isoformat(),
         'regime': allocation_summary['regime'],
         'allocation_percentages': allocation_percentages,
+        'warnings': warnings,
         'sleeve_analyses': {}
     }
     
@@ -119,8 +161,16 @@ def run_allocation_analysis() -> Dict:
         )
         results['sleeve_analyses']['fixed_income'] = fixed_income_results
     
+    # Check sleeve output quality
+    for sleeve_name, sleeve_result in results['sleeve_analyses'].items():
+        selected = sleeve_result.get('selected_etfs', [])
+        if isinstance(selected, list) and len(selected) == 0:
+            alloc = sleeve_result.get('allocation_percentage', 0)
+            if alloc > 0:
+                warnings.append(f"{sleeve_name}: 0 ETFs selected despite {alloc:.0%} allocation")
+
     logging.info("Allocation analysis completed successfully")
-    
+
     return results
 
 

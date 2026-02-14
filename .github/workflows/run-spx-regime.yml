@@ -42,6 +42,14 @@ jobs:
         conda activate pynance-v2.0
         pip install tradingview-datafeed yfinance
 
+    - name: Restore history from gh-pages
+      run: |
+        git fetch origin gh-pages --depth=1 || true
+        git checkout origin/gh-pages -- history/allocation-log.jsonl 2>/dev/null && \
+          mkdir -p docs/history && \
+          mv history/allocation-log.jsonl docs/history/allocation-log.jsonl && \
+          rm -rf history/ || true
+
     - name: Activate conda environment and run analysis
       shell: bash -l {0}
       run: |

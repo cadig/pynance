@@ -5,11 +5,27 @@ Provides common functions for data loading, file I/O, and data processing.
 """
 
 import pandas as pd
+import numpy as np
 import json
+from datetime import date
 from pathlib import Path
 import logging
 import time
 from typing import Dict, List, Optional
+
+
+class _NumpyEncoder(json.JSONEncoder):
+    """JSON encoder that handles numpy types."""
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
 
 # Try to import yfinance, but don't fail if it's not available
 try:
@@ -23,10 +39,16 @@ except ImportError:
 def get_data_dir() -> Path:
     """
     Get the path to the data directory.
-    
+
+    Respects PYNANCE_DATA_DIR env var for local development with fixtures.
+
     Returns:
         Path: Path to the data directory
     """
+    import os
+    override = os.environ.get('PYNANCE_DATA_DIR')
+    if override:
+        return Path(override)
     return Path(__file__).parent.parent / 'data'
 
 
@@ -152,47 +174,80 @@ def load_csv_data(filename: str, data_dir: Optional[Path] = None) -> pd.DataFram
         raise
 
 
+def _is_csv_fresh(filepath: Path) -> bool:
+    """Check if a CSV file was modified today."""
+    if not filepath.exists():
+        return False
+    mtime = date.fromtimestamp(filepath.stat().st_mtime)
+    return mtime == date.today()
+
+
+# Module-level flag toggled by --force-refresh CLI arg
+FORCE_REFRESH = False
+
+
 def load_etf_data(symbol: str, data_dir: Optional[Path] = None) -> pd.DataFrame:
     """
-    Load ETF data using hybrid approach: try CSV first, fallback to yfinance.
-    
+    Load ETF data using hybrid approach: try fresh CSV first, fallback to yfinance.
+
+    Write-through cache: after a successful yfinance fetch, saves to data/{SYMBOL}.csv
+    so subsequent calls (or local re-runs) use the cached file. A CSV is considered
+    fresh if it was modified today.
+
     Args:
         symbol: ETF ticker symbol (e.g., 'VEA', 'SPY')
         data_dir: Optional path to data directory. If None, uses default data directory.
-        
+
     Returns:
         pd.DataFrame: DataFrame with datetime index and OHLCV columns
-        
+
     Raises:
         Exception: If both CSV and yfinance fail
     """
+    if data_dir is None:
+        data_dir = get_data_dir()
+
     filename = f"{symbol}.csv"
-    
-    # Try CSV first
-    try:
-        if data_dir is None:
-            data_dir = get_data_dir()
-        filepath = data_dir / filename
-        
-        if filepath.exists():
-            df = load_csv_data(filename, data_dir)
-            logging.info(f"Loaded {symbol} from CSV file")
-            return df
-        else:
-            logging.info(f"CSV file not found for {symbol}, trying yfinance...")
-    except Exception as e:
-        logging.warning(f"Failed to load CSV for {symbol}: {e}, trying yfinance...")
-    
-    # Fallback to yfinance
+    filepath = data_dir / filename
+
+    # Try CSV first (must be from today, unless force-refresh bypasses cache entirely)
+    if not FORCE_REFRESH:
+        try:
+            if _is_csv_fresh(filepath):
+                df = load_csv_data(filename, data_dir)
+                logging.info(f"Loaded {symbol} from fresh CSV cache")
+                return df
+            elif filepath.exists():
+                logging.info(f"CSV for {symbol} is stale, refreshing via yfinance...")
+            else:
+                logging.info(f"No CSV for {symbol}, fetching via yfinance...")
+        except Exception as e:
+            logging.warning(f"Failed to load CSV for {symbol}: {e}, trying yfinance...")
+    else:
+        logging.info(f"Force refresh enabled, bypassing cache for {symbol}")
+
+    # Fetch from yfinance and write-through to CSV
     if YFINANCE_AVAILABLE:
         try:
             df = fetch_data_via_yfinance(symbol)
-            logging.info(f"Loaded {symbol} from yfinance")
+            # Write-through: save to CSV for future calls
+            try:
+                df.to_csv(filepath)
+                logging.info(f"Cached {symbol} to {filepath}")
+            except Exception as e:
+                logging.warning(f"Failed to cache {symbol} to CSV: {e}")
             return df
         except Exception as e:
+            # If yfinance fails but a stale CSV exists, use it as fallback
+            if filepath.exists():
+                logging.warning(f"yfinance failed for {symbol}, falling back to stale CSV")
+                return load_csv_data(filename, data_dir)
             logging.error(f"Failed to fetch {symbol} via yfinance: {e}")
             raise Exception(f"Failed to load data for {symbol} from both CSV and yfinance")
     else:
+        if filepath.exists():
+            logging.warning(f"yfinance not available, using existing CSV for {symbol}")
+            return load_csv_data(filename, data_dir)
         raise ImportError(f"CSV file not found for {symbol} and yfinance is not available")
 
 
@@ -228,6 +283,29 @@ def load_multiple_csv_files(filenames: List[str], data_dir: Optional[Path] = Non
     return data_dict
 
 
+def archive_results(results: Dict, docs_dir: Optional[Path] = None) -> None:
+    """
+    Append today's results as a single JSON line to the rolling history log.
+
+    File: docs/history/allocation-log.jsonl (one JSON object per line per day).
+    This enables change detection, performance tracking, and historical analysis.
+    """
+    if docs_dir is None:
+        docs_dir = get_docs_dir()
+
+    history_dir = docs_dir / 'history'
+    history_dir.mkdir(parents=True, exist_ok=True)
+    log_path = history_dir / 'allocation-log.jsonl'
+
+    try:
+        line = json.dumps(results, cls=_NumpyEncoder, separators=(',', ':'))
+        with open(log_path, 'a') as f:
+            f.write(line + '\n')
+        logging.info(f"Archived results to: {log_path}")
+    except Exception as e:
+        logging.warning(f"Failed to archive results: {e}")
+
+
 def save_results(results: Dict, filename: str, docs_dir: Optional[Path] = None) -> None:
     """
     Save results dictionary to JSON file in docs directory.
@@ -245,7 +323,7 @@ def save_results(results: Dict, filename: str, docs_dir: Optional[Path] = None) 
     
     try:
         with open(output_path, 'w') as f:
-            json.dump(results, f, indent=2)
+            json.dump(results, f, indent=2, cls=_NumpyEncoder)
         logging.info(f"Results saved to: {output_path}")
     except Exception as e:
         logging.error(f"Failed to save results to {output_path}: {e}")

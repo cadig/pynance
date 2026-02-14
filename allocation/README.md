@@ -119,12 +119,39 @@ The allocation engine runs daily in three steps:
 
 ---
 
+## Crypto Sleeve
+
+**Goal:** Get exposure to the best-performing crypto vehicle when the trend is up, and stay out entirely when it's down. This is a small allocation (0-5%) where the trend filter matters more than the ranking.
+
+**Universe:** 4 ETFs — IBIT (BTC spot), ETHA (ETH spot), BITO (BTC futures), NODE (crypto industry equities)
+
+**How it picks:**
+
+1. **Load price data** for each ETF.
+
+2. **Filter by 200-day moving average.** Same hard gate as equity and commodities. Crypto is high-vol and high-beta — when BTC is below its 200DMA, you don't want exposure at all. This single filter avoids the worst of bear markets.
+
+   **Exception for young ETFs:** Some crypto ETFs have less than 200 days of trading history (they launched recently). If there isn't enough data to compute the 200DMA, the ETF bypasses the filter with a warning and is included anyway. This prevents new but legitimately trending ETFs from being silently dropped.
+
+3. **Calculate momentum returns** over two periods only: 1 month and 3 months. No 6-month or 12-month lookback — crypto moves too fast for those to be useful. A 3-month crypto return can span an entire rally or crash.
+
+4. **Rank by weighted composite score** of raw returns (not risk-adjusted):
+   - 1-month: **60%** weight (dominant signal)
+   - 3-month: **40%** weight
+
+   Raw returns are used because all crypto ETFs have similarly high volatility (50%+ annualized). Risk-adjusting doesn't add meaningful signal when everything is volatile — it just adds noise.
+
+5. **Output all passing ETFs** ranked by score. The regime allocation already caps crypto at 0-5% (and 0-1% in risk-off), so no additional cap is needed within the sleeve.
+
+**What it doesn't do (yet):** Assign within-sleeve weights.
+
+---
+
 ## Stubs (Not Yet Implemented)
 
 The following sleeves exist in the config and are dispatched by the engine, but return empty results:
 
 - **Fixed Income** — Will cover treasury, corporate bond, and TIPS ETFs.
-- **Crypto** — Will cover Bitcoin and Ethereum ETFs.
 - **Alternatives** — Placeholder; currently allocated 0% in all regimes.
 
 ---

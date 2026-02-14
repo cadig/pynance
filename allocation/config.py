@@ -98,7 +98,8 @@ SLEEVE_CONFIG = {
         'exclusive_pairs': [['GLD', 'GDX'], ['SLV', 'SIL']]
     },
     'crypto': {
-        'enabled': True
+        'enabled': True,
+        'symbols': ['IBIT', 'ETHA', 'BITO', 'NODE']
     },
     'managed_futures': {
         'enabled': True,

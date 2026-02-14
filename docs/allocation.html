@@ -233,6 +233,58 @@
         .portfolio-summary .etf-list {
             color: #555;
         }
+        .llm-analysis {
+            margin-bottom: 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fff;
+            overflow: hidden;
+        }
+        .llm-analysis-header {
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #333;
+            background: #f3e5f5;
+            border: none;
+            width: 100%;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .llm-analysis-header:hover { background: #e1bee7; }
+        .llm-analysis-header .chevron {
+            font-size: 0.7rem;
+            color: #666;
+            transition: transform 0.2s ease;
+        }
+        .llm-analysis.expanded .llm-analysis-header .chevron {
+            transform: rotate(90deg);
+        }
+        .llm-analysis-body {
+            display: none;
+            padding: 14px 16px;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: #444;
+            white-space: pre-line;
+            border-top: 1px solid #e0e0e0;
+        }
+        .llm-analysis.expanded .llm-analysis-body { display: block; }
+        .llm-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .llm-badge.high { background: #e8f5e9; color: #2e7d32; }
+        .llm-badge.medium { background: #fff3e0; color: #e65100; }
+        .llm-badge.low { background: #ffebee; color: #c62828; }
+        .llm-badge.skipped { background: #f5f5f5; color: #999; }
         .back-link {
             display: inline-block;
             margin-bottom: 16px;
@@ -306,6 +358,7 @@
             <div id="daily-summary-container"></div>
             <div id="warnings-container"></div>
             <div id="portfolio-summary-container"></div>
+            <div id="llm-analysis-container"></div>
             <div class="chart-options">
                 <span class="chart-options-label">Timeframe:</span>
                 <div class="chart-options-group" id="timeframe-btns">
@@ -657,7 +710,19 @@
                 const sleeve = analyses[key] || {};
                 const pct = alloc[key] || 0;
                 const symbols = getSleeveSymbols(sleeve);
-                const symStr = symbols.length > 0 ? symbols.join(', ') : '—';
+                const weights = sleeve.weights || {};
+
+                // Build symbol list with weights
+                let symParts = [];
+                for (const sym of symbols) {
+                    const w = weights[sym];
+                    if (w != null && w > 0) {
+                        symParts.push(sym + ' (' + (w * 100).toFixed(0) + '%)');
+                    } else {
+                        symParts.push(sym);
+                    }
+                }
+                const symStr = symParts.length > 0 ? symParts.join(', ') : '—';
 
                 // For vol_hedges, show VIX signal info
                 let extra = '';
@@ -677,6 +742,45 @@
                 rows + '</table></div>';
         }
 
+        function renderLlmAnalysis(data) {
+            const container = document.getElementById('llm-analysis-container');
+            const llm = data.llm_analysis;
+            if (!llm || llm.skipped) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const regime = llm.llm_regime_assessment || 'Unknown';
+            const confidence = llm.llm_confidence || 'Unknown';
+            const confLower = confidence.toLowerCase();
+            const badgeClass = confLower === 'high' ? 'high' : confLower === 'medium' ? 'medium' : confLower === 'low' ? 'low' : 'skipped';
+            const raw = llm.llm_raw_response || '(no response)';
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'llm-analysis';
+
+            const header = document.createElement('button');
+            header.type = 'button';
+            header.className = 'llm-analysis-header';
+            header.innerHTML = '<span>LLM Regime: ' + escapeHtml(regime) +
+                '<span class="llm-badge ' + badgeClass + '">' + escapeHtml(confidence) + '</span></span>' +
+                '<span class="chevron">▶</span>';
+
+            const body = document.createElement('div');
+            body.className = 'llm-analysis-body';
+            body.textContent = raw;
+
+            wrapper.appendChild(header);
+            wrapper.appendChild(body);
+
+            header.addEventListener('click', function() {
+                wrapper.classList.toggle('expanded');
+            });
+
+            container.innerHTML = '';
+            container.appendChild(wrapper);
+        }
+
         function escapeHtml(str) {
             const div = document.createElement('div');
             div.textContent = str;
@@ -693,6 +797,7 @@
                 renderDailySummary(data);
                 renderWarnings(data);
                 renderPortfolioSummary(data);
+                renderLlmAnalysis(data);
                 buildSleeveAccordions(data);
             } catch (err) {
                 SIDEBAR.innerHTML = '<div class="error">Failed to load allocation-results.json: ' + err.message + '</div>';

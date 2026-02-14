@@ -18,6 +18,7 @@ if __name__ == "__main__":
     from allocation.regime_allocator import get_allocation_summary
     from allocation.config import SLEEVE_CONFIG, OUTPUT_CONFIG
     from allocation.utils import get_data_dir, get_docs_dir, save_results, archive_results, load_spx_regime_data
+    from allocation.rebalance import run_rebalance_check
     from allocation.sleeves import equity
     from allocation.sleeves import commodities
     from allocation.sleeves import crypto
@@ -29,6 +30,7 @@ else:
     from .regime_allocator import get_allocation_summary
     from .config import SLEEVE_CONFIG, OUTPUT_CONFIG
     from .utils import get_data_dir, get_docs_dir, save_results, archive_results, load_spx_regime_data
+    from .rebalance import run_rebalance_check
     from .sleeves import equity
     from .sleeves import commodities
     from .sleeves import crypto
@@ -181,19 +183,22 @@ def save_allocation_results(results: Dict) -> None:
     Args:
         results: Allocation results dictionary
     """
+    docs_dir = get_docs_dir()
+
+    # Run rebalance check (reads previous entry from JSONL before we append today's)
+    summary, changes = run_rebalance_check(results, docs_dir)
+    results['daily_summary'] = summary
+    results['changes'] = changes
+
+    if summary:
+        logging.info(f"Daily summary:\n{summary}")
+
     if OUTPUT_CONFIG['save_json']:
         filename = OUTPUT_CONFIG['json_filename']
         save_results(results, filename)
 
-    # Append to rolling history log (JSONL)
+    # Append to rolling history log (JSONL) — must happen AFTER rebalance check
     archive_results(results)
-    
-    # TODO: Implement PNG and HTML output if enabled
-    if OUTPUT_CONFIG.get('save_png', False):
-        logging.info("PNG output not yet implemented")
-    
-    if OUTPUT_CONFIG.get('save_html', False):
-        logging.info("HTML output not yet implemented")
 
 
 def main():

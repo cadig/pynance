@@ -277,6 +277,29 @@ def load_multiple_csv_files(filenames: List[str], data_dir: Optional[Path] = Non
     return data_dict
 
 
+def archive_results(results: Dict, docs_dir: Optional[Path] = None) -> None:
+    """
+    Append today's results as a single JSON line to the rolling history log.
+
+    File: docs/history/allocation-log.jsonl (one JSON object per line per day).
+    This enables change detection, performance tracking, and historical analysis.
+    """
+    if docs_dir is None:
+        docs_dir = get_docs_dir()
+
+    history_dir = docs_dir / 'history'
+    history_dir.mkdir(parents=True, exist_ok=True)
+    log_path = history_dir / 'allocation-log.jsonl'
+
+    try:
+        line = json.dumps(results, cls=_NumpyEncoder, separators=(',', ':'))
+        with open(log_path, 'a') as f:
+            f.write(line + '\n')
+        logging.info(f"Archived results to: {log_path}")
+    except Exception as e:
+        logging.warning(f"Failed to archive results: {e}")
+
+
 def save_results(results: Dict, filename: str, docs_dir: Optional[Path] = None) -> None:
     """
     Save results dictionary to JSON file in docs directory.

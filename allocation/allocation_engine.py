@@ -17,7 +17,7 @@ if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from allocation.regime_allocator import get_allocation_summary
     from allocation.config import SLEEVE_CONFIG, OUTPUT_CONFIG
-    from allocation.utils import get_data_dir, get_docs_dir, save_results, load_spx_regime_data
+    from allocation.utils import get_data_dir, get_docs_dir, save_results, archive_results, load_spx_regime_data
     from allocation.sleeves import equity
     from allocation.sleeves import commodities
     from allocation.sleeves import crypto
@@ -28,7 +28,7 @@ else:
     # Relative imports for module execution
     from .regime_allocator import get_allocation_summary
     from .config import SLEEVE_CONFIG, OUTPUT_CONFIG
-    from .utils import get_data_dir, get_docs_dir, save_results, load_spx_regime_data
+    from .utils import get_data_dir, get_docs_dir, save_results, archive_results, load_spx_regime_data
     from .sleeves import equity
     from .sleeves import commodities
     from .sleeves import crypto
@@ -127,13 +127,16 @@ def run_allocation_analysis() -> Dict:
 def save_allocation_results(results: Dict) -> None:
     """
     Save allocation results to output files.
-    
+
     Args:
         results: Allocation results dictionary
     """
     if OUTPUT_CONFIG['save_json']:
         filename = OUTPUT_CONFIG['json_filename']
         save_results(results, filename)
+
+    # Append to rolling history log (JSONL)
+    archive_results(results)
     
     # TODO: Implement PNG and HTML output if enabled
     if OUTPUT_CONFIG.get('save_png', False):

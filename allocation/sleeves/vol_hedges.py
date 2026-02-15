@@ -256,12 +256,25 @@ def analyze_vol_hedges(data_dir: Path, allocation_percentage: float,
         logging.info(f"Vol hedge ACTIVE — signal: {vix_signal['signal']}, "
                      f"instruments: {assets}")
 
+    # Priority-based weights: first instrument gets 60%, second 40%
+    # (or 100% if only one)
+    weights = {}
+    if len(selected) == 1:
+        weights[selected[0]['symbol']] = 1.0
+    elif len(selected) == 2:
+        weights[selected[0]['symbol']] = 0.6
+        weights[selected[1]['symbol']] = 0.4
+    elif len(selected) >= 3:
+        weights[selected[0]['symbol']] = 0.5
+        weights[selected[1]['symbol']] = 0.3
+        weights[selected[2]['symbol']] = 0.2
+
     return {
         'sleeve': 'vol_hedges',
         'allocation_percentage': allocation_percentage,
         'regime_key': regime_key,
         'vix_signal': vix_signal,
         'selected_etfs': selected,
-        'weights': {},
+        'weights': weights,
         'total_allocation': effective_allocation,
     }

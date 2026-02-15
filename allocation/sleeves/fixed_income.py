@@ -21,7 +21,7 @@ import numpy as np
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional
-from ..utils import load_etf_data
+from ..utils import load_etf_data, compute_position_weights
 
 RETURN_PERIOD_WEIGHTS = {
     1: 0.50,   # 1 month — most important
@@ -179,12 +179,14 @@ def analyze_fixed_income(data_dir: Path, allocation_percentage: float,
     assets = [etf['symbol'] for etf in ranked]
     logging.info(f"Selected {len(ranked)} fixed income ETFs: {assets}")
 
+    weights = compute_position_weights(ranked)
+
     return {
         'sleeve': 'fixed_income',
         'allocation_percentage': allocation_percentage,
         'regime_key': regime_key,
         'eligible_symbols': symbols,
         'selected_etfs': ranked,
-        'weights': {},
+        'weights': weights,
         'total_allocation': allocation_percentage if ranked else 0.0
     }

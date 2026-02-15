@@ -18,7 +18,7 @@ import numpy as np
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from ..utils import load_etf_data
+from ..utils import load_etf_data, compute_position_weights
 
 # Shorter momentum weighting than equities — MF trends are faster
 RETURN_PERIOD_WEIGHTS = {
@@ -311,10 +311,12 @@ def analyze_managed_futures(data_dir: Path, allocation_percentage: float,
 
     logging.info(f"Selected {len(selected)} MF ETFs: {assets}")
 
+    weights = compute_position_weights(selected, score_key='final_score')
+
     return {
         'sleeve': 'managed_futures',
         'allocation_percentage': allocation_percentage,
         'selected_etfs': selected,
-        'weights': {},  # to be populated by B+.3 (within-sleeve position sizing)
+        'weights': weights,
         'total_allocation': allocation_percentage if selected else 0.0
     }

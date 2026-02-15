@@ -19,6 +19,7 @@ if __name__ == "__main__":
     from allocation.config import SLEEVE_CONFIG, OUTPUT_CONFIG
     from allocation.utils import get_data_dir, get_docs_dir, save_results, archive_results, load_spx_regime_data
     from allocation.rebalance import run_rebalance_check
+    from allocation.llm_regime import run_llm_regime_analysis
     from allocation.sleeves import equity
     from allocation.sleeves import commodities
     from allocation.sleeves import crypto
@@ -31,12 +32,16 @@ else:
     from .config import SLEEVE_CONFIG, OUTPUT_CONFIG
     from .utils import get_data_dir, get_docs_dir, save_results, archive_results, load_spx_regime_data
     from .rebalance import run_rebalance_check
+    from .llm_regime import run_llm_regime_analysis
     from .sleeves import equity
     from .sleeves import commodities
     from .sleeves import crypto
     from .sleeves import managed_futures
     from .sleeves import vol_hedges
     from .sleeves import fixed_income
+
+
+SKIP_LLM = False
 
 
 def validate_data_quality(regime_data: Dict, data_dir: Path) -> List[str]:
@@ -171,6 +176,17 @@ def run_allocation_analysis() -> Dict:
             if alloc > 0:
                 warnings.append(f"{sleeve_name}: 0 ETFs selected despite {alloc:.0%} allocation")
 
+    # LLM regime analysis (runs after all sleeves so it can see full picture)
+    if not SKIP_LLM:
+        try:
+            llm_result = run_llm_regime_analysis(data_dir, regime_data, results)
+            results['llm_analysis'] = llm_result
+        except Exception as e:
+            logging.warning(f"LLM regime analysis failed: {e}")
+            results['llm_analysis'] = {'skipped': True, 'reason': str(e)}
+    else:
+        results['llm_analysis'] = {'skipped': True, 'reason': '--no-llm flag'}
+
     logging.info("Allocation analysis completed successfully")
 
     return results
@@ -223,6 +239,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run allocation engine")
     parser.add_argument('--force-refresh', action='store_true',
                         help="Bypass yfinance CSV cache and re-fetch all ETF data")
+    parser.add_argument('--no-llm', action='store_true',
+                        help="Skip LLM regime analysis")
     args = parser.parse_args()
 
     # Configure logging
@@ -236,5 +254,9 @@ if __name__ == "__main__":
         import allocation.utils
         allocation.utils.FORCE_REFRESH = True
         logging.info("Force refresh enabled — bypassing yfinance cache")
+
+    if args.no_llm:
+        SKIP_LLM = True
+        logging.info("LLM regime analysis disabled via --no-llm")
 
     main()

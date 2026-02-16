@@ -85,8 +85,9 @@ if [ "$DRY_RUN" = true ]; then
     exit 0
 fi
 
-# Verify Docker is logged into GHCR
-if ! docker login ghcr.io --get-login &>/dev/null 2>&1; then
+# Verify Docker is logged into GHCR (check config file since --get-login
+# is not supported on all Docker versions)
+if ! python3 -c "import json; d=json.load(open('$HOME/.docker/config.json')); assert 'ghcr.io' in d.get('auths',{})" 2>/dev/null; then
     echo ""
     echo "ERROR: Not logged into ghcr.io."
     echo "Run:  gh auth token | docker login ghcr.io -u cadig --password-stdin"

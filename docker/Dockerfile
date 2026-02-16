@@ -20,6 +20,11 @@ RUN apt-get update && \
 # needing `conda activate`
 ENV PATH="/opt/conda/envs/pynance-v2.0/bin:$PATH"
 
+# Clear conda's entrypoint so GitHub Actions can manage the container lifecycle
+# (Actions needs the container to stay running for `docker exec` into each step)
+ENTRYPOINT []
+CMD ["bash"]
+
 # Smoke-test: confirm Python version and key imports
 RUN python --version && \
     python -c "import pandas, numpy, matplotlib, yfinance, anthropic, requests, bs4, lxml, yaml; print('All imports OK')"

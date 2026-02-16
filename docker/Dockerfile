@@ -20,10 +20,10 @@ RUN apt-get update && \
 # needing `conda activate`
 ENV PATH="/opt/conda/envs/pynance-v2.0/bin:$PATH"
 
-# Clear conda's entrypoint so GitHub Actions can manage the container lifecycle
-# (Actions needs the container to stay running for `docker exec` into each step)
-ENTRYPOINT []
-CMD ["bash"]
+# GitHub Actions starts the container and then `docker exec`s each step into it.
+# The container must stay alive — clear conda's entrypoint and use a long-running
+# default command so it doesn't exit immediately.
+ENTRYPOINT ["/usr/bin/tail", "-f", "/dev/null"]
 
 # Smoke-test: confirm Python version and key imports
 RUN python --version && \

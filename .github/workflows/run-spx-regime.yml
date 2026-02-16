@@ -36,7 +36,7 @@ jobs:
         # Install core packages via conda
         conda install -n pynance-v2.0 -c conda-forge -c anaconda \
           pandas numpy matplotlib jupyter ipython \
-          requests beautifulsoup4 lxml pyyaml pip -y
+          requests beautifulsoup4 lxml pyyaml pip anthropic -y
         
         # Install additional packages via pip
         conda activate pynance-v2.0

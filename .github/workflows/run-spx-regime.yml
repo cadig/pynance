@@ -7,43 +7,21 @@ on:
 
 permissions:
   contents: write
+  packages: read  # needed to pull container from GHCR (if private)
 
 jobs:
   update-analysis:
     runs-on: ubuntu-latest
-    
+    container:
+      image: ghcr.io/cadig/pynance-runner:latest
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.12'
-        
-    - name: Set up Conda
-      uses: conda-incubator/setup-miniconda@v3
-      with:
-        auto-update-conda: true
-        python-version: '3.12'
-        
-    - name: Create conda environment
-      shell: bash -l {0}
-      run: |
-        # Create a new environment with core dependencies
-        conda create -n pynance-v2.0 python=3.12 -y
-        
-        # Install core packages via conda
-        conda install -n pynance-v2.0 -c conda-forge -c anaconda \
-          pandas numpy matplotlib jupyter ipython \
-          requests beautifulsoup4 lxml pyyaml pip anthropic -y
-        
-        # Install additional packages via pip
-        conda activate pynance-v2.0
-        pip install tradingview-datafeed yfinance
 
     - name: Restore history from gh-pages
       run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
         git fetch origin gh-pages --depth=1 || true
         git checkout origin/gh-pages -- history/allocation-log.jsonl 2>/dev/null && \
           mkdir -p docs/history && \
@@ -56,10 +34,8 @@ jobs:
           cp data-cache/*.csv data/ && \
           rm -rf data-cache/ || true
 
-    - name: Activate conda environment and run analysis
-      shell: bash -l {0}
+    - name: Run analysis
       run: |
-        conda activate pynance-v2.0
         python data/fetch_data.py
         python research/combined-research.py
         python allocation/allocation_engine.py
@@ -67,16 +43,6 @@ jobs:
         TRADINGVIEW_USERNAME: ${{ secrets.TRADINGVIEW_USERNAME }}
         TRADINGVIEW_PASSWORD: ${{ secrets.TRADINGVIEW_PASSWORD }}
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        
-    # - name: Commit and push changes
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #   run: |
-    #     git config --local user.email "action@github.com"
-    #     git config --local user.name "GitHub Action"
-    #     git add docs/spx-regime.png docs/spx-regime-results.json
-    #     git diff --quiet && git diff --staged --quiet || git commit -m "Update SPX regime analysis [skip ci]"
-    #     git push origin gh-pages
 
     - name: Prepare data cache for deploy
       run: |

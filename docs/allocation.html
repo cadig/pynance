@@ -81,6 +81,8 @@
             flex: 1;
             padding: 20px;
             overflow-y: auto;
+            overflow-x: hidden;
+            min-width: 0;
         }
         .main h1 {
             margin: 0 0 20px 0;
@@ -138,10 +140,14 @@
             display: flex;
             flex-wrap: wrap;
             gap: 16px;
+            overflow: hidden;
+            width: 100%;
         }
         .chart-block {
             flex: 1 1 260px;
             min-width: 260px;
+            max-width: 100%;
+            overflow: hidden;
             background: #fff;
             border-radius: 8px;
             box-shadow: 0 1px 4px rgba(0,0,0,0.08);
@@ -504,7 +510,7 @@
         function createBarChart(container, symbol, bars) {
             if (!bars || bars.length === 0) return null;
             const chart = LightweightCharts.createChart(container, {
-                width: container.clientWidth,
+                autoSize: true,
                 height: 280,
                 layout: { backgroundColor: '#ffffff', textColor: '#333' },
                 grid: { vertLines: { color: '#f0f0f0' }, horzLines: { color: '#f0f0f0' } },
@@ -517,7 +523,7 @@
                 borderVisible: false
             });
             barSeries.setData(bars);
-            chart.timeScale().fitContent();
+            chart.timeScale().scrollToRealTime();
             container._chart = chart;
             container._barSeries = barSeries;
             return chart;
@@ -526,7 +532,7 @@
         function setChartData(container, bars) {
             if (!container._barSeries || !bars || bars.length === 0) return;
             container._barSeries.setData(bars);
-            if (container._chart) container._chart.timeScale().fitContent();
+            if (container._chart) container._chart.timeScale().scrollToRealTime();
         }
 
         function getVisibleChartBlocks() {
@@ -686,7 +692,11 @@
             let cls = 'first-run';
             if (summary.includes('NO ACTION TODAY')) cls = 'no-action';
             else if (summary.includes('ACTION REQUIRED')) cls = 'action-required';
-            container.innerHTML = '<div class="daily-summary ' + cls + '">' + escapeHtml(summary) + '</div>';
+            // Strip the regime line (first line) — that info is already in the sidebar
+            const lines = summary.split('\n');
+            const filtered = lines.filter(l => !l.match(/^Regime:\s/));
+            const cleanSummary = filtered.join('\n').replace(/^\n+/, '');
+            container.innerHTML = '<div class="daily-summary ' + cls + '">' + escapeHtml(cleanSummary) + '</div>';
         }
 
         function renderWarnings(data) {
@@ -710,19 +720,8 @@
                 const sleeve = analyses[key] || {};
                 const pct = alloc[key] || 0;
                 const symbols = getSleeveSymbols(sleeve);
-                const weights = sleeve.weights || {};
 
-                // Build symbol list with weights
-                let symParts = [];
-                for (const sym of symbols) {
-                    const w = weights[sym];
-                    if (w != null && w > 0) {
-                        symParts.push(sym + ' (' + (w * 100).toFixed(0) + '%)');
-                    } else {
-                        symParts.push(sym);
-                    }
-                }
-                const symStr = symParts.length > 0 ? symParts.join(', ') : '—';
+                const symStr = symbols.length > 0 ? symbols.join(', ') : '—';
 
                 // For vol_hedges, show VIX signal info
                 let extra = '';

@@ -114,17 +114,17 @@
         },
         {
             "symbol": "USM2",
-            "exchange": "INDEX",
+            "exchange": "ECONOMICS",
             "filename": "USM2.csv",
             "description": "US Money Supply M2",
-            "shouldFetch": false
+            "shouldFetch": true
         },
         {
             "symbol": "FEDFUNDS",
-            "exchange": "INDEX",
+            "exchange": "ECONOMICS",
             "filename": "FEDFUNDS.csv",
             "description": "Effective Federal Funds Rate",
-            "shouldFetch": false
+            "shouldFetch": true
         },
         {
             "symbol": "US02Y",
@@ -149,10 +149,10 @@
         },
         {
             "symbol": "BAMLH0A0HYM2",
-            "exchange": "INDEX",
+            "exchange": "ECONOMICS",
             "filename": "BAMLH0A0HYM2-bofa-highyield-spread.csv",
             "description": "BOFA US High Yield Index Option-Adjusted Spread",
-            "shouldFetch": false
+            "shouldFetch": true
         },
         {
             "symbol": "GOLD",

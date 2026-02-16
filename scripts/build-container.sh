@@ -49,10 +49,11 @@ VERSION=$(tr -d '[:space:]' < "$VERSION_FILE")
 echo "==> Building $IMAGE:$VERSION"
 
 # ---------------------------------------------------------------------------
-# Build
+# Build (target linux/amd64 — GitHub Actions runners are x86_64)
 # ---------------------------------------------------------------------------
+PLATFORM="linux/amd64"
 build_ok=true
-docker build $NO_CACHE \
+docker build --platform "$PLATFORM" $NO_CACHE \
     -t "$IMAGE:$VERSION" \
     -t "$IMAGE:latest" \
     -f "$DOCKERFILE" \
@@ -90,7 +91,7 @@ fi
 if ! python3 -c "import json; d=json.load(open('$HOME/.docker/config.json')); assert 'ghcr.io' in d.get('auths',{})" 2>/dev/null; then
     echo ""
     echo "ERROR: Not logged into ghcr.io."
-    echo "Run:  gh auth token | docker login ghcr.io -u cadig --password-stdin"
+    echo "Run:  docker login ghcr.io -u cadig"
     exit 1
 fi
 

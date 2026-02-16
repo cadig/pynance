@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Allocation Engine - Pynance</title>
     <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@5.0.0/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -275,10 +276,25 @@
             font-size: 0.82rem;
             line-height: 1.6;
             color: #444;
-            white-space: pre-line;
             border-top: 1px solid #e0e0e0;
         }
         .llm-analysis.expanded .llm-analysis-body { display: block; }
+        .llm-analysis-body h1, .llm-analysis-body h2, .llm-analysis-body h3 {
+            font-size: 0.9rem;
+            margin: 12px 0 4px 0;
+            color: #333;
+        }
+        .llm-analysis-body h1:first-child, .llm-analysis-body h2:first-child,
+        .llm-analysis-body h3:first-child, .llm-analysis-body p:first-child {
+            margin-top: 0;
+        }
+        .llm-analysis-body p { margin: 6px 0; }
+        .llm-analysis-body ul, .llm-analysis-body ol {
+            margin: 6px 0;
+            padding-left: 20px;
+        }
+        .llm-analysis-body li { margin: 2px 0; }
+        .llm-analysis-body strong { color: #333; }
         .llm-badge {
             display: inline-block;
             padding: 2px 8px;
@@ -767,7 +783,12 @@
 
             const body = document.createElement('div');
             body.className = 'llm-analysis-body';
-            body.textContent = raw;
+            if (typeof marked !== 'undefined' && marked.parse) {
+                body.innerHTML = marked.parse(raw);
+            } else {
+                body.style.whiteSpace = 'pre-line';
+                body.textContent = raw;
+            }
 
             wrapper.appendChild(header);
             wrapper.appendChild(body);

@@ -8,54 +8,51 @@ Defines allocation rules based on regime conditions, sleeve parameters, and outp
 # Each rule maps regime conditions to allocation percentages
 ALLOCATION_RULES = {
     # Risk-on regime (green background, above 200 MA, low VIX)
-    # Strong Risk-On: Vol hedge instruments decay — don't hold
+    # Full equity exposure — no hedge needed, decay instruments avoided
     'risk_on': {
         'equity': 0.50,
         'fixed_income': 0.05,
         'commodities': 0.20,
         'crypto': 0.05,
         'managed_futures': 0.20,
-        'vol_hedges': 0.00
     },
     # Moderate risk regime (yellow background)
-    # Small hedge allocation available if VIX triggers entry
+    # Equity reduced 5% vs risk-on baseline — reduced exposure IS the hedge.
+    # Former vol hedge allocation (2%) + equity reduction (5%) → SGOV/short duration.
     'moderate_risk': {
-        'equity': 0.38,
-        'fixed_income': 0.05,
+        'equity': 0.33,
+        'fixed_income': 0.12,
         'commodities': 0.20,
         'crypto': 0.05,
         'managed_futures': 0.30,
-        'vol_hedges': 0.02
     },
     # Elevated risk regime (orange background)
-    # Meaningful hedge allocation — VIX likely rising
+    # Equity reduced further — the underweight position is the hedge.
+    # Former vol hedge allocation (5%) + equity reduction (5%) → SGOV/short duration.
     'elevated_risk': {
-        'equity': 0.35,
-        'fixed_income': 0.05,
+        'equity': 0.30,
+        'fixed_income': 0.15,
         'commodities': 0.20,
         'crypto': 0.05,
         'managed_futures': 0.30,
-        'vol_hedges': 0.05
     },
     # Risk-off regime (red background, below 200 MA, high VIX)
-    # Active hedge — reallocated from equities
+    # Equity already minimal — former vol hedge (9%) redirected to short duration.
     'risk_off': {
         'equity': 0.10,
-        'fixed_income': 0.10,
+        'fixed_income': 0.19,
         'commodities': 0.25,
         'crypto': 0.01,
         'managed_futures': 0.45,
-        'vol_hedges': 0.09
     },
     # Crisis regime (extreme risk-off conditions)
-    # Max hedge allocation — vol instruments pay off here
+    # No equity. Former vol hedge (15%) redirected to short duration treasuries.
     'crisis': {
         'equity': 0.00,
-        'fixed_income': 0.15,
+        'fixed_income': 0.30,
         'commodities': 0.20,
         'crypto': 0.00,
         'managed_futures': 0.50,
-        'vol_hedges': 0.15
     }
 }
 
@@ -105,7 +102,7 @@ SLEEVE_CONFIG = {
         'symbols': ['KMLM', 'DBMF', 'CTA', 'WTMF', 'FMF']
     },
     'vol_hedges': {
-        'enabled': True,
+        'enabled': False,  # Disabled: equity reduction is now the hedge (see plan-improvements.md Option 1)
         'symbols': ['UVXY', 'TAIL', 'CAOS']
     },
     'fixed_income': {

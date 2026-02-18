@@ -438,7 +438,7 @@
         const SIDEBAR = document.getElementById('sidebar-content');
         const SLEEVES_CONTAINER = document.getElementById('sleeves-container');
 
-        const SLEEVE_KEYS = ['equity', 'commodities', 'crypto', 'managed_futures', 'vol_hedges', 'fixed_income'];
+        const SLEEVE_KEYS = ['equity', 'commodities', 'crypto', 'managed_futures', 'fixed_income'];
         const BAR_OPTIONS = [30, 90, 120, 250];
 
         let chartTimeframe = '1d';
@@ -452,7 +452,6 @@
                 commodities: 'Commodities',
                 crypto: 'Crypto',
                 managed_futures: 'Managed Futures',
-                vol_hedges: 'Vol Hedges',
                 fixed_income: 'Fixed Income'
             };
             return titles[key] || key.replace(/_/g, ' ');
@@ -808,14 +807,6 @@
 
                 const symStr = symbols.length > 0 ? symbols.join(', ') : '—';
 
-                // For vol_hedges, show VIX signal info
-                let extra = '';
-                if (key === 'vol_hedges' && sleeve.vix_signal) {
-                    const sig = sleeve.vix_signal;
-                    const status = sig.active ? 'ACTIVE (' + sig.signal + ')' : 'inactive';
-                    extra = ' [' + status + ']';
-                }
-
                 const dollarAlloc = pct * portfolioAmount;
                 const equalWeight = symbols.length > 0 ? dollarAlloc / symbols.length : 0;
 
@@ -825,7 +816,7 @@
                     '<td class="dollar-cell dollar-alloc-cell" data-pct="' + pct + '">' + formatCurrency(dollarAlloc) + '</td>' +
                     '<td class="dollar-cell equal-weight-cell" data-pct="' + pct + '" data-count="' + symbols.length + '">' +
                         (symbols.length > 0 ? formatCurrency(equalWeight) : '—') + '</td>' +
-                    '<td class="etf-list">' + escapeHtml(symStr + extra) + '</td>' +
+                    '<td class="etf-list">' + escapeHtml(symStr) + '</td>' +
                     '</tr>';
             }
 

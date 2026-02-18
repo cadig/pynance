@@ -699,14 +699,41 @@
             return '5y';
         }
 
+        async function fetchWithFallback(url) {
+            // Try direct fetch first (works if Yahoo enables CORS headers)
+            const directUrls = [
+                url,
+                url.replace('query1.finance.yahoo.com', 'query2.finance.yahoo.com')
+            ];
+            for (const directUrl of directUrls) {
+                try {
+                    const res = await fetch(directUrl);
+                    if (res.ok) return res.json();
+                } catch (e) { /* CORS blocked — try proxies */ }
+            }
+            // Fallback to CORS proxies
+            const proxies = [
+                'https://api.allorigins.win/raw?url=',
+                'https://corsproxy.io/?url='
+            ];
+            const errors = [];
+            for (const proxy of proxies) {
+                try {
+                    const res = await fetch(proxy + encodeURIComponent(url));
+                    if (res.ok) return res.json();
+                    errors.push(proxy + ': ' + res.status);
+                } catch (e) {
+                    errors.push(proxy + ': ' + e.message);
+                }
+            }
+            throw new Error('All sources failed: ' + errors.join('; '));
+        }
+
         async function fetchYahooBars(symbol) {
             const range = getYahooRange();
             const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(symbol) +
                 '?interval=' + chartTimeframe + '&range=' + range;
-            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-            const res = await fetch(proxyUrl);
-            if (!res.ok) throw new Error(res.statusText);
-            const json = await res.json();
+            const json = await fetchWithFallback(url);
             const chart = json.chart;
             if (!chart || !chart.result || !chart.result[0]) throw new Error('No chart result');
             const result = chart.result[0];
@@ -736,7 +763,7 @@
             const chart = LightweightCharts.createChart(container, {
                 autoSize: true,
                 height: 280,
-                layout: { backgroundColor: '#ffffff', textColor: '#333' },
+                layout: { background: { color: '#ffffff' }, textColor: '#333' },
                 grid: { vertLines: { color: '#f0f0f0' }, horzLines: { color: '#f0f0f0' } },
                 rightPriceScale: { borderColor: '#ccc' },
                 timeScale: { borderColor: '#ccc', timeVisible: true, secondsVisible: false }

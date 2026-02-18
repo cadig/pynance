@@ -40,8 +40,6 @@ The allocation engine runs daily in three steps:
 
 6. **Select the top 4 ETFs** from the combined rankings, with a cap of 2 per sub-module. This prevents the portfolio from, say, picking 4 US Large Cap funds and ignoring international exposure entirely.
 
-**What it doesn't do (yet):** Assign within-sleeve weights. The selected ETFs are identified and ranked, but the exact dollar allocation between them is not yet computed.
-
 ---
 
 ## Managed Futures Sleeve

@@ -240,6 +240,40 @@
         .portfolio-summary .etf-list {
             color: #555;
         }
+        .portfolio-summary .dollar-cell {
+            font-weight: 500;
+            color: #333;
+        }
+        .portfolio-summary .equal-weight-cell {
+            font-weight: 500;
+            color: #555;
+            font-size: 0.8rem;
+        }
+        .portfolio-input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            color: #555;
+        }
+        .portfolio-input-row label {
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .portfolio-input-row input[type="number"] {
+            width: 130px;
+            padding: 5px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #333;
+        }
+        .portfolio-input-row input[type="number"]:focus {
+            outline: none;
+            border-color: #1976d2;
+            box-shadow: 0 0 0 2px rgba(25,118,210,0.15);
+        }
         .llm-analysis {
             margin-bottom: 16px;
             border: 1px solid #e0e0e0;
@@ -379,6 +413,7 @@
             <h1>Allocation Engine</h1>
             <div id="daily-summary-container"></div>
             <div id="warnings-container"></div>
+            <div id="portfolio-input-container"></div>
             <div id="portfolio-summary-container"></div>
             <div id="llm-analysis-container"></div>
             <div class="chart-options">
@@ -409,6 +444,7 @@
         let chartTimeframe = '1d';
         let chartBars = 120;
         let allocationData = null;
+        let portfolioAmount = 100000;
 
         function sleeveTitle(key) {
             const titles = {
@@ -726,6 +762,37 @@
             container.innerHTML = '<div class="warnings-banner">⚠ Data warnings (' + warnings.length + '):\n' + items + '</div>';
         }
 
+        function formatCurrency(val) {
+            return '$' + Math.round(val).toLocaleString('en-US');
+        }
+
+        function renderPortfolioInput() {
+            const container = document.getElementById('portfolio-input-container');
+            container.innerHTML = '<div class="portfolio-input-row">' +
+                '<label for="portfolio-amount">Portfolio Amount:</label>' +
+                '<input type="number" id="portfolio-amount" value="' + portfolioAmount + '" min="0" step="1000">' +
+                '</div>';
+            document.getElementById('portfolio-amount').addEventListener('input', function() {
+                const val = parseFloat(this.value);
+                if (!isNaN(val) && val >= 0) {
+                    portfolioAmount = val;
+                    updatePortfolioDollars();
+                }
+            });
+        }
+
+        function updatePortfolioDollars() {
+            document.querySelectorAll('.dollar-alloc-cell').forEach(cell => {
+                const pct = parseFloat(cell.dataset.pct);
+                cell.textContent = formatCurrency(pct * portfolioAmount);
+            });
+            document.querySelectorAll('.equal-weight-cell').forEach(cell => {
+                const pct = parseFloat(cell.dataset.pct);
+                const count = parseInt(cell.dataset.count, 10);
+                cell.textContent = count > 0 ? formatCurrency((pct * portfolioAmount) / count) : '—';
+            });
+        }
+
         function renderPortfolioSummary(data) {
             const container = document.getElementById('portfolio-summary-container');
             const analyses = data.sleeve_analyses || {};
@@ -747,13 +814,21 @@
                     extra = ' [' + status + ']';
                 }
 
-                rows += '<tr><td>' + sleeveTitle(key) + '</td>' +
-                        '<td class="pct-cell">' + (pct * 100).toFixed(0) + '%</td>' +
-                        '<td class="etf-list">' + escapeHtml(symStr + extra) + '</td></tr>';
+                const dollarAlloc = pct * portfolioAmount;
+                const equalWeight = symbols.length > 0 ? dollarAlloc / symbols.length : 0;
+
+                rows += '<tr>' +
+                    '<td>' + sleeveTitle(key) + '</td>' +
+                    '<td class="pct-cell">' + (pct * 100).toFixed(0) + '%</td>' +
+                    '<td class="dollar-cell dollar-alloc-cell" data-pct="' + pct + '">' + formatCurrency(dollarAlloc) + '</td>' +
+                    '<td class="dollar-cell equal-weight-cell" data-pct="' + pct + '" data-count="' + symbols.length + '">' +
+                        (symbols.length > 0 ? formatCurrency(equalWeight) : '—') + '</td>' +
+                    '<td class="etf-list">' + escapeHtml(symStr + extra) + '</td>' +
+                    '</tr>';
             }
 
             container.innerHTML = '<div class="portfolio-summary"><table>' +
-                '<tr><th>Sleeve</th><th>Alloc</th><th>Selected ETFs</th></tr>' +
+                '<tr><th>Sleeve</th><th>Alloc</th><th>$ Allocated</th><th>Equal Weight</th><th>Selected ETFs</th></tr>' +
                 rows + '</table></div>';
         }
 
@@ -816,6 +891,7 @@
                 renderSidebar(data);
                 renderDailySummary(data);
                 renderWarnings(data);
+                renderPortfolioInput();
                 renderPortfolioSummary(data);
                 renderLlmAnalysis(data);
                 buildSleeveAccordions(data);

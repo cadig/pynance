@@ -26,6 +26,7 @@ if __name__ == "__main__":
     from allocation.sleeves import managed_futures
     from allocation.sleeves import vol_hedges
     from allocation.sleeves import fixed_income
+    from allocation.portfolio_analytics import compute_portfolio_analytics
 else:
     # Relative imports for module execution
     from .regime_allocator import get_allocation_summary
@@ -39,6 +40,7 @@ else:
     from .sleeves import managed_futures
     from .sleeves import vol_hedges
     from .sleeves import fixed_income
+    from .portfolio_analytics import compute_portfolio_analytics
 
 
 SKIP_LLM = False
@@ -175,6 +177,18 @@ def run_allocation_analysis() -> Dict:
             alloc = sleeve_result.get('allocation_percentage', 0)
             if alloc > 0:
                 warnings.append(f"{sleeve_name}: 0 ETFs selected despite {alloc:.0%} allocation")
+
+    # Portfolio-level analytics (correlation, stress correlation, drawdowns)
+    try:
+        analytics = compute_portfolio_analytics(
+            results['sleeve_analyses'],
+            allocation_percentages,
+            data_dir
+        )
+        if analytics:
+            results['portfolio_analytics'] = analytics
+    except Exception as e:
+        logging.warning(f"Portfolio analytics failed: {e}")
 
     # LLM regime analysis (runs after all sleeves so it can see full picture)
     if not SKIP_LLM:

@@ -349,6 +349,178 @@
             font-size: 0.9rem;
         }
         .back-link:hover { text-decoration: underline; }
+        /* Portfolio Analytics */
+        .analytics-section {
+            margin-bottom: 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fff;
+            overflow: hidden;
+        }
+        .analytics-header {
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #333;
+            background: #e8eaf6;
+            border: none;
+            width: 100%;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .analytics-header:hover { background: #c5cae9; }
+        .analytics-header .chevron {
+            font-size: 0.7rem;
+            color: #666;
+            transition: transform 0.2s ease;
+        }
+        .analytics-section.expanded .analytics-header .chevron {
+            transform: rotate(90deg);
+        }
+        .analytics-body {
+            display: none;
+            padding: 16px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .analytics-section.expanded .analytics-body { display: block; }
+        .analytics-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 14px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .analytics-tab {
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #666;
+            background: none;
+            border: none;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+        .analytics-tab:hover { color: #333; }
+        .analytics-tab.active {
+            color: #1976d2;
+            border-bottom-color: #1976d2;
+        }
+        .analytics-panel { display: none; }
+        .analytics-panel.active { display: block; }
+        .heatmap-grid {
+            display: inline-grid;
+            gap: 1px;
+            font-size: 0.7rem;
+            line-height: 1;
+        }
+        .heatmap-cell {
+            width: 48px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.68rem;
+            font-weight: 500;
+            border-radius: 2px;
+        }
+        .heatmap-label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 4px;
+        }
+        .heatmap-col-label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.65rem;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            writing-mode: vertical-lr;
+            transform: rotate(180deg);
+            height: 60px;
+        }
+        .heatmap-corner { }
+        .worst-days-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        .worst-days-table th {
+            background: #fafafa;
+            padding: 6px 8px;
+            text-align: center;
+            font-weight: 600;
+            color: #666;
+            font-size: 0.7rem;
+            border-bottom: 1px solid #e0e0e0;
+            position: sticky;
+            top: 0;
+        }
+        .worst-days-table td {
+            padding: 5px 8px;
+            text-align: center;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.72rem;
+        }
+        .worst-days-table tr:last-child td { border-bottom: none; }
+        .drawdown-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 600px;
+        }
+        .dd-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.8rem;
+        }
+        .dd-label {
+            width: 120px;
+            font-weight: 600;
+            color: #333;
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .dd-bar-track {
+            flex: 1;
+            height: 20px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        .dd-bar {
+            height: 100%;
+            border-radius: 4px;
+            position: absolute;
+            right: 0;
+        }
+        .dd-bar.yr { background: #ffcdd2; }
+        .dd-bar.mo { background: #ef5350; }
+        .dd-bar.current {
+            background: none;
+            border-right: 3px solid #333;
+            height: 100%;
+        }
+        .dd-value {
+            width: 60px;
+            font-size: 0.75rem;
+            color: #666;
+            flex-shrink: 0;
+        }
+        .analytics-note {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 8px;
+        }
         .chart-options {
             display: flex;
             align-items: center;
@@ -416,6 +588,7 @@
             <div id="portfolio-input-container"></div>
             <div id="portfolio-summary-container"></div>
             <div id="llm-analysis-container"></div>
+            <div id="portfolio-analytics-container"></div>
             <div class="chart-options">
                 <span class="chart-options-label">Timeframe:</span>
                 <div class="chart-options-group" id="timeframe-btns">
@@ -875,6 +1048,284 @@
             return div.innerHTML;
         }
 
+        function corrColor(val) {
+            // Blue (-1) → White (0) → Red (+1)
+            if (val == null || isNaN(val)) return '#f5f5f5';
+            const clamped = Math.max(-1, Math.min(1, val));
+            if (clamped >= 0) {
+                const r = 255;
+                const g = Math.round(255 - clamped * 120);
+                const b = Math.round(255 - clamped * 120);
+                return `rgb(${r},${g},${b})`;
+            } else {
+                const amt = -clamped;
+                const r = Math.round(255 - amt * 120);
+                const g = Math.round(255 - amt * 80);
+                const b = 255;
+                return `rgb(${r},${g},${b})`;
+            }
+        }
+
+        function returnColor(val) {
+            if (val == null || isNaN(val)) return '#f5f5f5';
+            if (val > 0) {
+                const intensity = Math.min(val / 0.03, 1);
+                const g = Math.round(200 + intensity * 55);
+                const r = Math.round(255 - intensity * 80);
+                return `rgb(${r},${g},${r})`;
+            } else {
+                const intensity = Math.min(-val / 0.03, 1);
+                const r = Math.round(200 + intensity * 55);
+                const g = Math.round(255 - intensity * 100);
+                return `rgb(${r},${g},${g})`;
+            }
+        }
+
+        function buildHeatmap(symbols, matrix, sleeveLabels) {
+            const n = symbols.length;
+            const grid = document.createElement('div');
+            grid.className = 'heatmap-grid';
+            grid.style.gridTemplateColumns = '64px ' + 'repeat(' + n + ', 48px)';
+            grid.style.gridTemplateRows = '60px ' + 'repeat(' + n + ', 28px)';
+
+            // Corner cell
+            const corner = document.createElement('div');
+            corner.className = 'heatmap-corner';
+            grid.appendChild(corner);
+
+            // Column headers
+            for (let j = 0; j < n; j++) {
+                const colLabel = document.createElement('div');
+                colLabel.className = 'heatmap-col-label';
+                colLabel.textContent = symbols[j];
+                grid.appendChild(colLabel);
+            }
+
+            // Rows
+            for (let i = 0; i < n; i++) {
+                const rowLabel = document.createElement('div');
+                rowLabel.className = 'heatmap-label';
+                rowLabel.textContent = symbols[i];
+                grid.appendChild(rowLabel);
+
+                for (let j = 0; j < n; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'heatmap-cell';
+                    const val = matrix[i][j];
+                    cell.textContent = val != null ? val.toFixed(2) : '';
+                    cell.style.background = corrColor(val);
+                    cell.style.color = Math.abs(val) > 0.6 ? '#fff' : '#333';
+                    cell.title = symbols[i] + ' / ' + symbols[j] + ': ' + (val != null ? val.toFixed(3) : 'N/A');
+                    grid.appendChild(cell);
+                }
+            }
+            return grid;
+        }
+
+        function buildWorstDaysTable(worstDays, symbols) {
+            if (!worstDays || worstDays.length === 0) return null;
+            let html = '<div style="max-height:320px;overflow:auto"><table class="worst-days-table"><tr><th>Date</th><th>Portfolio</th>';
+            for (const sym of symbols) {
+                html += '<th>' + escapeHtml(sym) + '</th>';
+            }
+            html += '</tr>';
+            for (const day of worstDays) {
+                html += '<tr><td style="font-weight:600;white-space:nowrap">' + escapeHtml(day.date) + '</td>';
+                const pRet = day.portfolio_return;
+                html += '<td style="background:' + returnColor(pRet) + ';font-weight:600">' + (pRet * 100).toFixed(2) + '%</td>';
+                for (const sym of symbols) {
+                    const val = day.returns[sym];
+                    if (val != null) {
+                        html += '<td style="background:' + returnColor(val) + '">' + (val * 100).toFixed(2) + '%</td>';
+                    } else {
+                        html += '<td>—</td>';
+                    }
+                }
+                html += '</tr>';
+            }
+            html += '</table></div>';
+            return html;
+        }
+
+        function buildDrawdownBars(drawdowns) {
+            if (!drawdowns) return null;
+            const bySleeve = drawdowns.by_sleeve || {};
+            const portfolio = drawdowns.portfolio;
+            const entries = [];
+            for (const [name, dd] of Object.entries(bySleeve)) {
+                entries.push({ label: sleeveTitle(name), dd: dd, isPortfolio: false });
+            }
+            if (portfolio) {
+                entries.push({ label: 'Portfolio', dd: portfolio, isPortfolio: true });
+            }
+            if (entries.length === 0) return null;
+
+            const maxDd = Math.max(...entries.map(e => Math.abs(e.dd.max_drawdown_1yr || e.dd.max_drawdown_6mo || 0)));
+            const scale = maxDd > 0 ? maxDd : 0.1;
+
+            let html = '<div class="drawdown-bars">';
+            for (const entry of entries) {
+                const dd = entry.dd;
+                const yr = Math.abs(dd.max_drawdown_1yr || 0);
+                const mo = Math.abs(dd.max_drawdown_6mo || 0);
+                const cur = Math.abs(dd.current_drawdown || 0);
+                const yrPct = (yr / scale * 100).toFixed(1);
+                const moPct = (mo / scale * 100).toFixed(1);
+                const curPct = (cur / scale * 100).toFixed(1);
+                const labelStyle = entry.isPortfolio ? 'color:#1976d2' : '';
+                html += '<div class="dd-row">' +
+                    '<div class="dd-label" style="' + labelStyle + '">' + escapeHtml(entry.label) + '</div>' +
+                    '<div class="dd-bar-track">' +
+                    '<div class="dd-bar yr" style="width:' + yrPct + '%"></div>' +
+                    '<div class="dd-bar mo" style="width:' + moPct + '%"></div>' +
+                    (cur > 0 ? '<div class="dd-bar current" style="width:' + curPct + '%"></div>' : '') +
+                    '</div>' +
+                    '<div class="dd-value">' + (dd.max_drawdown_1yr != null ? (dd.max_drawdown_1yr * 100).toFixed(1) + '%' : '—') + '</div>' +
+                    '</div>';
+            }
+            html += '</div>';
+            html += '<div class="analytics-note" style="margin-top:10px">' +
+                '<span style="display:inline-block;width:12px;height:12px;background:#ffcdd2;border-radius:2px;vertical-align:middle;margin-right:4px"></span> 1yr max ' +
+                '<span style="display:inline-block;width:12px;height:12px;background:#ef5350;border-radius:2px;vertical-align:middle;margin-right:4px;margin-left:12px"></span> 6mo max ' +
+                '<span style="display:inline-block;width:12px;height:3px;background:#333;vertical-align:middle;margin-right:4px;margin-left:12px"></span> Current</div>';
+
+            // Details table below the bars
+            html += '<table class="worst-days-table" style="margin-top:12px;max-width:600px"><tr><th>Sleeve</th><th>6mo Max DD</th><th>1yr Max DD</th><th>Current DD</th><th>Recovery Days</th></tr>';
+            for (const entry of entries) {
+                const dd = entry.dd;
+                const style = entry.isPortfolio ? ' style="font-weight:700"' : '';
+                html += '<tr' + style + '><td style="text-align:left;font-weight:600">' + escapeHtml(entry.label) + '</td>' +
+                    '<td>' + (dd.max_drawdown_6mo != null ? (dd.max_drawdown_6mo * 100).toFixed(1) + '%' : '—') + '</td>' +
+                    '<td>' + (dd.max_drawdown_1yr != null ? (dd.max_drawdown_1yr * 100).toFixed(1) + '%' : '—') + '</td>' +
+                    '<td>' + (dd.current_drawdown != null ? (dd.current_drawdown * 100).toFixed(1) + '%' : '—') + '</td>' +
+                    '<td>' + (dd.recovery_days != null ? dd.recovery_days + 'd' : 'ongoing') + '</td>' +
+                    '</tr>';
+            }
+            html += '</table>';
+
+            return html;
+        }
+
+        function renderPortfolioAnalytics(data) {
+            const container = document.getElementById('portfolio-analytics-container');
+            const analytics = data.portfolio_analytics;
+            if (!analytics) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'analytics-section';
+
+            const header = document.createElement('button');
+            header.type = 'button';
+            header.className = 'analytics-header';
+            header.innerHTML = '<span>Portfolio Analytics</span><span class="chevron">▶</span>';
+
+            const body = document.createElement('div');
+            body.className = 'analytics-body';
+
+            // Build tabs
+            const tabs = [];
+            const panels = [];
+
+            if (analytics.correlation) {
+                tabs.push({ id: 'corr', label: 'Correlation' });
+                const panel = document.createElement('div');
+                panel.className = 'analytics-panel';
+                panel.id = 'panel-corr';
+                const note = document.createElement('div');
+                note.className = 'analytics-note';
+                note.textContent = analytics.correlation.lookback_days + '-day rolling Pearson correlation across all selected ETFs.';
+                panel.appendChild(note);
+                panel.appendChild(buildHeatmap(
+                    analytics.correlation.symbols,
+                    analytics.correlation.matrix,
+                    analytics.correlation.sleeve_labels
+                ));
+                panels.push(panel);
+            }
+
+            if (analytics.stress_correlation) {
+                const sc = analytics.stress_correlation;
+                tabs.push({ id: 'stress', label: 'Stress Correlation' });
+                const panel = document.createElement('div');
+                panel.className = 'analytics-panel';
+                panel.id = 'panel-stress';
+                const note = document.createElement('div');
+                note.className = 'analytics-note';
+                note.textContent = 'Correlation on the ' + sc.n_worst_days + ' worst portfolio days (threshold: ' +
+                    (sc.threshold_return * 100).toFixed(2) + '%) over ' + sc.lookback_days + ' trading days.';
+                panel.appendChild(note);
+                panel.appendChild(buildHeatmap(sc.symbols, sc.matrix, []));
+
+                // Worst days table
+                const wdHtml = buildWorstDaysTable(sc.worst_days, sc.symbols);
+                if (wdHtml) {
+                    const wdTitle = document.createElement('h4');
+                    wdTitle.style.cssText = 'margin:16px 0 8px;font-size:0.82rem;color:#333';
+                    wdTitle.textContent = 'Worst Day Decomposition';
+                    panel.appendChild(wdTitle);
+                    const wdDiv = document.createElement('div');
+                    wdDiv.innerHTML = wdHtml;
+                    panel.appendChild(wdDiv);
+                }
+                panels.push(panel);
+            }
+
+            if (analytics.drawdowns) {
+                tabs.push({ id: 'dd', label: 'Drawdowns' });
+                const panel = document.createElement('div');
+                panel.className = 'analytics-panel';
+                panel.id = 'panel-dd';
+                const ddHtml = buildDrawdownBars(analytics.drawdowns);
+                if (ddHtml) {
+                    panel.innerHTML = ddHtml;
+                }
+                panels.push(panel);
+            }
+
+            if (tabs.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            // Render tabs
+            const tabBar = document.createElement('div');
+            tabBar.className = 'analytics-tabs';
+            tabs.forEach((t, i) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'analytics-tab' + (i === 0 ? ' active' : '');
+                btn.textContent = t.label;
+                btn.dataset.panel = 'panel-' + t.id;
+                btn.addEventListener('click', function() {
+                    tabBar.querySelectorAll('.analytics-tab').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    panels.forEach(p => p.classList.remove('active'));
+                    const target = body.querySelector('#' + this.dataset.panel);
+                    if (target) target.classList.add('active');
+                });
+                tabBar.appendChild(btn);
+            });
+
+            body.appendChild(tabBar);
+            panels.forEach((p, i) => {
+                if (i === 0) p.classList.add('active');
+                body.appendChild(p);
+            });
+
+            wrapper.appendChild(header);
+            wrapper.appendChild(body);
+
+            header.addEventListener('click', function() {
+                wrapper.classList.toggle('expanded');
+            });
+
+            container.innerHTML = '';
+            container.appendChild(wrapper);
+        }
+
         async function loadAllocationAndCharts() {
             try {
                 const res = await fetch('allocation-results.json');
@@ -887,6 +1338,7 @@
                 renderPortfolioInput();
                 renderPortfolioSummary(data);
                 renderLlmAnalysis(data);
+                renderPortfolioAnalytics(data);
                 buildSleeveAccordions(data);
             } catch (err) {
                 SIDEBAR.innerHTML = '<div class="error">Failed to load allocation-results.json: ' + err.message + '</div>';

@@ -49,6 +49,23 @@ def _collect_selected_symbols(sleeve_analyses: Dict) -> Dict[str, str]:
     return symbol_sleeve
 
 
+# Canonical sleeve display order for grouping
+_SLEEVE_ORDER = ['equity', 'managed_futures', 'commodities', 'fixed_income', 'crypto', 'vol_hedges']
+
+
+def _symbols_grouped_by_sleeve(symbol_sleeve: Dict[str, str]) -> List[str]:
+    """
+    Return symbols ordered by sleeve group (using _SLEEVE_ORDER), then
+    alphabetically within each sleeve. This ensures the heatmap and tables
+    show same-sleeve tickers adjacent to each other.
+    """
+    sleeve_rank = {s: i for i, s in enumerate(_SLEEVE_ORDER)}
+    return sorted(
+        symbol_sleeve.keys(),
+        key=lambda sym: (sleeve_rank.get(symbol_sleeve[sym], 999), sym)
+    )
+
+
 def _load_returns_matrix(symbols: List[str], data_dir: Path, lookback: int) -> Optional[pd.DataFrame]:
     """
     Load daily returns for a list of symbols over the given lookback period.
@@ -101,7 +118,7 @@ def compute_correlation_matrix(
     if len(symbol_sleeve) < 2:
         return None
 
-    symbols = sorted(symbol_sleeve.keys())
+    symbols = _symbols_grouped_by_sleeve(symbol_sleeve)
     returns = _load_returns_matrix(symbols, data_dir, lookback)
     if returns is None:
         return None
@@ -154,7 +171,7 @@ def compute_stress_correlation(
     if len(symbol_sleeve) < 2:
         return None
 
-    symbols = sorted(symbol_sleeve.keys())
+    symbols = _symbols_grouped_by_sleeve(symbol_sleeve)
     returns = _load_returns_matrix(symbols, data_dir, lookback)
     if returns is None:
         return None
@@ -287,7 +304,7 @@ def compute_sleeve_drawdowns(
     if not symbol_sleeve:
         return None
 
-    symbols = sorted(symbol_sleeve.keys())
+    symbols = _symbols_grouped_by_sleeve(symbol_sleeve)
     returns = _load_returns_matrix(symbols, data_dir, lookback)
     if returns is None:
         return None
@@ -358,7 +375,7 @@ def compute_portfolio_analytics(
         logging.info("portfolio_analytics: fewer than 2 ETFs selected, skipping analytics")
         return None
 
-    logging.info(f"portfolio_analytics: computing analytics for {len(symbol_sleeve)} ETFs: {sorted(symbol_sleeve.keys())}")
+    logging.info(f"portfolio_analytics: computing analytics for {len(symbol_sleeve)} ETFs: {_symbols_grouped_by_sleeve(symbol_sleeve)}")
 
     result = {}
 

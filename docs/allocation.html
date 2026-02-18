@@ -744,10 +744,12 @@
             let cls = 'first-run';
             if (summary.includes('NO ACTION TODAY')) cls = 'no-action';
             else if (summary.includes('ACTION REQUIRED')) cls = 'action-required';
-            // Strip the regime line (first line) — that info is already in the sidebar
+            // Strip the regime line — already shown in the sidebar
+            // Strip the warnings block — already shown in the warnings banner below
             const lines = summary.split('\n');
             const filtered = lines.filter(l => !l.match(/^Regime:\s/));
-            const cleanSummary = filtered.join('\n').replace(/^\n+/, '');
+            let cleanSummary = filtered.join('\n').replace(/^\n+/, '');
+            cleanSummary = cleanSummary.replace(/\n+Warnings \(\d+\):[\s\S]*$/, '').trimEnd();
             container.innerHTML = '<div class="daily-summary ' + cls + '">' + escapeHtml(cleanSummary) + '</div>';
         }
 

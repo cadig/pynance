@@ -210,12 +210,25 @@ def run_allocation_analysis() -> Dict:
     else:
         results['llm_analysis'] = {'skipped': True, 'reason': '--no-llm flag'}
 
-    # Staleness flag for dashboard rendering
-    if stale_regime_data:
-        results['_stale_regime'] = {
-            'stale': True,
-            'age_hours': regime_data_age_hours
-        }
+    # Build provenance metadata
+    llm_success = not (results.get('llm_analysis', {}).get('skipped', False))
+    llm_skip_reason = results.get('llm_analysis', {}).get('reason') if not llm_success else None
+
+    metadata = {
+        'pipeline_version': '1.0',
+        'regime_data_age_hours': regime_data_age_hours,
+        'stale_regime_data': stale_regime_data,
+        'sleeves_with_etfs': sum(
+            1 for s in results.get('sleeve_analyses', {}).values()
+            if isinstance(s.get('selected_etfs'), list) and len(s['selected_etfs']) > 0
+        ),
+        'total_warnings': len(warnings),
+        'llm_analysis_success': llm_success,
+    }
+    if llm_skip_reason:
+        metadata['llm_skip_reason'] = llm_skip_reason
+
+    results['_metadata'] = metadata
 
     logging.info("Allocation analysis completed successfully")
 

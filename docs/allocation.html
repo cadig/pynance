@@ -1015,8 +1015,9 @@
             const container = document.getElementById('stale-data-container');
             const meta = data._metadata;
             if (meta && meta.stale_regime_data) {
+                const ageHours = meta.regime_data_age_hours != null ? Math.round(meta.regime_data_age_hours) : '?';
                 container.innerHTML = '<div class="stale-data-banner">Regime data is stale (' +
-                    Math.round(meta.regime_data_age_hours) + 'h old). Allocations may not reflect current market conditions.</div>';
+                    ageHours + 'h old). Allocations may not reflect current market conditions.</div>';
                 return;
             }
             container.innerHTML = '';

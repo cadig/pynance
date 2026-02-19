@@ -47,6 +47,52 @@ jobs:
         TRADINGVIEW_PASSWORD: ${{ secrets.TRADINGVIEW_PASSWORD }}
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
+    - name: Validate output before deploy
+      run: |
+        echo "Validating allocation-results.json..."
+        FILE="docs/allocation-results.json"
+
+        # Check file exists
+        if [ ! -f "$FILE" ]; then
+          echo "FATAL: $FILE does not exist"
+          exit 1
+        fi
+
+        # Check valid JSON with required top-level keys
+        python3 -c "
+        import json, sys
+        from datetime import datetime, timedelta
+
+        with open('$FILE') as f:
+            data = json.load(f)
+
+        required = ['regime', 'allocation_percentages', 'sleeve_analyses']
+        missing = [k for k in required if k not in data]
+        if missing:
+            print(f'FATAL: Missing required keys: {missing}')
+            sys.exit(1)
+
+        # Check datetime is from today
+        dt_str = data.get('datetime', '')
+        if not dt_str:
+            print('FATAL: No datetime field in output')
+            sys.exit(1)
+        dt = datetime.fromisoformat(dt_str)
+        if (datetime.now() - dt) > timedelta(hours=6):
+            print(f'FATAL: Output datetime is stale: {dt_str}')
+            sys.exit(1)
+
+        # Check at least 3 sleeves have selected ETFs
+        sleeves = data.get('sleeve_analyses', {})
+        active = sum(1 for s in sleeves.values()
+                     if isinstance(s.get('selected_etfs'), list) and len(s['selected_etfs']) > 0)
+        if active < 3:
+            print(f'FATAL: Only {active} sleeves have selected ETFs (need >= 3)')
+            sys.exit(1)
+
+        print(f'Validation passed: {len(sleeves)} sleeves, {active} active, datetime={dt_str}')
+        "
+
     - name: Prepare data cache for deploy
       run: |
         mkdir -p docs/data-cache

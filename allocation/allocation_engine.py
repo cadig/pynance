@@ -46,15 +46,17 @@ else:
 SKIP_LLM = False
 
 
-def validate_data_quality(regime_data: Dict, data_dir: Path) -> List[str]:
+def validate_data_quality(regime_data: Dict, data_dir: Path) -> tuple:
     """
-    Check input data quality and return a list of warning strings.
+    Check input data quality and return (warnings, regime_data_age_hours, stale_regime_data).
 
     Checks:
     - Regime JSON has a datetime and it's from today (or at most 1 day old on weekends)
     - Key regime fields are present
     """
     warnings = []
+    regime_data_age_hours = None
+    stale_regime_data = False
 
     # Check regime data freshness
     regime_dt_str = regime_data.get('datetime')
@@ -63,9 +65,14 @@ def validate_data_quality(regime_data: Dict, data_dir: Path) -> List[str]:
     else:
         try:
             regime_dt = datetime.fromisoformat(regime_dt_str)
-            days_old = (datetime.now() - regime_dt).days
+            age = datetime.now() - regime_dt
+            regime_data_age_hours = round(age.total_seconds() / 3600, 1)
+            days_old = age.days
             if days_old > 3:
                 warnings.append(f"Regime data is {days_old} days old (from {regime_dt_str})")
+            # Flag stale on weekdays (Mon=0..Fri=4) if >3 days old
+            if days_old > 3 and datetime.now().weekday() < 5:
+                stale_regime_data = True
         except (ValueError, TypeError):
             warnings.append(f"Regime data has unparseable datetime: {regime_dt_str}")
 
@@ -79,7 +86,7 @@ def validate_data_quality(regime_data: Dict, data_dir: Path) -> List[str]:
     if not vix_path.exists():
         warnings.append("VIX.csv not found in data directory")
 
-    return warnings
+    return warnings, regime_data_age_hours, stale_regime_data
 
 
 def run_allocation_analysis() -> Dict:
@@ -105,9 +112,11 @@ def run_allocation_analysis() -> Dict:
     data_dir = get_data_dir()
 
     # Validate input data quality
-    warnings = validate_data_quality(regime_data, data_dir)
+    warnings, regime_data_age_hours, stale_regime_data = validate_data_quality(regime_data, data_dir)
     for w in warnings:
         logging.warning(f"Data quality: {w}")
+    if stale_regime_data:
+        logging.warning("Regime data is stale — output will be flagged")
 
     # Initialize results structure
     results = {
@@ -200,6 +209,26 @@ def run_allocation_analysis() -> Dict:
             results['llm_analysis'] = {'skipped': True, 'reason': str(e)}
     else:
         results['llm_analysis'] = {'skipped': True, 'reason': '--no-llm flag'}
+
+    # Build provenance metadata
+    llm_success = not (results.get('llm_analysis', {}).get('skipped', False))
+    llm_skip_reason = results.get('llm_analysis', {}).get('reason') if not llm_success else None
+
+    metadata = {
+        'pipeline_version': '1.0',
+        'regime_data_age_hours': regime_data_age_hours,
+        'stale_regime_data': stale_regime_data,
+        'sleeves_with_etfs': sum(
+            1 for s in results.get('sleeve_analyses', {}).values()
+            if isinstance(s.get('selected_etfs'), list) and len(s['selected_etfs']) > 0
+        ),
+        'total_warnings': len(warnings),
+        'llm_analysis_success': llm_success,
+    }
+    if llm_skip_reason:
+        metadata['llm_skip_reason'] = llm_skip_reason
+
+    results['_metadata'] = metadata
 
     logging.info("Allocation analysis completed successfully")
 

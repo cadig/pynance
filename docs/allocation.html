@@ -349,6 +349,32 @@
             font-size: 0.9rem;
         }
         .back-link:hover { text-decoration: underline; }
+        .data-freshness {
+            font-size: 0.78rem;
+            padding: 6px 10px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            display: inline-block;
+        }
+        .data-freshness.fresh {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .data-freshness.stale {
+            background: #ffebee;
+            color: #c62828;
+            font-weight: 600;
+        }
+        .stale-data-banner {
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            font-size: 0.82rem;
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+            font-weight: 600;
+        }
         /* Portfolio Analytics */
         .analytics-section {
             margin-bottom: 16px;
@@ -583,6 +609,8 @@
         <main class="main">
             <a href="index.html" class="back-link">← Back to SPX Regime</a>
             <h1>Allocation Engine</h1>
+            <div id="data-freshness-container"></div>
+            <div id="stale-data-container"></div>
             <div id="daily-summary-container"></div>
             <div id="warnings-container"></div>
             <div id="portfolio-input-container"></div>
@@ -961,6 +989,37 @@
             }
             const items = warnings.map(w => '  - ' + escapeHtml(w)).join('\n');
             container.innerHTML = '<div class="warnings-banner">⚠ Data warnings (' + warnings.length + '):\n' + items + '</div>';
+        }
+
+        function renderDataFreshness(data) {
+            const container = document.getElementById('data-freshness-container');
+            const dtStr = data.datetime;
+            if (!dtStr) {
+                container.innerHTML = '<div class="data-freshness stale">Data as of: Unknown</div>';
+                return;
+            }
+            const dt = new Date(dtStr);
+            const now = new Date();
+            const hoursOld = (now - dt) / (1000 * 60 * 60);
+            const isStale = hoursOld > 24;
+            const cls = isStale ? 'stale' : 'fresh';
+            const label = dt.toLocaleString('en-US', {
+                month: 'short', day: 'numeric', year: 'numeric',
+                hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
+            });
+            const age = isStale ? ' (' + Math.floor(hoursOld) + 'h ago)' : '';
+            container.innerHTML = '<div class="data-freshness ' + cls + '">Data as of: ' + label + age + '</div>';
+        }
+
+        function renderStaleDataBanner(data) {
+            const container = document.getElementById('stale-data-container');
+            const meta = data._metadata;
+            if (meta && meta.stale_regime_data) {
+                container.innerHTML = '<div class="stale-data-banner">Regime data is stale (' +
+                    Math.round(meta.regime_data_age_hours) + 'h old). Allocations may not reflect current market conditions.</div>';
+                return;
+            }
+            container.innerHTML = '';
         }
 
         function formatCurrency(val) {
@@ -1359,6 +1418,8 @@
                 if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
                 const data = await res.json();
                 allocationData = data;
+                renderDataFreshness(data);
+                renderStaleDataBanner(data);
                 renderSidebar(data);
                 renderDailySummary(data);
                 renderWarnings(data);

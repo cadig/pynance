@@ -645,6 +645,7 @@
         let chartTimeframe = '1d';
         let chartBars = 120;
         let allocationData = null;
+        let chartData = null;
         let portfolioAmount = 100000;
 
         function sleeveTitle(key) {
@@ -707,82 +708,10 @@
             `;
         }
 
-        function formatTime(ts) {
-            const d = new Date(ts * 1000);
-            const y = d.getUTCFullYear();
-            const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-            const day = String(d.getUTCDate()).padStart(2, '0');
-            return `${y}-${m}-${day}`;
-        }
-
-        function getYahooRange() {
-            if (chartTimeframe === '1d') {
-                if (chartBars <= 30) return '40d';
-                if (chartBars <= 90) return '100d';
-                if (chartBars <= 120) return '120d';
-                return '1y';
-            }
-            if (chartBars <= 30) return '1y';
-            if (chartBars <= 120) return '2y';
-            return '5y';
-        }
-
-        async function fetchWithFallback(url) {
-            // Try direct fetch first (works if Yahoo enables CORS headers)
-            const directUrls = [
-                url,
-                url.replace('query1.finance.yahoo.com', 'query2.finance.yahoo.com')
-            ];
-            for (const directUrl of directUrls) {
-                try {
-                    const res = await fetch(directUrl);
-                    if (res.ok) return res.json();
-                } catch (e) { /* CORS blocked — try proxies */ }
-            }
-            // Fallback to CORS proxies
-            const proxies = [
-                'https://api.allorigins.win/raw?url=',
-                'https://corsproxy.io/?url='
-            ];
-            const errors = [];
-            for (const proxy of proxies) {
-                try {
-                    const res = await fetch(proxy + encodeURIComponent(url));
-                    if (res.ok) return res.json();
-                    errors.push(proxy + ': ' + res.status);
-                } catch (e) {
-                    errors.push(proxy + ': ' + e.message);
-                }
-            }
-            throw new Error('All sources failed: ' + errors.join('; '));
-        }
-
-        async function fetchYahooBars(symbol) {
-            const range = getYahooRange();
-            const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(symbol) +
-                '?interval=' + chartTimeframe + '&range=' + range;
-            const json = await fetchWithFallback(url);
-            const chart = json.chart;
-            if (!chart || !chart.result || !chart.result[0]) throw new Error('No chart result');
-            const result = chart.result[0];
-            const timestamps = result.timestamp || [];
-            const quote = (result.indicators && result.indicators.quote && result.indicators.quote[0]) || {};
-            const o = quote.open || [];
-            const h = quote.high || [];
-            const l = quote.low || [];
-            const c = quote.close || [];
-            const bars = [];
-            for (let i = 0; i < timestamps.length; i++) {
-                const open = o[i], high = h[i], low = l[i], close = c[i];
-                if (open == null || high == null || low == null || close == null) continue;
-                bars.push({
-                    time: formatTime(timestamps[i]),
-                    open: open,
-                    high: high,
-                    low: low,
-                    close: close
-                });
-            }
+        function getChartBars(symbol) {
+            if (!chartData) return [];
+            const tfKey = chartTimeframe === '1wk' ? 'weekly' : 'daily';
+            const bars = (chartData[tfKey] || {})[symbol] || [];
             return bars.slice(-chartBars);
         }
 
@@ -826,27 +755,11 @@
             return blocks;
         }
 
-        function setOptionsDisabled(disabled) {
-            document.querySelectorAll('#timeframe-btns .btn, #bars-btns .btn').forEach(btn => {
-                btn.disabled = disabled;
-            });
-        }
-
-        async function refetchVisibleCharts() {
+        function refetchVisibleCharts() {
             const visible = getVisibleChartBlocks();
-            if (visible.length === 0) return;
-            setOptionsDisabled(true);
-            try {
-                await Promise.all(visible.map(async ({ container, symbol }) => {
-                    try {
-                        const bars = await fetchYahooBars(symbol);
-                        setChartData(container, bars);
-                    } catch (err) {
-                        console.error('Refetch failed for ' + symbol, err);
-                    }
-                }));
-            } finally {
-                setOptionsDisabled(false);
+            for (const { container, symbol } of visible) {
+                const bars = getChartBars(symbol);
+                setChartData(container, bars);
             }
         }
 
@@ -908,14 +821,13 @@
             }
         }
 
-        async function loadSleeveCharts(tickers, bodyEl) {
+        function loadSleeveCharts(tickers, bodyEl) {
             if (tickers.length === 0) {
                 bodyEl.innerHTML = '<p class="loading">No ETFs selected for this sleeve.</p>';
                 bodyEl.dataset.loaded = '1';
                 return;
             }
 
-            bodyEl.innerHTML = '<div class="loading">Loading charts…</div>';
             const row = document.createElement('div');
             row.className = 'charts-row';
             bodyEl.innerHTML = '';
@@ -929,11 +841,11 @@
                 row.appendChild(block);
                 const chartDiv = block.querySelector('.chart-container');
 
-                try {
-                    const bars = await fetchYahooBars(symbol);
+                const bars = getChartBars(symbol);
+                if (bars.length > 0) {
                     createBarChart(chartDiv, symbol, bars);
-                } catch (err) {
-                    block.innerHTML = '<h3>' + symbol + '</h3><div class="error">Could not load chart: ' + err.message + '</div>';
+                } else {
+                    block.innerHTML = '<h3>' + symbol + '</h3><div class="error">No chart data available</div>';
                 }
             }
 
@@ -1415,10 +1327,16 @@
 
         async function loadAllocationAndCharts() {
             try {
-                const res = await fetch('allocation-results.json');
+                const [res, chartRes] = await Promise.all([
+                    fetch('allocation-results.json'),
+                    fetch('chart-data.json').catch(() => null)
+                ]);
                 if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
                 const data = await res.json();
                 allocationData = data;
+                if (chartRes && chartRes.ok) {
+                    chartData = await chartRes.json();
+                }
                 renderDataFreshness(data);
                 renderStaleDataBanner(data);
                 renderSidebar(data);

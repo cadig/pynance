@@ -17,7 +17,7 @@ if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from allocation.regime_allocator import get_allocation_summary
     from allocation.config import SLEEVE_CONFIG, OUTPUT_CONFIG
-    from allocation.utils import get_data_dir, get_docs_dir, save_results, archive_results, load_spx_regime_data
+    from allocation.utils import get_data_dir, get_docs_dir, save_results, archive_results, load_spx_regime_data, save_chart_data
     from allocation.rebalance import run_rebalance_check
     from allocation.llm_regime import run_llm_regime_analysis
     from allocation.sleeves import equity
@@ -31,7 +31,7 @@ else:
     # Relative imports for module execution
     from .regime_allocator import get_allocation_summary
     from .config import SLEEVE_CONFIG, OUTPUT_CONFIG
-    from .utils import get_data_dir, get_docs_dir, save_results, archive_results, load_spx_regime_data
+    from .utils import get_data_dir, get_docs_dir, save_results, archive_results, load_spx_regime_data, save_chart_data
     from .rebalance import run_rebalance_check
     from .llm_regime import run_llm_regime_analysis
     from .sleeves import equity
@@ -270,7 +270,10 @@ def main():
         
         # Save results
         save_allocation_results(results)
-        
+
+        # Pre-compute chart data for dashboard (eliminates CORS proxy dependency)
+        save_chart_data(results, get_data_dir())
+
         logging.info("Allocation engine completed successfully")
         
     except Exception as e:

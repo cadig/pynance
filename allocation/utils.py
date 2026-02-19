@@ -7,7 +7,7 @@ Provides common functions for data loading, file I/O, and data processing.
 import pandas as pd
 import numpy as np
 import json
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 import logging
 import time
@@ -354,6 +354,106 @@ def archive_results(results: Dict, docs_dir: Optional[Path] = None) -> None:
         logging.info(f"Archived results to: {log_path}")
     except Exception as e:
         logging.warning(f"Failed to archive results: {e}")
+
+
+def save_chart_data(results: Dict, data_dir: Path, docs_dir: Optional[Path] = None) -> None:
+    """
+    Pre-compute OHLC chart data for all selected ETFs and save as static JSON.
+
+    Builds daily (last 250 rows) and weekly (last 250 weeks, resampled) OHLC arrays
+    so the dashboard can render charts without hitting Yahoo Finance (CORS-blocked).
+
+    Args:
+        results: Allocation results dict containing sleeve_analyses
+        data_dir: Path to data directory for loading CSVs
+        docs_dir: Optional path to docs directory for output
+    """
+    if docs_dir is None:
+        docs_dir = get_docs_dir()
+
+    # Collect all unique symbols from sleeve results
+    symbols = set()
+    for sleeve_data in results.get('sleeve_analyses', {}).values():
+        if sleeve_data.get('final_assets'):
+            for sym in sleeve_data['final_assets']:
+                symbols.add(sym)
+        if sleeve_data.get('selected_etfs'):
+            for etf in sleeve_data['selected_etfs']:
+                if isinstance(etf, dict) and 'symbol' in etf:
+                    symbols.add(etf['symbol'])
+
+    if not symbols:
+        logging.warning("No ETF symbols found in results — skipping chart data generation")
+        return
+
+    logging.info(f"Generating chart data for {len(symbols)} symbols: {sorted(symbols)}")
+
+    daily_data = {}
+    weekly_data = {}
+
+    for symbol in sorted(symbols):
+        try:
+            df = load_etf_data(symbol, data_dir)
+            if df.empty:
+                continue
+
+            # Ensure we have the required columns
+            required = ['open', 'high', 'low', 'close']
+            missing = [c for c in required if c not in df.columns]
+            if missing:
+                logging.warning(f"Skipping {symbol}: missing columns {missing}")
+                continue
+
+            # Ensure index is DatetimeIndex (CSV dates may not auto-parse)
+            if not isinstance(df.index, pd.DatetimeIndex):
+                df.index = pd.to_datetime(df.index, utc=True)
+            if hasattr(df.index, 'tz') and df.index.tz is not None:
+                df.index = df.index.tz_localize(None)
+
+            # Daily: last 250 rows
+            daily_df = df[required].tail(250).dropna()
+            daily_bars = []
+            for idx, row in daily_df.iterrows():
+                daily_bars.append({
+                    'time': idx.strftime('%Y-%m-%d'),
+                    'open': round(float(row['open']), 2),
+                    'high': round(float(row['high']), 2),
+                    'low': round(float(row['low']), 2),
+                    'close': round(float(row['close']), 2),
+                })
+            daily_data[symbol] = daily_bars
+
+            # Weekly: resample to weekly OHLC, last 250 weeks
+            weekly_df = df[required].resample('W').agg({
+                'open': 'first',
+                'high': 'max',
+                'low': 'min',
+                'close': 'last',
+            }).dropna().tail(250)
+            weekly_bars = []
+            for idx, row in weekly_df.iterrows():
+                weekly_bars.append({
+                    'time': idx.strftime('%Y-%m-%d'),
+                    'open': round(float(row['open']), 2),
+                    'high': round(float(row['high']), 2),
+                    'low': round(float(row['low']), 2),
+                    'close': round(float(row['close']), 2),
+                })
+            weekly_data[symbol] = weekly_bars
+
+            logging.info(f"Chart data for {symbol}: {len(daily_bars)} daily, {len(weekly_bars)} weekly bars")
+
+        except Exception as e:
+            logging.warning(f"Failed to generate chart data for {symbol}: {e}")
+
+    chart_payload = {
+        'generated': datetime.now().isoformat(),
+        'daily': daily_data,
+        'weekly': weekly_data,
+    }
+
+    save_results(chart_payload, 'chart-data.json', docs_dir)
+    logging.info(f"Chart data saved with {len(daily_data)} symbols")
 
 
 def save_results(results: Dict, filename: str, docs_dir: Optional[Path] = None) -> None:

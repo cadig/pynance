@@ -1,0 +1,12 @@
+{
+  "datetime": "2026-02-20T22:42:44.220120",
+  "background_color": "green",
+  "above_200ma": true,
+  "VIX_close": 19.09,
+  "nyse_cumulative_ad_zscore": true,
+  "mmth_cross": false,
+  "mmtw_cross": false,
+  "mmfi_cross": false,
+  "vix_bollinger_exit": false,
+  "combined_mm_signals": 0
+}

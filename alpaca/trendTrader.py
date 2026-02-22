@@ -69,7 +69,8 @@ def load_universe_tickers():
         'Average Volume': 'Over 100K',
         'Current Volume': 'Over 100K',
         '200-Day Simple Moving Average': 'Price above SMA200',
-        'Market Cap.': '+Mid (over $2bln)',
+        'Market Cap.': '+Large (over $10bln)',
+        # 'Market Cap.': '+Mid (over $2bln)',
         'Performance': 'Quarter Up',
         'EPS growthqtr over qtr': 'High (>25%)',
     }, ['Performance (Half Year)'], limit=50, remove_banned=True)

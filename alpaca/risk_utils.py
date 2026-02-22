@@ -61,6 +61,48 @@ def check_missing_stop_loss_orders(symbols, trading_client):
         print(f"Error checking stop loss orders: {e}")
         return symbols  # Assume all symbols need stops if error occurs
 
+def cancel_stop_orders(symbol, trading_client, dry_run=True):
+    """Cancel all stop loss orders for a symbol. Returns count of cancelled orders."""
+    try:
+        request = GetOrdersRequest(status=QueryOrderStatus.OPEN)
+        orders = trading_client.get_orders(filter=request)
+        cancelled = 0
+        for order in orders:
+            if order.symbol == symbol and order.side == OrderSide.SELL and order.order_type == 'stop':
+                if dry_run:
+                    print(f"[DRY RUN] Would cancel stop order {order.id} for {symbol} (stop: ${order.stop_price})")
+                    cancelled += 1
+                else:
+                    try:
+                        trading_client.cancel_order_by_id(order.id)
+                        print(f"Cancelled stop order {order.id} for {symbol} (stop: ${order.stop_price})")
+                        cancelled += 1
+                    except Exception as e:
+                        print(f"Failed to cancel stop order {order.id} for {symbol}: {e}")
+        return cancelled
+    except Exception as e:
+        print(f"Error cancelling stop orders for {symbol}: {e}")
+        return 0
+
+
+def reconcile_position_qty(symbol, expected_qty, trading_client):
+    """
+    Re-fetch live position quantity from Alpaca and reconcile against expected.
+    Returns the actual quantity, or 0 if position no longer exists.
+    Logs a warning if actual differs from expected (partial fill scenario).
+    """
+    try:
+        position = trading_client.get_open_position(symbol)
+        actual_qty = int(float(position.qty))
+        if actual_qty != int(expected_qty):
+            print(f"WARNING: {symbol} quantity mismatch — expected {int(expected_qty)}, actual {actual_qty} (partial fill?)")
+        return actual_qty
+    except Exception:
+        # Position no longer exists (fully closed)
+        print(f"WARNING: {symbol} position no longer exists — skipping stop order")
+        return 0
+
+
 def add_stop_loss_order(symbol, qty, stop_price, current_price=None, account_value=None, trading_client=None, dry_run=True):
     """Add a stop loss order for an existing position"""
     if dry_run:

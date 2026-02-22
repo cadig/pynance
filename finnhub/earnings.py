@@ -107,10 +107,10 @@ def _get_earnings_from_api(symbol):
         
         # Find the next earnings date
         earnings_list = data['earningsCalendar']
-        
+
         # Sort by date to get the earliest upcoming earnings
         earnings_list.sort(key=lambda x: x.get('date', ''))
-        
+
         # Get the first (earliest) earnings date
         if earnings_list:
             next_earnings_date_str = earnings_list[0].get('date')
@@ -118,7 +118,7 @@ def _get_earnings_from_api(symbol):
                 # Parse the date string (format: YYYY-MM-DD)
                 next_earnings_date = datetime.strptime(next_earnings_date_str, '%Y-%m-%d')
                 return next_earnings_date
-        
+
         return None
         
     except requests.exceptions.RequestException as e:
@@ -202,6 +202,56 @@ def get_next_earnings_date(symbol):
         
     except Exception as e:
         raise Exception(f"Error retrieving earnings data: {str(e)}")
+
+
+def get_earnings_with_hour(symbol):
+    """
+    Get next earnings date and reporting hour (bmo/amc) from Finnhub API.
+    Bypasses cache since hour info is not cached.
+
+    Args:
+        symbol (str): Stock ticker symbol
+
+    Returns:
+        dict or None: {'date': datetime, 'hour': str} where hour is 'bmo', 'amc', or ''
+    """
+    try:
+        api_key = get_finnhub_credentials()
+        today = datetime.now()
+        from_date = today.strftime('%Y-%m-%d')
+        to_date = (today + timedelta(days=90)).strftime('%Y-%m-%d')
+
+        base_url = "https://finnhub.io/api/v1/calendar/earnings"
+        params = {
+            'from': from_date,
+            'to': to_date,
+            'symbol': symbol.upper(),
+            'token': api_key
+        }
+
+        response = requests.get(base_url, params=params)
+        response.raise_for_status()
+        data = response.json()
+
+        if 'earningsCalendar' not in data or not data['earningsCalendar']:
+            return None
+
+        earnings_list = data['earningsCalendar']
+        earnings_list.sort(key=lambda x: x.get('date', ''))
+
+        if earnings_list:
+            entry = earnings_list[0]
+            date_str = entry.get('date')
+            if date_str:
+                return {
+                    'date': datetime.strptime(date_str, '%Y-%m-%d'),
+                    'hour': entry.get('hour', '')
+                }
+
+        return None
+    except Exception as e:
+        print(f"Warning: Could not fetch earnings with hour for {symbol}: {e}")
+        return None
 
 
 def is_earnings_at_least_days_away(symbol, min_days=8):

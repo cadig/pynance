@@ -17,13 +17,16 @@ from typing import Dict, Optional, List, Tuple
 from enum import Enum
 from datetime import datetime, timedelta, timezone
 from configparser import ConfigParser
+from alpaca.trading.requests import MarketOrderRequest
+from alpaca.trading.enums import OrderSide, TimeInForce, PositionIntent
 
 # Add parent directory to path for imports
 sys.path.append('..')
 
 # Import shared utilities
 from alpaca_utils import get_alpaca_variables, initialize_alpaca_api, fetch_bars, calculate_atr, ATR_PERIOD
-from risk_utils import calculate_risk_metrics, check_missing_stop_loss_orders, add_stop_loss_order, STOP_LOSS_ATR_MULT
+from risk_utils import calculate_risk_metrics, check_missing_stop_loss_orders, add_stop_loss_order, cancel_stop_orders, reconcile_position_qty, STOP_LOSS_ATR_MULT
+from finnhub.earnings import get_earnings_with_hour
 
 class RiskLevel(Enum):
     """Risk level enumeration based on background colors"""
@@ -175,8 +178,119 @@ def can_enter_positions_for_color(background_color: str) -> bool:
     return risk_manager.can_enter_positions(background_color)
 
 
-# === Stop Loss Monitoring Constants ===
+# === Constants ===
 DRY_RUN = True  # Set to False to submit actual orders
+EARNINGS_PROFIT_THRESHOLD_ATR = 8.0  # ATR profit needed to hold through earnings
+
+def check_earnings_proximity(positions, trading_client, data_client, dry_run=True):
+    """
+    Close positions reporting earnings imminently unless they have >= 8 ATR open profit.
+
+    'Imminent' means:
+    - Earnings after market close today (amc) and it's already past 2pm ET
+    - Earnings before market open tomorrow (bmo) with date = tomorrow
+    - Earnings today with unknown hour (treat conservatively)
+
+    Positions with >= EARNINGS_PROFIT_THRESHOLD_ATR open profit are kept.
+    """
+    from pytz import timezone as pytz_tz
+    et = pytz_tz('US/Eastern')
+    now_et = datetime.now(et)
+    today = now_et.date()
+    tomorrow = today + timedelta(days=1)
+    is_late_session = now_et.hour >= 14  # 2pm ET or later
+
+    closed_symbols = []
+
+    print(f"\n=== Earnings Proximity Check ===")
+    print(f"Current time (ET): {now_et.strftime('%Y-%m-%d %H:%M ET')}")
+
+    for position in positions:
+        symbol = position.symbol
+        qty = float(position.qty)
+        if qty <= 0:
+            continue
+
+        try:
+            earnings_info = get_earnings_with_hour(symbol)
+            if earnings_info is None:
+                continue
+
+            earnings_date = earnings_info['date'].date()
+            earnings_hour = earnings_info['hour']  # 'bmo', 'amc', or ''
+
+            # Determine if earnings are imminent
+            imminent = False
+            reason = ""
+            if earnings_date == today and earnings_hour == 'amc' and is_late_session:
+                imminent = True
+                reason = "reports after close today"
+            elif earnings_date == tomorrow and earnings_hour == 'bmo':
+                imminent = True
+                reason = "reports before open tomorrow"
+            elif earnings_date == today and earnings_hour == '' and is_late_session:
+                # Unknown hour, today, late in session — treat conservatively
+                imminent = True
+                reason = "reports today (unknown hour)"
+            elif earnings_date == tomorrow and earnings_hour == '':
+                imminent = True
+                reason = "reports tomorrow (unknown hour)"
+
+            if not imminent:
+                continue
+
+            # Check open profit in ATR terms
+            bars = fetch_bars(symbol, data_client)
+            if bars.empty:
+                print(f"  {symbol}: {reason} but no price data — skipping")
+                continue
+
+            bars = calculate_atr(bars)
+            current_price = bars['close'].iloc[-1]
+            atr_value = bars['ATR'].iloc[-1]
+            entry_price = float(position.avg_entry_price)
+            profit_atr = (current_price - entry_price) / atr_value if atr_value > 0 else 0
+
+            if profit_atr >= EARNINGS_PROFIT_THRESHOLD_ATR:
+                print(f"  {symbol}: {reason}, but {profit_atr:.1f} ATR profit >= {EARNINGS_PROFIT_THRESHOLD_ATR} — holding through earnings")
+                continue
+
+            # Close the position
+            print(f"  {symbol}: {reason}, only {profit_atr:.1f} ATR profit — closing position")
+
+            if dry_run:
+                print(f"  [DRY RUN] Would close {symbol}: qty={int(qty)}")
+                print(f"  [DRY RUN] Would cancel stop orders for {symbol}")
+            else:
+                # Cancel stop orders first
+                cancel_stop_orders(symbol, trading_client, dry_run=False)
+                # Close position
+                try:
+                    order_data = MarketOrderRequest(
+                        symbol=symbol,
+                        qty=int(qty),
+                        side=OrderSide.SELL,
+                        time_in_force=TimeInForce.DAY,
+                        position_intent=PositionIntent.SELL_TO_CLOSE
+                    )
+                    trading_client.submit_order(order_data)
+                    print(f"  Closed {symbol}: qty={int(qty)}")
+                except Exception as e:
+                    print(f"  Failed to close {symbol}: {e}")
+                    continue
+
+            closed_symbols.append(symbol)
+
+        except Exception as e:
+            print(f"  Error checking earnings for {symbol}: {e}")
+
+    if not closed_symbols:
+        print("  No positions with imminent earnings to close")
+    else:
+        print(f"  Closed {len(closed_symbols)} position(s) before earnings: {', '.join(closed_symbols)}")
+
+    return closed_symbols
+
 
 def ensure_all_positions_have_stop_losses():
     """
@@ -204,12 +318,22 @@ def ensure_all_positions_have_stop_losses():
             return
         
         # Get position symbols
-        position_symbols = [p.symbol for p in positions if float(p.qty) > 0]  # Only long positions
-        
-        if not position_symbols:
+        long_positions = [p for p in positions if float(p.qty) > 0]
+
+        if not long_positions:
             print("No long positions found - nothing to monitor")
             return
-        
+
+        # Check earnings proximity — close positions reporting imminently without enough profit
+        closed_for_earnings = check_earnings_proximity(long_positions, trading_client, data_client, DRY_RUN)
+
+        # Exclude positions closed for earnings from stop loss check
+        position_symbols = [p.symbol for p in long_positions if p.symbol not in closed_for_earnings]
+
+        if not position_symbols:
+            print("No remaining positions to check for stop losses")
+            return
+
         # Check for missing stop loss orders
         symbols_needing_stops = check_missing_stop_loss_orders(position_symbols, trading_client)
         
@@ -248,8 +372,12 @@ def ensure_all_positions_have_stop_losses():
             
             # Calculate stop price
             stop_price = round(current_price - (STOP_LOSS_ATR_MULT * atr_value), 2)
-            qty = int(float(position.qty))
-            
+
+            # Reconcile live quantity before placing stop (handles partial fills)
+            qty = reconcile_position_qty(symbol, float(position.qty), trading_client)
+            if qty <= 0:
+                continue
+
             # Add stop loss order
             success = add_stop_loss_order(
                 symbol, qty, stop_price, current_price, account_value, trading_client, DRY_RUN

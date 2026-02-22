@@ -276,48 +276,48 @@ def update_trailing_stops_with_live_data(live_data, position_tracker):
                 should_update = True
             elif new_stop > current_stop + (TRAILING_STOP_MIN_MOVE * atr_value):
                 should_update = True
-                
-                if should_update:
-                    # Check for sync issues
-                    if source == 'tracker' and current_stop is not None:
-                        sync_issues.append(f"{symbol}: Tracker has stop {current_stop:.2f} but no live order found")
-                    
-                    if DRY_RUN:
-                        current_stop_str = f"{current_stop:.2f}" if current_stop is not None else "None"
-                        print(f"[DRY RUN] Would update trailing stop for {symbol}: {current_stop_str} -> {new_stop:.2f} (source: {source})")
-                    else:
-                        # Cancel existing stop loss orders for this symbol
-                        if symbol in live_data['stop_orders']:
-                            for order in live_data['stop_orders'][symbol]:
-                                try:
-                                    trading_client.cancel_order_by_id(order.id)
-                                    print(f"Cancelled stop order {order.id} for {symbol}")
-                                except Exception as e:
-                                    print(f"Failed to cancel stop order {order.id} for {symbol}: {e}")
-                        
-                        # Add new stop loss order
-                        qty = int(live_data['positions'][symbol].qty)
-                        add_stop_loss_order(symbol, qty, new_stop, current_price, None, trading_client, DRY_RUN)
-                        
-                        current_stop_str = f"{current_stop:.2f}" if current_stop is not None else "None"
-                        print(f"Updated trailing stop for {symbol}: {current_stop_str} -> {new_stop:.2f} (source: {source})")
-                    
-                    # Update position tracker
-                    if symbol not in position_tracker:
-                        position_tracker[symbol] = {
-                            'entry_price': float(live_data['positions'][symbol].avg_entry_price),
-                            'highest_price': current_price,  # Track current price as highest
-                            'current_stop': new_stop,
-                            'initial_r_multiple': None,
-                            'entry_date': datetime.now().isoformat(),
-                            'qty': float(live_data['positions'][symbol].qty)
-                        }
-                    else:
-                        # Update highest price to current price if it's higher
-                        position_tracker[symbol]['highest_price'] = max(position_tracker[symbol]['highest_price'], current_price)
-                        position_tracker[symbol]['current_stop'] = new_stop
-                    
-                    updated_count += 1
+
+            if should_update:
+                # Check for sync issues
+                if source == 'tracker' and current_stop is not None:
+                    sync_issues.append(f"{symbol}: Tracker has stop {current_stop:.2f} but no live order found")
+
+                if DRY_RUN:
+                    current_stop_str = f"{current_stop:.2f}" if current_stop is not None else "None"
+                    print(f"[DRY RUN] Would update trailing stop for {symbol}: {current_stop_str} -> {new_stop:.2f} (source: {source})")
+                else:
+                    # Cancel existing stop loss orders for this symbol
+                    if symbol in live_data['stop_orders']:
+                        for order in live_data['stop_orders'][symbol]:
+                            try:
+                                trading_client.cancel_order_by_id(order.id)
+                                print(f"Cancelled stop order {order.id} for {symbol}")
+                            except Exception as e:
+                                print(f"Failed to cancel stop order {order.id} for {symbol}: {e}")
+
+                    # Add new stop loss order
+                    qty = int(live_data['positions'][symbol].qty)
+                    add_stop_loss_order(symbol, qty, new_stop, current_price, None, trading_client, DRY_RUN)
+
+                    current_stop_str = f"{current_stop:.2f}" if current_stop is not None else "None"
+                    print(f"Updated trailing stop for {symbol}: {current_stop_str} -> {new_stop:.2f} (source: {source})")
+
+                # Update position tracker
+                if symbol not in position_tracker:
+                    position_tracker[symbol] = {
+                        'entry_price': float(live_data['positions'][symbol].avg_entry_price),
+                        'highest_price': current_price,  # Track current price as highest
+                        'current_stop': new_stop,
+                        'initial_r_multiple': None,
+                        'entry_date': datetime.now().isoformat(),
+                        'qty': float(live_data['positions'][symbol].qty)
+                    }
+                else:
+                    # Update highest price to current price if it's higher
+                    position_tracker[symbol]['highest_price'] = max(position_tracker[symbol]['highest_price'], current_price)
+                    position_tracker[symbol]['current_stop'] = new_stop
+
+                updated_count += 1
                     
         except Exception as e:
             print(f"Error updating trailing stop for {symbol}: {e}")

@@ -15,7 +15,9 @@ import numpy as np
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from ..utils import load_etf_data, compute_position_weights
+from ..utils import (load_etf_data, compute_position_weights,
+                     calculate_period_return, is_above_200dma,
+                     compute_composite_scores, TRADING_DAYS_PER_MONTH)
 
 
 # Configuration for return period weights
@@ -25,54 +27,6 @@ RETURN_PERIOD_WEIGHTS = {
     6: 0.15,   # 6 month weight
     12: 0.10  # 12 month weight
 }
-
-# Trading days per month (approximate)
-TRADING_DAYS_PER_MONTH = 21
-
-
-def is_above_200dma(df: pd.DataFrame) -> bool:
-    """
-    Return True if the most recent close is above the 200-day moving average.
-
-    Assumes daily bars. If insufficient history or missing 'close', returns False.
-    """
-    if df is None or df.empty:
-        return False
-    if 'close' not in df.columns:
-        return False
-    if len(df) < 200:
-        return False
-
-    close = df['close'].iloc[-1]
-    sma_200 = df['close'].rolling(window=200, min_periods=200).mean().iloc[-1]
-    if pd.isna(close) or pd.isna(sma_200):
-        return False
-    return bool(close > sma_200)
-
-
-def calculate_period_return(df: pd.DataFrame, months: int) -> float:
-    """
-    Calculate percentage return for a given period in months.
-    
-    Args:
-        df: DataFrame with 'close' column and datetime index
-        months: Number of months for the return period
-        
-    Returns:
-        float: Percentage return (e.g., 0.05 for 5% return)
-    """
-    if len(df) < months * TRADING_DAYS_PER_MONTH:
-        logging.warning(f"Insufficient data for {months}-month return calculation")
-        return np.nan
-    
-    trading_days = months * TRADING_DAYS_PER_MONTH
-    current_price = df['close'].iloc[-1]
-    past_price = df['close'].iloc[-trading_days]
-    
-    if pd.isna(current_price) or pd.isna(past_price) or past_price == 0:
-        return np.nan
-    
-    return (current_price / past_price) - 1.0
 
 
 def calculate_returns_for_symbol(symbol: str, data_dir: Path) -> Dict[str, float]:
@@ -156,38 +110,16 @@ def rank_etfs_by_composite_score(symbols: List[str], data_dir: Path) -> List[Tup
         logging.warning("No ETFs passed the 200DMA filter; nothing to rank.")
         return []
 
-    # Create DataFrame with returns
+    # Create DataFrame with returns and rank via shared utility
     returns_df = pd.DataFrame.from_dict(symbol_returns, orient='index')
-    returns_df = returns_df.reindex(columns=[1, 3, 6, 12])  # Column names are months
-    
-    # Rank returns for each period (1 = best return, higher number = worse return)
-    # Using method='min' so ties get the same rank, and ascending=False so higher returns get lower ranks
-    ranks_df = returns_df.rank(method='min', ascending=False, na_option='keep')
-    
-    # Calculate composite score for each symbol
-    # Invert ranks so higher composite_score = better performance
-    num_symbols = len(returns_df.index)
-    results = []
-    for symbol in returns_df.index:
-        composite_score = 0.0
-        returns_dict = symbol_returns[symbol]
-        
-        for months, weight in RETURN_PERIOD_WEIGHTS.items():
-            rank = ranks_df.loc[symbol, months]
-            if pd.notna(rank):
-                # Invert rank: rank 1 (best) becomes num_symbols (highest score)
-                # rank N (worst) becomes 1 (lowest score)
-                inverted_rank = num_symbols + 1 - rank
-                composite_score += inverted_rank * weight
-            else:
-                # If data is missing, assign worst score (0)
-                composite_score += 0.0
-        
-        results.append((symbol, composite_score, returns_dict))
-    
-    # Sort by composite score (descending - higher is better)
-    results.sort(key=lambda x: x[1], reverse=True)
-    
+    scored = compute_composite_scores(returns_df, RETURN_PERIOD_WEIGHTS)
+
+    # Convert to legacy tuple format expected by callers
+    results = [
+        (item['symbol'], item['composite_score'], symbol_returns[item['symbol']])
+        for item in scored
+    ]
+
     return results
 
 

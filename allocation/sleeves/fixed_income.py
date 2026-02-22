@@ -21,30 +21,14 @@ import numpy as np
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional
-from ..utils import load_etf_data, compute_position_weights
+from ..utils import (load_etf_data, compute_position_weights,
+                     calculate_period_return, compute_composite_scores)
 
 RETURN_PERIOD_WEIGHTS = {
     1: 0.50,   # 1 month — most important
     3: 0.30,   # 3 month
     6: 0.20,   # 6 month
 }
-
-TRADING_DAYS_PER_MONTH = 21
-
-
-def calculate_period_return(df: pd.DataFrame, months: int) -> float:
-    """Calculate percentage return for a given period in months."""
-    trading_days = months * TRADING_DAYS_PER_MONTH
-    if len(df) < trading_days:
-        return np.nan
-
-    current_price = df['close'].iloc[-1]
-    past_price = df['close'].iloc[-trading_days]
-
-    if pd.isna(current_price) or pd.isna(past_price) or past_price == 0:
-        return np.nan
-
-    return (current_price / past_price) - 1.0
 
 
 def get_eligible_symbols(regime_key: str, all_symbols: List[str]) -> List[str]:
@@ -101,39 +85,27 @@ def rank_fixed_income(symbols: List[str], data_dir: Path) -> List[Dict]:
     if not candidates:
         return []
 
-    # Build returns DataFrame for ranking
+    # Build returns DataFrame and rank via shared utility
     returns_df = pd.DataFrame(
         {sym: data['returns'] for sym, data in candidates.items()}
     ).T
-    returns_df = returns_df.reindex(columns=list(RETURN_PERIOD_WEIGHTS.keys()))
+    scored = compute_composite_scores(returns_df, RETURN_PERIOD_WEIGHTS)
 
-    ranks_df = returns_df.rank(method='min', ascending=False, na_option='keep')
-
-    num_symbols = len(returns_df)
+    # Enrich with raw returns
     results = []
-    for symbol in returns_df.index:
-        composite_score = 0.0
-        for months, weight in RETURN_PERIOD_WEIGHTS.items():
-            rank = ranks_df.loc[symbol, months]
-            if pd.notna(rank):
-                inverted_rank = num_symbols + 1 - rank
-                composite_score += inverted_rank * weight
-
+    for i, item in enumerate(scored, start=1):
+        symbol = item['symbol']
         returns_raw = candidates[symbol]['returns']
         results.append({
-            'rank': 0,
+            'rank': i,
             'symbol': symbol,
-            'composite_score': round(composite_score, 4),
+            'composite_score': item['composite_score'],
             'returns': {
                 '1_month': round(returns_raw[1] * 100, 2) if pd.notna(returns_raw.get(1)) else None,
                 '3_month': round(returns_raw[3] * 100, 2) if pd.notna(returns_raw.get(3)) else None,
                 '6_month': round(returns_raw[6] * 100, 2) if pd.notna(returns_raw.get(6)) else None,
             },
         })
-
-    results.sort(key=lambda x: x['composite_score'], reverse=True)
-    for i, r in enumerate(results, start=1):
-        r['rank'] = i
 
     return results
 

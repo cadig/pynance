@@ -251,6 +251,111 @@ def load_etf_data(symbol: str, data_dir: Optional[Path] = None) -> pd.DataFrame:
         raise ImportError(f"CSV file not found for {symbol} and yfinance is not available")
 
 
+# ---------------------------------------------------------------------------
+# Shared constants & analytics used by multiple sleeves
+# ---------------------------------------------------------------------------
+
+TRADING_DAYS_PER_MONTH = 21
+
+# Realized vol lookback (63 trading days ≈ 3 months)
+VOL_LOOKBACK_DAYS = 63
+
+
+def calculate_period_return(df: pd.DataFrame, months: int) -> float:
+    """
+    Calculate percentage return for a given period in months.
+
+    Args:
+        df: DataFrame with 'close' column and datetime index
+        months: Number of months for the return period
+
+    Returns:
+        float: Percentage return (e.g., 0.05 for 5% return)
+    """
+    trading_days = months * TRADING_DAYS_PER_MONTH
+    if len(df) < trading_days:
+        return np.nan
+
+    current_price = df['close'].iloc[-1]
+    past_price = df['close'].iloc[-trading_days]
+
+    if pd.isna(current_price) or pd.isna(past_price) or past_price == 0:
+        return np.nan
+
+    return (current_price / past_price) - 1.0
+
+
+def is_above_200dma(df: pd.DataFrame) -> bool:
+    """
+    Return True if the most recent close is above the 200-day moving average.
+
+    Assumes daily bars. If insufficient history or missing 'close', returns False.
+    """
+    if df is None or df.empty or 'close' not in df.columns or len(df) < 200:
+        return False
+
+    close = df['close'].iloc[-1]
+    sma_200 = df['close'].rolling(window=200, min_periods=200).mean().iloc[-1]
+    if pd.isna(close) or pd.isna(sma_200):
+        return False
+    return bool(close > sma_200)
+
+
+def compute_realized_vol(df: pd.DataFrame, lookback: int = VOL_LOOKBACK_DAYS) -> Optional[float]:
+    """
+    Compute annualized realized volatility from daily log returns.
+    Returns annualized vol (e.g. 0.15 = 15%).
+    """
+    if df is None or len(df) < lookback + 1 or 'close' not in df.columns:
+        return None
+    log_returns = np.log(df['close'] / df['close'].shift(1)).dropna().iloc[-lookback:]
+    if len(log_returns) < lookback:
+        return None
+    daily_vol = log_returns.std()
+    if pd.isna(daily_vol) or daily_vol == 0:
+        return None
+    return float(daily_vol * np.sqrt(252))
+
+
+def compute_composite_scores(returns_df: pd.DataFrame,
+                              period_weights: Dict[int, float]) -> List[Dict]:
+    """
+    Rank ETFs by weighted composite score from a returns DataFrame.
+
+    Handles the rank-invert-weight pattern shared across all momentum sleeves.
+    Each column in returns_df is a return period (e.g. 1, 3, 6 months) and each
+    row is a symbol. Returns are ranked per-period (higher return = better rank),
+    then ranks are inverted and combined via weighted sum.
+
+    Args:
+        returns_df: DataFrame with symbols as index, period months as columns.
+                    Values are returns (raw or risk-adjusted).
+        period_weights: Dict mapping period (months) to weight, e.g. {1: 0.5, 3: 0.3, 6: 0.2}
+
+    Returns:
+        List of dicts with 'symbol' and 'composite_score', sorted descending by score.
+    """
+    returns_df = returns_df.reindex(columns=list(period_weights.keys()))
+    ranks_df = returns_df.rank(method='min', ascending=False, na_option='keep')
+    num_symbols = len(returns_df)
+
+    results = []
+    for symbol in returns_df.index:
+        composite_score = 0.0
+        for months, weight in period_weights.items():
+            rank = ranks_df.loc[symbol, months]
+            if pd.notna(rank):
+                inverted_rank = num_symbols + 1 - rank
+                composite_score += inverted_rank * weight
+        results.append({
+            'symbol': symbol,
+            'composite_score': round(composite_score, 4),
+        })
+
+    results.sort(key=lambda x: x['composite_score'], reverse=True)
+    return results
+
+
 def compute_position_weights(selected_etfs: List[Dict], score_key: str = 'composite_score',
                               min_weight: float = 0.10) -> Dict[str, float]:
     """

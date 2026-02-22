@@ -18,7 +18,9 @@ import numpy as np
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from ..utils import load_etf_data, compute_position_weights
+from ..utils import (load_etf_data, compute_position_weights,
+                     calculate_period_return, compute_realized_vol,
+                     compute_composite_scores, TRADING_DAYS_PER_MONTH)
 
 # Shorter momentum weighting than equities — MF trends are faster
 RETURN_PERIOD_WEIGHTS = {
@@ -27,13 +29,8 @@ RETURN_PERIOD_WEIGHTS = {
     6: 0.20,   # 6 month
 }
 
-TRADING_DAYS_PER_MONTH = 21
-
 # ATR buffer multiplier for MA crossover filter
 ATR_BUFFER_MULT = 1.0
-
-# Lookback for realized volatility (63 trading days ≈ 3 months)
-VOL_LOOKBACK_DAYS = 63
 
 
 def compute_atr(df: pd.DataFrame, window: int = 14) -> Optional[float]:
@@ -56,37 +53,6 @@ def compute_atr(df: pd.DataFrame, window: int = 14) -> Optional[float]:
 
     atr = tr.rolling(window=window, min_periods=window).mean().iloc[-1]
     return None if pd.isna(atr) else float(atr)
-
-
-def compute_realized_vol(df: pd.DataFrame, lookback: int = VOL_LOOKBACK_DAYS) -> Optional[float]:
-    """
-    Compute annualized realized volatility from daily log returns.
-    Returns annualized vol (e.g. 0.15 = 15%).
-    """
-    if df is None or len(df) < lookback + 1 or 'close' not in df.columns:
-        return None
-    log_returns = np.log(df['close'] / df['close'].shift(1)).dropna().iloc[-lookback:]
-    if len(log_returns) < lookback:
-        return None
-    daily_vol = log_returns.std()
-    if pd.isna(daily_vol) or daily_vol == 0:
-        return None
-    return float(daily_vol * np.sqrt(252))
-
-
-def calculate_period_return(df: pd.DataFrame, months: int) -> float:
-    """Calculate percentage return for a given period in months."""
-    trading_days = months * TRADING_DAYS_PER_MONTH
-    if len(df) < trading_days:
-        return np.nan
-
-    current_price = df['close'].iloc[-1]
-    past_price = df['close'].iloc[-trading_days]
-
-    if pd.isna(current_price) or pd.isna(past_price) or past_price == 0:
-        return np.nan
-
-    return (current_price / past_price) - 1.0
 
 
 def compute_ma(df: pd.DataFrame, window: int) -> Optional[float]:
@@ -227,35 +193,23 @@ def rank_managed_futures(symbols: List[str], data_dir: Path) -> List[Dict]:
         risk_adj_returns[sym] = adj
 
     returns_df = pd.DataFrame(risk_adj_returns).T
-    returns_df = returns_df.reindex(columns=list(RETURN_PERIOD_WEIGHTS.keys()))
+    scored = compute_composite_scores(returns_df, RETURN_PERIOD_WEIGHTS)
 
-    # Rank: lower rank number = better risk-adjusted return
-    ranks_df = returns_df.rank(method='min', ascending=False, na_option='keep')
-
-    num_symbols = len(returns_df)
+    # Enrich with trend bonus, vol, raw returns, and trend details
     results = []
-    for symbol in returns_df.index:
-        # Composite momentum score (same approach as equity sleeve)
-        composite_score = 0.0
-        for months, weight in RETURN_PERIOD_WEIGHTS.items():
-            rank = ranks_df.loc[symbol, months]
-            if pd.notna(rank):
-                inverted_rank = num_symbols + 1 - rank
-                composite_score += inverted_rank * weight
-
-        # Trend bonus: add trend_score (0-4) scaled to ~10% of max composite
+    for item in scored:
+        symbol = item['symbol']
         trend_score = candidates[symbol]['trend']['trend_score']
         trend_bonus = trend_score * 0.25
-        final_score = composite_score + trend_bonus
-
+        final_score = round(item['composite_score'] + trend_bonus, 4)
         returns_raw = candidates[symbol]['returns']
         vol = candidates[symbol]['vol']
         results.append({
             'rank': 0,  # assigned after sorting
             'symbol': symbol,
-            'composite_score': round(composite_score, 4),
+            'composite_score': item['composite_score'],
             'trend_score': trend_score,
-            'final_score': round(final_score, 4),
+            'final_score': final_score,
             'annualized_vol': round(vol * 100, 2) if vol is not None else None,
             'returns': {
                 '1_month': round(returns_raw[1] * 100, 2) if pd.notna(returns_raw.get(1)) else None,

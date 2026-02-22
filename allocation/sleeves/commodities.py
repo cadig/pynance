@@ -16,7 +16,9 @@ import numpy as np
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional
-from ..utils import load_etf_data, compute_position_weights
+from ..utils import (load_etf_data, compute_position_weights,
+                     calculate_period_return, is_above_200dma,
+                     compute_realized_vol, compute_composite_scores)
 
 # Momentum weighting — same periods as MF (no 12mo; commodities are cyclical)
 RETURN_PERIOD_WEIGHTS = {
@@ -24,53 +26,6 @@ RETURN_PERIOD_WEIGHTS = {
     3: 0.30,   # 3 month
     6: 0.20,   # 6 month
 }
-
-TRADING_DAYS_PER_MONTH = 21
-
-# Realized vol lookback (63 trading days = ~3 months)
-VOL_LOOKBACK_DAYS = 63
-
-
-def calculate_period_return(df: pd.DataFrame, months: int) -> float:
-    """Calculate percentage return for a given period in months."""
-    trading_days = months * TRADING_DAYS_PER_MONTH
-    if len(df) < trading_days:
-        return np.nan
-
-    current_price = df['close'].iloc[-1]
-    past_price = df['close'].iloc[-trading_days]
-
-    if pd.isna(current_price) or pd.isna(past_price) or past_price == 0:
-        return np.nan
-
-    return (current_price / past_price) - 1.0
-
-
-def is_above_200dma(df: pd.DataFrame) -> bool:
-    """Return True if the most recent close is above the 200-day SMA."""
-    if df is None or df.empty or 'close' not in df.columns or len(df) < 200:
-        return False
-    close = df['close'].iloc[-1]
-    sma_200 = df['close'].rolling(window=200, min_periods=200).mean().iloc[-1]
-    if pd.isna(close) or pd.isna(sma_200):
-        return False
-    return bool(close > sma_200)
-
-
-def compute_realized_vol(df: pd.DataFrame, lookback: int = VOL_LOOKBACK_DAYS) -> Optional[float]:
-    """
-    Compute annualized realized volatility from daily log returns.
-    Returns annualized vol (e.g. 0.15 = 15%).
-    """
-    if df is None or len(df) < lookback + 1 or 'close' not in df.columns:
-        return None
-    log_returns = np.log(df['close'] / df['close'].shift(1)).dropna().iloc[-lookback:]
-    if len(log_returns) < lookback:
-        return None
-    daily_vol = log_returns.std()
-    if pd.isna(daily_vol) or daily_vol == 0:
-        return None
-    return float(daily_vol * np.sqrt(252))
 
 
 def apply_exclusive_pairs(ranked: List[Dict], exclusive_pairs: List[List[str]]) -> List[Dict]:
@@ -170,26 +125,18 @@ def rank_commodities(symbols: List[str], data_dir: Path) -> List[Dict]:
         risk_adj_returns[sym] = adj
 
     returns_df = pd.DataFrame(risk_adj_returns).T
-    returns_df = returns_df.reindex(columns=list(RETURN_PERIOD_WEIGHTS.keys()))
+    scored = compute_composite_scores(returns_df, RETURN_PERIOD_WEIGHTS)
 
-    ranks_df = returns_df.rank(method='min', ascending=False, na_option='keep')
-
-    num_symbols = len(returns_df)
+    # Enrich with vol and raw returns
     results = []
-    for symbol in returns_df.index:
-        composite_score = 0.0
-        for months, weight in RETURN_PERIOD_WEIGHTS.items():
-            rank = ranks_df.loc[symbol, months]
-            if pd.notna(rank):
-                inverted_rank = num_symbols + 1 - rank
-                composite_score += inverted_rank * weight
-
+    for i, item in enumerate(scored, start=1):
+        symbol = item['symbol']
         returns_raw = candidates[symbol]['returns']
         vol = candidates[symbol]['vol']
         results.append({
-            'rank': 0,  # assigned after sorting
+            'rank': i,
             'symbol': symbol,
-            'composite_score': round(composite_score, 4),
+            'composite_score': item['composite_score'],
             'annualized_vol': round(vol * 100, 2) if vol is not None else None,
             'returns': {
                 '1_month': round(returns_raw[1] * 100, 2) if pd.notna(returns_raw.get(1)) else None,
@@ -197,11 +144,6 @@ def rank_commodities(symbols: List[str], data_dir: Path) -> List[Dict]:
                 '6_month': round(returns_raw[6] * 100, 2) if pd.notna(returns_raw.get(6)) else None,
             },
         })
-
-    # Sort by composite_score descending
-    results.sort(key=lambda x: x['composite_score'], reverse=True)
-    for i, r in enumerate(results, start=1):
-        r['rank'] = i
 
     return results
 

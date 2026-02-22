@@ -4,22 +4,11 @@ Critical analysis of the trading system's logic, gaps, and areas for improvement
 
 ---
 
-## 1. Code Bug: Trailing Stop Dead Path
+## 1. ~~Code Bug: Trailing Stop Dead Path~~ DONE
 
-In `trendTrader.py:274-280`, the trailing stop update has an indentation bug:
+~~Indentation bug in trailing stop update caused the `if should_update:` block to be nested inside the `elif`, skipping positions with no existing stop.~~
 
-```python
-if current_stop is None:
-    should_update = True          # sets flag...
-elif new_stop > current_stop + (TRAILING_STOP_MIN_MOVE * atr_value):
-    should_update = True
-
-    if should_update:             # ...but this is INSIDE the elif
-```
-
-When `current_stop is None`, the flag is set but the update block never executes because it's nested inside the `elif`. Positions that lose their stop order silently get skipped. The RiskManager safety net catches this eventually, but the core trailing stop logic is broken for this case.
-
-**Fix:** De-indent the `if should_update:` block so it runs for both branches.
+**Resolution:** De-indented the `if should_update:` block so it runs for both the `current_stop is None` and the minimum-move branches. Fixed in commit `8b3b28d`.
 
 ---
 
@@ -41,14 +30,11 @@ SPY 50MA, VIX > 25, and regime color all measure the same thing — broad market
 
 Trend systems fail most in narrow breadth environments where the index holds up but individual stocks break down.
 
-### B. No Exit-Level Regime Response
+### B. ~~No Exit-Level Regime Response~~ DONE (partial)
 
-Bad regimes block new entries — but existing positions keep full 4 ATR stops and full exposure. Portfolio heat can stay high while conditions deteriorate.
+~~Bad regimes block new entries — but existing positions keep full 4 ATR stops and full exposure.~~
 
-**Improvement:**
-- Tighten stop multiple in orange/red (e.g., 3 ATR instead of 4)
-- Block stop widening during yellow/orange
-- Force position reduction when regime flips to red (e.g., sell weakest quartile)
+**Resolution:** When regime is red, trailing stops now tighten to 2 ATR (via `RED_REGIME_STOP_ATR_MULT`). Also removed early returns that were preventing position management (exits, trailing stops) from running when entries were blocked. Remaining items (block stop widening in yellow/orange, force position reduction) are future work.
 
 ### C. 96-Hour Regime Staleness Window
 

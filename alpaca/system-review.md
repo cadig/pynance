@@ -28,16 +28,9 @@ The system doesn't monitor its own rolling drawdown, win rate, or expectancy. Pu
 
 ---
 
-## 4. Add Breadth Filter to Market Gate (was 2A)
+## 4. ~~Add Breadth Filter to Market Gate (was 2A)~~
 
-SPY 50MA, VIX > 25, and regime color all measure the same thing — broad market stress. In real drawdowns they flip together and flip back together. You re-enter late and crowded, and you're not gaining orthogonal information from three correlated signals.
-
-**TODO:** Add one true breadth metric as an independent filter:
-- % of S&P 500 stocks above their 50MA
-- % of universe making 20-day highs
-- Advance/decline line slope
-
-Trend systems fail most in narrow breadth environments where the index holds up but individual stocks break down.
+Resolved: instead of adding a broad-market breadth metric (which would be measuring a different population than the high-beta growth names we trade), implemented a **universe breadth gate**. During the entry scan, the system counts what % of scanned stocks are above their 50-day SMA. If below `UNIVERSE_BREADTH_THRESHOLD` (40%), new entries are blocked. This directly measures whether the system's own universe is healthy, without relying on correlated broad-market signals. Commit `ead2da8`.
 
 ---
 

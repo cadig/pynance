@@ -58,6 +58,7 @@ EARNINGS_PROFIT_THRESHOLD_ATR = 8.0         # ATR profit needed to hold through 
 # Universe filtering
 # ---------------------------------------------------------------------------
 EXCLUDE_TICKERS = ['RUM']        # Tickers excluded from universe scan
+UNIVERSE_BREADTH_THRESHOLD = 0.40  # Min % of universe above 50MA to allow new entries
 
 # ---------------------------------------------------------------------------
 # Regime data source

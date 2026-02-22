@@ -4,13 +4,14 @@ Automated long-only equity trend-following system that trades via the Alpaca API
 
 ## How It Works
 
-### Market Gatekeeping (3 checks before any new entry)
+### Market Gatekeeping (4 checks before any new entry)
 
 1. **Market regime** — Fetches the pynance regime signal (green/yellow/orange/red background color) from GitHub Pages. Red regime = no new entries. Other regimes set how much risk per trade (green 0.5%, yellow 0.3%, orange 0.1%).
 2. **VIX check** — If VIX closes above 25, all new entries are blocked regardless of regime color.
 3. **SPY trend** — SPY must be above its 50-day moving average for any new entries.
+4. **Universe breadth** — After scanning the universe, the system counts what percentage of scanned stocks are above their 50-day SMA. If this falls below 40%, new entries are blocked. This catches environments where the index holds up but individual growth stocks are breaking down — a leading signal that the system's edge is thinning.
 
-All three must pass. If any fail, the system only manages existing positions (trailing stops, exits) and places no new trades.
+The first three must pass before the universe is scanned. Then the breadth check determines whether the scan results in actual entries. If any gate fails, the system only manages existing positions (trailing stops, exits) and places no new trades.
 
 ### Universe Selection (Finviz Screener)
 
@@ -90,4 +91,5 @@ Runs on a more frequent schedule than the main trader. Two jobs:
 | `MAX_POSITIONS_PER_DAY` | 4 | Daily entry limit |
 | `EARNINGS_PROFIT_THRESHOLD_ATR` | 8.0 | ATR profit needed to hold through earnings |
 | `RED_REGIME_STOP_ATR_MULT` | 2.0 | Tighter stop multiplier in red regime |
+| `UNIVERSE_BREADTH_THRESHOLD` | 0.40 | Min % of universe above 50MA to allow entries |
 | `DRY_RUN` | True | Set to False to submit real orders |

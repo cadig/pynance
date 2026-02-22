@@ -23,7 +23,8 @@ from config import (DRY_RUN, MAX_POSITIONS, MAX_POSITIONS_PER_DAY,
                     LONG_MA_PERIOD, SHORT_MA_PERIOD, EXTENDED_ATR_EXIT_MULT,
                     EXTENSION_MULT, LIMIT_PRICE_ATR_MULT, TRAILING_STOP_MIN_MOVE,
                     RED_REGIME_STOP_ATR_MULT, EXCLUDE_TICKERS,
-                    VIX_ENTRY_THRESHOLD, EARNINGS_MIN_DAYS_AWAY)
+                    VIX_ENTRY_THRESHOLD, EARNINGS_MIN_DAYS_AWAY,
+                    UNIVERSE_BREADTH_THRESHOLD)
 
 
 def get_regime_based_risk(regime_detector, risk_manager):
@@ -701,7 +702,11 @@ def main():
     
     if can_enter_new_positions:
         print("Market regime, SPY trend, and VIX conditions allow new entries - scanning for candidates...")
-        
+
+        # Track universe breadth: % of scanned stocks with price above 50MA
+        trend_healthy_count = 0
+        scanned_count = 0
+
         for ticker in tickers:
             if ticker in held_symbols:
                 continue
@@ -713,6 +718,13 @@ def main():
 
             bars = calculate_atr(bars)
 
+            # Count stocks in healthy trend (above 50MA) for breadth calculation
+            if len(bars) >= LONG_MA_PERIOD:
+                scanned_count += 1
+                sma_long = bars['close'].rolling(LONG_MA_PERIOD).mean().iloc[-1]
+                if bars.iloc[-1]['close'] > sma_long:
+                    trend_healthy_count += 1
+
             if should_enter(bars):
                 # Check if earnings are at least 8 days away
                 if is_earnings_at_least_days_away(ticker, min_days=EARNINGS_MIN_DAYS_AWAY):
@@ -720,6 +732,16 @@ def main():
                     entry_candidates.append((ticker, latest['close'], latest['ATR'], latest['high']))
                 else:
                     print(f"Skipping {ticker} - earnings within 8 days")
+
+        # Universe breadth gate: block entries if too few stocks are in healthy trends
+        universe_breadth = trend_healthy_count / scanned_count if scanned_count > 0 else 0
+        print(f"\n=== Universe Breadth ===")
+        print(f"Stocks above 50MA: {trend_healthy_count}/{scanned_count} ({universe_breadth:.0%})")
+        print(f"Threshold: {UNIVERSE_BREADTH_THRESHOLD:.0%}")
+
+        if universe_breadth < UNIVERSE_BREADTH_THRESHOLD:
+            print(f"Universe breadth below threshold — blocking new entries.")
+            entry_candidates = []
     else:
         if not can_enter:
             print("Market regime blocks new entries.")

@@ -40,44 +40,65 @@ def calculate_risk_metrics(entry_price, stop_price, qty, account_value=None):
         'percent_to_stop': percent_to_stop
     }
 
-def check_missing_stop_loss_orders(symbols, trading_client):
-    """Check which symbols are missing stop loss orders"""
+def check_missing_stop_loss_orders(symbols, trading_client, stop_orders_by_symbol=None):
+    """Check which symbols are missing stop loss orders.
+
+    Args:
+        symbols: List of ticker symbols to check
+        trading_client: Alpaca TradingClient
+        stop_orders_by_symbol: Pre-fetched dict {symbol: [order, ...]}. If None,
+            falls back to an API call.
+    """
     try:
-        # Get all open orders
-        request = GetOrdersRequest(status=QueryOrderStatus.OPEN)
-        orders = trading_client.get_orders(filter=request)
-        
-        # Find stop loss orders by symbol
-        symbols_with_stops = set()
-        for order in orders:
-            if order.side == OrderSide.SELL and order.order_type == 'stop':
-                symbols_with_stops.add(order.symbol)
-        
-        # Return symbols that don't have stop loss orders
+        if stop_orders_by_symbol is not None:
+            symbols_with_stops = {s for s, orders in stop_orders_by_symbol.items() if orders}
+        else:
+            request = GetOrdersRequest(status=QueryOrderStatus.OPEN)
+            orders = trading_client.get_orders(filter=request)
+            symbols_with_stops = set()
+            for order in orders:
+                if order.side == OrderSide.SELL and order.order_type == 'stop':
+                    symbols_with_stops.add(order.symbol)
+
         return [symbol for symbol in symbols if symbol not in symbols_with_stops]
-        
+
     except Exception as e:
         print(f"Error checking stop loss orders: {e}")
         return symbols  # Assume all symbols need stops if error occurs
 
-def cancel_stop_orders(symbol, trading_client, dry_run=True):
-    """Cancel all stop loss orders for a symbol. Returns count of cancelled orders."""
+def cancel_stop_orders(symbol, trading_client, dry_run=True, stop_orders_by_symbol=None):
+    """Cancel all stop loss orders for a symbol. Returns count of cancelled orders.
+
+    Args:
+        symbol: Ticker symbol
+        trading_client: Alpaca TradingClient
+        dry_run: If True, only print what would happen
+        stop_orders_by_symbol: Pre-fetched dict {symbol: [order, ...]}. If None,
+            falls back to an API call.
+    """
     try:
-        request = GetOrdersRequest(status=QueryOrderStatus.OPEN)
-        orders = trading_client.get_orders(filter=request)
+        if stop_orders_by_symbol is not None:
+            orders_for_symbol = stop_orders_by_symbol.get(symbol, [])
+        else:
+            request = GetOrdersRequest(status=QueryOrderStatus.OPEN)
+            all_orders = trading_client.get_orders(filter=request)
+            orders_for_symbol = [
+                o for o in all_orders
+                if o.symbol == symbol and o.side == OrderSide.SELL and o.order_type == 'stop'
+            ]
+
         cancelled = 0
-        for order in orders:
-            if order.symbol == symbol and order.side == OrderSide.SELL and order.order_type == 'stop':
-                if dry_run:
-                    print(f"[DRY RUN] Would cancel stop order {order.id} for {symbol} (stop: ${order.stop_price})")
+        for order in orders_for_symbol:
+            if dry_run:
+                print(f"[DRY RUN] Would cancel stop order {order.id} for {symbol} (stop: ${order.stop_price})")
+                cancelled += 1
+            else:
+                try:
+                    trading_client.cancel_order_by_id(order.id)
+                    print(f"Cancelled stop order {order.id} for {symbol} (stop: ${order.stop_price})")
                     cancelled += 1
-                else:
-                    try:
-                        trading_client.cancel_order_by_id(order.id)
-                        print(f"Cancelled stop order {order.id} for {symbol} (stop: ${order.stop_price})")
-                        cancelled += 1
-                    except Exception as e:
-                        print(f"Failed to cancel stop order {order.id} for {symbol}: {e}")
+                except Exception as e:
+                    print(f"Failed to cancel stop order {order.id} for {symbol}: {e}")
         return cancelled
     except Exception as e:
         print(f"Error cancelling stop orders for {symbol}: {e}")

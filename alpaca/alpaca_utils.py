@@ -17,6 +17,15 @@ from alpaca.trading.enums import OrderSide, TimeInForce, QueryOrderStatus
 
 from config import ATR_PERIOD, STOP_LOSS_ATR_MULT
 
+# Per-execution bar cache: avoids redundant Alpaca Data API calls for the
+# same symbol within a single script run.  Cleared automatically on exit;
+# call clear_bar_cache() explicitly if you need a mid-run reset.
+_bar_cache = {}
+
+def clear_bar_cache():
+    """Clear the in-memory bar cache"""
+    _bar_cache.clear()
+
 def get_alpaca_variables(whichAccount: str):
     """Get Alpaca API credentials from config file"""
     config = ConfigParser()
@@ -40,7 +49,10 @@ def initialize_alpaca_api():
     return trading_client, data_client
 
 def fetch_bars(symbol, data_client, limit=100):
-    """Fetch historical bars for a symbol"""
+    """Fetch historical bars for a symbol (cached per execution)"""
+    if symbol in _bar_cache:
+        return _bar_cache[symbol].copy()
+
     end = datetime.now(timezone.utc)
     start = end - timedelta(days=100)
     try:
@@ -51,7 +63,8 @@ def fetch_bars(symbol, data_client, limit=100):
         )
         bars = data_client.get_stock_bars(request_params)
         if bars and hasattr(bars, 'df'):
-            return bars.df
+            _bar_cache[symbol] = bars.df
+            return bars.df.copy()
     except Exception as e:
         print(f"Error fetching {symbol}: {e}")
     return pd.DataFrame()

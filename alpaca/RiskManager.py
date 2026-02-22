@@ -17,8 +17,8 @@ from typing import Dict, Optional, List, Tuple
 from enum import Enum
 from datetime import datetime, timedelta, timezone
 from configparser import ConfigParser
-from alpaca.trading.requests import MarketOrderRequest
-from alpaca.trading.enums import OrderSide, TimeInForce, PositionIntent
+from alpaca.trading.requests import MarketOrderRequest, GetOrdersRequest
+from alpaca.trading.enums import OrderSide, TimeInForce, PositionIntent, QueryOrderStatus
 
 # Add parent directory to path for imports
 sys.path.append('..')
@@ -178,7 +178,7 @@ def can_enter_positions_for_color(background_color: str) -> bool:
 
 
 
-def check_earnings_proximity(positions, trading_client, data_client, dry_run=True):
+def check_earnings_proximity(positions, trading_client, data_client, dry_run=True, stop_orders_by_symbol=None):
     """
     Close positions reporting earnings imminently unless they have >= 8 ATR open profit.
 
@@ -188,6 +188,10 @@ def check_earnings_proximity(positions, trading_client, data_client, dry_run=Tru
     - Earnings today with unknown hour (treat conservatively)
 
     Positions with >= EARNINGS_PROFIT_THRESHOLD_ATR open profit are kept.
+
+    Args:
+        stop_orders_by_symbol: Pre-fetched dict {symbol: [order, ...]}. If None,
+            falls back to API calls inside cancel_stop_orders().
     """
     from pytz import timezone as pytz_tz
     et = pytz_tz('US/Eastern')
@@ -259,7 +263,7 @@ def check_earnings_proximity(positions, trading_client, data_client, dry_run=Tru
                 print(f"  [DRY RUN] Would cancel stop orders for {symbol}")
             else:
                 # Cancel stop orders first
-                cancel_stop_orders(symbol, trading_client, dry_run=False)
+                cancel_stop_orders(symbol, trading_client, dry_run=False, stop_orders_by_symbol=stop_orders_by_symbol)
                 # Close position
                 try:
                     order_data = MarketOrderRequest(
@@ -320,8 +324,19 @@ def ensure_all_positions_have_stop_losses():
             print("No long positions found - nothing to monitor")
             return
 
+        # Fetch all open orders once for reuse
+        request = GetOrdersRequest(status=QueryOrderStatus.OPEN)
+        all_orders = trading_client.get_orders(filter=request)
+        stop_orders_by_symbol = {}
+        for order in all_orders:
+            if order.side == OrderSide.SELL and order.order_type == 'stop':
+                stop_orders_by_symbol.setdefault(order.symbol, []).append(order)
+
         # Check earnings proximity — close positions reporting imminently without enough profit
-        closed_for_earnings = check_earnings_proximity(long_positions, trading_client, data_client, DRY_RUN)
+        closed_for_earnings = check_earnings_proximity(
+            long_positions, trading_client, data_client, DRY_RUN,
+            stop_orders_by_symbol=stop_orders_by_symbol
+        )
 
         # Exclude positions closed for earnings from stop loss check
         position_symbols = [p.symbol for p in long_positions if p.symbol not in closed_for_earnings]
@@ -331,7 +346,9 @@ def ensure_all_positions_have_stop_losses():
             return
 
         # Check for missing stop loss orders
-        symbols_needing_stops = check_missing_stop_loss_orders(position_symbols, trading_client)
+        symbols_needing_stops = check_missing_stop_loss_orders(
+            position_symbols, trading_client, stop_orders_by_symbol=stop_orders_by_symbol
+        )
         
         if not symbols_needing_stops:
             print("✅ All positions have stop loss orders")

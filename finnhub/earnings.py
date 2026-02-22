@@ -18,19 +18,24 @@ def _get_cache_file_path():
 def _load_earnings_cache():
     """Load earnings data from cache CSV file"""
     cache_file = _get_cache_file_path()
-    
+
     if not os.path.exists(cache_file):
-        return pd.DataFrame(columns=['Ticker', 'Next_Earnings_Date', 'Last_Updated'])
-    
+        return pd.DataFrame(columns=['Ticker', 'Next_Earnings_Date', 'Hour', 'Last_Updated'])
+
     try:
         df = pd.read_csv(cache_file)
         # Convert date column to datetime
         if 'Next_Earnings_Date' in df.columns:
             df['Next_Earnings_Date'] = pd.to_datetime(df['Next_Earnings_Date'], errors='coerce')
+        # Ensure Hour column exists (backwards compat with old cache files)
+        if 'Hour' not in df.columns:
+            df['Hour'] = ''
+        # Fill NaN hours with empty string
+        df['Hour'] = df['Hour'].fillna('')
         return df
     except Exception as e:
         print(f"Warning: Could not load earnings cache: {e}")
-        return pd.DataFrame(columns=['Ticker', 'Next_Earnings_Date', 'Last_Updated'])
+        return pd.DataFrame(columns=['Ticker', 'Next_Earnings_Date', 'Hour', 'Last_Updated'])
 
 
 def _save_earnings_cache(df):
@@ -75,16 +80,20 @@ def _clean_expired_cache_entries(df):
 
 
 def _get_earnings_from_api(symbol):
-    """Get earnings date from Finnhub API"""
+    """Get earnings date and reporting hour from Finnhub API.
+
+    Returns:
+        dict or None: {'date': datetime, 'hour': str} where hour is 'bmo', 'amc', or ''
+    """
     try:
         # Get API credentials
         api_key = get_finnhub_credentials()
-        
+
         # Set date range: from today to 3 months in advance
         today = datetime.now()
         from_date = today.strftime('%Y-%m-%d')
         to_date = (today + timedelta(days=90)).strftime('%Y-%m-%d')
-        
+
         # Build API URL
         base_url = "https://finnhub.io/api/v1/calendar/earnings"
         params = {
@@ -93,34 +102,36 @@ def _get_earnings_from_api(symbol):
             'symbol': symbol.upper(),
             'token': api_key
         }
-        
+
         # Make API request
         response = requests.get(base_url, params=params)
         response.raise_for_status()
-        
+
         # Parse response
         data = response.json()
-        
+
         # Check if earnings data exists
         if 'earningsCalendar' not in data or not data['earningsCalendar']:
             return None
-        
+
         # Find the next earnings date
         earnings_list = data['earningsCalendar']
 
         # Sort by date to get the earliest upcoming earnings
         earnings_list.sort(key=lambda x: x.get('date', ''))
 
-        # Get the first (earliest) earnings date
+        # Get the first (earliest) earnings entry
         if earnings_list:
-            next_earnings_date_str = earnings_list[0].get('date')
-            if next_earnings_date_str:
-                # Parse the date string (format: YYYY-MM-DD)
-                next_earnings_date = datetime.strptime(next_earnings_date_str, '%Y-%m-%d')
-                return next_earnings_date
+            entry = earnings_list[0]
+            date_str = entry.get('date')
+            if date_str:
+                return {
+                    'date': datetime.strptime(date_str, '%Y-%m-%d'),
+                    'hour': entry.get('hour', '')
+                }
 
         return None
-        
+
     except requests.exceptions.RequestException as e:
         raise Exception(f"API request failed: {str(e)}")
     except json.JSONDecodeError as e:
@@ -167,37 +178,32 @@ def get_next_earnings_date(symbol):
         
         # Not in cache or expired, fetch from API
         print(f"Fetching earnings data from API for {symbol_upper}")
-        next_earnings_date = _get_earnings_from_api(symbol_upper)
-        
+        api_result = _get_earnings_from_api(symbol_upper)
+
+        next_earnings_date = api_result['date'] if api_result else None
+        hour = api_result['hour'] if api_result else ''
+
         # Update cache with new data
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
-        if next_earnings_date:
-            new_row = pd.DataFrame({
-                'Ticker': [symbol_upper],
-                'Next_Earnings_Date': [next_earnings_date],
-                'Last_Updated': [current_time]
-            })
-        else:
-            # Store None as NaN for no earnings found
-            new_row = pd.DataFrame({
-                'Ticker': [symbol_upper],
-                'Next_Earnings_Date': [pd.NaT],
-                'Last_Updated': [current_time]
-            })
-        
+
+        new_row = pd.DataFrame({
+            'Ticker': [symbol_upper],
+            'Next_Earnings_Date': [next_earnings_date if next_earnings_date else pd.NaT],
+            'Hour': [hour],
+            'Last_Updated': [current_time]
+        })
+
         # Add or update the row in cache
         if not ticker_row.empty:
-            # Update existing row
             cache_df.loc[cache_df['Ticker'] == symbol_upper, 'Next_Earnings_Date'] = next_earnings_date
+            cache_df.loc[cache_df['Ticker'] == symbol_upper, 'Hour'] = hour
             cache_df.loc[cache_df['Ticker'] == symbol_upper, 'Last_Updated'] = current_time
         else:
-            # Add new row
             cache_df = pd.concat([cache_df, new_row], ignore_index=True)
-        
+
         # Save updated cache
         _save_earnings_cache(cache_df)
-        
+
         return next_earnings_date
         
     except Exception as e:
@@ -206,8 +212,8 @@ def get_next_earnings_date(symbol):
 
 def get_earnings_with_hour(symbol):
     """
-    Get next earnings date and reporting hour (bmo/amc) from Finnhub API.
-    Bypasses cache since hour info is not cached.
+    Get next earnings date and reporting hour (bmo/amc) using the cache.
+    Falls back to API on cache miss (via get_next_earnings_date which populates the cache).
 
     Args:
         symbol (str): Stock ticker symbol
@@ -216,39 +222,28 @@ def get_earnings_with_hour(symbol):
         dict or None: {'date': datetime, 'hour': str} where hour is 'bmo', 'amc', or ''
     """
     try:
-        api_key = get_finnhub_credentials()
-        today = datetime.now()
-        from_date = today.strftime('%Y-%m-%d')
-        to_date = (today + timedelta(days=90)).strftime('%Y-%m-%d')
+        symbol_upper = symbol.upper()
 
-        base_url = "https://finnhub.io/api/v1/calendar/earnings"
-        params = {
-            'from': from_date,
-            'to': to_date,
-            'symbol': symbol.upper(),
-            'token': api_key
-        }
+        # Ensure cache is populated (API call only on miss)
+        earnings_date = get_next_earnings_date(symbol_upper)
 
-        response = requests.get(base_url, params=params)
-        response.raise_for_status()
-        data = response.json()
-
-        if 'earningsCalendar' not in data or not data['earningsCalendar']:
+        if earnings_date is None:
             return None
 
-        earnings_list = data['earningsCalendar']
-        earnings_list.sort(key=lambda x: x.get('date', ''))
+        # Read hour from cache
+        cache_df = _load_earnings_cache()
+        ticker_row = cache_df[cache_df['Ticker'] == symbol_upper]
 
-        if earnings_list:
-            entry = earnings_list[0]
-            date_str = entry.get('date')
-            if date_str:
-                return {
-                    'date': datetime.strptime(date_str, '%Y-%m-%d'),
-                    'hour': entry.get('hour', '')
-                }
+        hour = ''
+        if not ticker_row.empty:
+            hour = ticker_row.iloc[0].get('Hour', '')
+            if pd.isna(hour):
+                hour = ''
 
-        return None
+        return {
+            'date': earnings_date,
+            'hour': hour
+        }
     except Exception as e:
         print(f"Warning: Could not fetch earnings with hour for {symbol}: {e}")
         return None

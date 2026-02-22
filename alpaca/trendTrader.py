@@ -26,50 +26,39 @@ from config import (DRY_RUN, MAX_POSITIONS, MAX_POSITIONS_PER_DAY,
                     VIX_ENTRY_THRESHOLD, EARNINGS_MIN_DAYS_AWAY)
 
 
-def get_regime_based_risk():
+def get_regime_based_risk(regime_detector, risk_manager):
     """
-    Get risk percentage based on current market regime background color
-    
+    Get risk percentage based on current market regime background color.
+
+    Args:
+        regime_detector: RegimeDetector instance (already fetched regime data)
+        risk_manager: RiskManager instance
+
     Returns:
         float: Risk percentage as decimal (e.g., 0.2 for 0.2%)
-        
-    Raises:
-        Exception: If unable to fetch or validate regime data
     """
-    try:
-        # Fetch regime data
-        regime_detector = RegimeDetector()
-        regime_data = regime_detector.get_regime_info()
-        background_color = regime_detector.get_background_color()
-        
-        # Get risk percentage based on background color
-        risk_manager = RiskManager()
-        risk_percentage = risk_manager.get_risk_percentage(background_color)
-        
-        print(f"=== Market Regime Analysis ===")
-        print(f"Background Color: {background_color}")
-        print(f"Risk Percentage: {risk_percentage:.1f}%")
-        print(f"Can Enter Positions: {risk_manager.can_enter_positions(background_color)}")
-        print(f"Above 200MA: {regime_detector.is_above_200ma()}")
-        print(f"Combined MM Signals: {regime_detector.get_combined_mm_signals()}")
-        
-        # Get VIX close price and check threshold
-        vix_close = regime_detector.get_vix_close()
-        if vix_close is not None:
-            print(f"VIX Close: {vix_close:.2f}")
-            if vix_close > VIX_ENTRY_THRESHOLD:
-                print(f"WARNING: VIX above {VIX_ENTRY_THRESHOLD} - no new entries allowed due to high volatility")
-            else:
-                print("VIX below 25 - volatility levels acceptable for new entries")
+    background_color = regime_detector.get_background_color()
+    risk_percentage = risk_manager.get_risk_percentage(background_color)
+
+    print(f"=== Market Regime Analysis ===")
+    print(f"Background Color: {background_color}")
+    print(f"Risk Percentage: {risk_percentage:.1f}%")
+    print(f"Can Enter Positions: {risk_manager.can_enter_positions(background_color)}")
+    print(f"Above 200MA: {regime_detector.is_above_200ma()}")
+    print(f"Combined MM Signals: {regime_detector.get_combined_mm_signals()}")
+
+    # Get VIX close price and check threshold
+    vix_close = regime_detector.get_vix_close()
+    if vix_close is not None:
+        print(f"VIX Close: {vix_close:.2f}")
+        if vix_close > VIX_ENTRY_THRESHOLD:
+            print(f"WARNING: VIX above {VIX_ENTRY_THRESHOLD} - no new entries allowed due to high volatility")
         else:
-            print("VIX Close: Not available")
-        
-        return risk_percentage
-        
-    except Exception as e:
-        print(f"Error fetching regime data: {e}")
-        print("Falling back to default risk percentage: 0.2%")
-        return 0.2  # Fallback to 0.2% if regime data unavailable
+            print("VIX below 25 - volatility levels acceptable for new entries")
+    else:
+        print("VIX Close: Not available")
+
+    return risk_percentage
 
 
 def load_universe_tickers():
@@ -439,39 +428,56 @@ def submit_order_with_stop_loss(symbol, qty, entry_price, atr_value, current_hig
             print(f"Order failed for {symbol}: {e}")
             return False
 
-def cancel_stop_orders_for_symbol(symbol):
-    """Cancel all stop loss orders for a specific symbol"""
+def cancel_stop_orders_for_symbol(symbol, stop_orders_by_symbol=None):
+    """Cancel all stop loss orders for a specific symbol.
+
+    Args:
+        symbol: Ticker symbol
+        stop_orders_by_symbol: Pre-fetched dict {symbol: [order, ...]} from
+            fetch_live_alpaca_data(). If None, falls back to an API call.
+    """
     try:
-        # Get all open orders
-        request = GetOrdersRequest(status=QueryOrderStatus.OPEN)
-        orders = trading_client.get_orders(filter=request)
-        
-        # Find and cancel stop loss orders for this symbol
+        if stop_orders_by_symbol is not None:
+            orders_for_symbol = stop_orders_by_symbol.get(symbol, [])
+        else:
+            # Fallback: fetch from API
+            request = GetOrdersRequest(status=QueryOrderStatus.OPEN)
+            all_orders = trading_client.get_orders(filter=request)
+            orders_for_symbol = [
+                o for o in all_orders
+                if o.symbol == symbol and o.side == OrderSide.SELL and o.order_type == 'stop'
+            ]
+
         cancelled_count = 0
-        for order in orders:
-            if (order.symbol == symbol and 
-                order.side == OrderSide.SELL and 
-                order.order_type == 'stop'):
-                try:
-                    trading_client.cancel_order_by_id(order.id)
-                    print(f"Cancelled stop order {order.id} for {symbol} (qty: {order.qty}, stop: ${order.stop_price})")
-                    cancelled_count += 1
-                except Exception as e:
-                    print(f"Failed to cancel stop order {order.id} for {symbol}: {e}")
-        
+        for order in orders_for_symbol:
+            try:
+                trading_client.cancel_order_by_id(order.id)
+                print(f"Cancelled stop order {order.id} for {symbol} (qty: {order.qty}, stop: ${order.stop_price})")
+                cancelled_count += 1
+            except Exception as e:
+                print(f"Failed to cancel stop order {order.id} for {symbol}: {e}")
+
         if cancelled_count > 0:
             print(f"Cancelled {cancelled_count} stop order(s) for {symbol}")
         else:
             print(f"No stop orders found for {symbol}")
-        
+
         return True
-        
+
     except Exception as e:
         print(f"Error checking/canceling stop orders for {symbol}: {e}")
         return False
 
-def close_position(symbol, qty, counter=None):
-    """Close a position with a market sell order"""
+def close_position(symbol, qty, counter=None, stop_orders_by_symbol=None):
+    """Close a position with a market sell order.
+
+    Args:
+        symbol: Ticker symbol
+        qty: Share quantity to sell
+        counter: Optional display counter
+        stop_orders_by_symbol: Pre-fetched dict {symbol: [order, ...]} to
+            avoid re-querying open orders. If None, falls back to API call.
+    """
     if DRY_RUN:
         counter_text = f"[#{counter}] " if counter is not None else ""
         print(f"[DRY RUN] {counter_text}Would close position for {symbol}: qty={qty}")
@@ -480,8 +486,8 @@ def close_position(symbol, qty, counter=None):
         try:
             # Check and cancel any stop orders for this symbol first
             print(f"Checking for stop orders before closing {symbol}...")
-            cancel_stop_orders_for_symbol(symbol)
-            
+            cancel_stop_orders_for_symbol(symbol, stop_orders_by_symbol)
+
             # Submit market sell order to close position
             order_data = MarketOrderRequest(
                 symbol=symbol,
@@ -530,20 +536,22 @@ def main():
     print(','.join(tickers))
     print(f"Finviz URL: https://finviz.com/screener.ashx?v=310&f=cap_midover,fa_epsqoq_high,sh_avgvol_o100,sh_curvol_o100,ta_perf_13wup,ta_sma200_pa&ft=4&o=-perf26w&t={','.join(tickers)}")
     
-    # === Get Dynamic Risk Percentage Based on Market Regime ===
-    percent_risk = get_regime_based_risk()
-    
-    # === Check if positions can be entered based on regime ===
+    # === Fetch Regime Data (single fetch, reused throughout) ===
     can_enter = False  # Default to conservative approach
     vix_ok = True  # Default to allowing entries if VIX data unavailable
+    background_color = None
     try:
         regime_detector = RegimeDetector()
-        regime_data = regime_detector.get_regime_info()
+        regime_detector.get_regime_info()
         background_color = regime_detector.get_background_color()
-        
         risk_manager = RiskManager()
+
+        # === Get Dynamic Risk Percentage Based on Market Regime ===
+        percent_risk = get_regime_based_risk(regime_detector, risk_manager)
+
+        # === Check if positions can be entered based on regime ===
         can_enter = risk_manager.can_enter_positions(background_color)
-        
+
         # Check VIX threshold
         vix_close = regime_detector.get_vix_close()
         if vix_close is not None:
@@ -555,13 +563,13 @@ def main():
 
         if not can_enter:
             print(f"Market regime is {background_color.upper()} - no new positions allowed.")
-            
+
     except Exception as e:
-        print(f"Error checking regime for position entry: {e}")
-        print("Proceeding with caution...")
-        can_enter = False  # Default to conservative approach
-        vix_ok = False  # Default to conservative approach
-        background_color = None  # Unknown regime
+        print(f"Error fetching regime data: {e}")
+        print("Falling back to default risk percentage: 0.2%")
+        percent_risk = 0.2
+        can_enter = False
+        vix_ok = False
     
     # === Check SPY Trend for Entry Eligibility ===
     spy_above_ma = spy_above_long_ma()
@@ -598,29 +606,30 @@ def main():
     missing_stops = []
     position_symbols = []
     closed_positions = []  # Track positions that were successfully closed
-    
+    stop_orders = live_data['stop_orders'] if live_data is not None else None
+
     for position in positions:
         symbol = position.symbol
         qty = float(position.qty)
-        
+
         if qty <= 0:  # Skip short positions
             continue
-            
+
         exit_counter += 1
         position_symbols.append(symbol)
         bars = fetch_bars(symbol, data_client)
         if bars.empty:
             continue
-            
+
         bars = calculate_atr(bars)
-        
+
         if should_exit(bars):
             print(f"Exit signal for {symbol}: price below long MA {LONG_MA_PERIOD}")
-            if close_position(symbol, qty, exit_counter):
+            if close_position(symbol, qty, exit_counter, stop_orders):
                 closed_positions.append(symbol)
         elif should_exit_extended(bars):
             print(f"Exit signal for {symbol}: EXTENDED: price >= 50-day MA + 10 ATRs")
-            if close_position(symbol, qty, exit_counter):
+            if close_position(symbol, qty, exit_counter, stop_orders):
                 closed_positions.append(symbol)
     
     # === Update Trailing Stops ===

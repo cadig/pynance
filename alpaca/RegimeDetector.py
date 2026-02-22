@@ -11,11 +11,11 @@ import json
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional
 
-REGIME_URL = "https://cadig.github.io/pynance/spx-regime-results.json"
+from config import REGIME_URL
 
 class RegimeDetector:
     """Handles fetching and validation of SPX regime data"""
-    
+
     def __init__(self, url: str = REGIME_URL):
         self.url = url
         self.regime_data: Optional[Dict[str, Any]] = None

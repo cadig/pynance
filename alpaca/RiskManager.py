@@ -27,6 +27,8 @@ sys.path.append('..')
 from alpaca_utils import get_alpaca_variables, initialize_alpaca_api, fetch_bars, calculate_atr, ATR_PERIOD
 from risk_utils import calculate_risk_metrics, check_missing_stop_loss_orders, add_stop_loss_order, cancel_stop_orders, reconcile_position_qty, STOP_LOSS_ATR_MULT
 from finnhub.earnings import get_earnings_with_hour
+from config import (DRY_RUN, EARNINGS_PROFIT_THRESHOLD_ATR,
+                    RISK_PERCENTAGES as RISK_PERCENTAGES_CONFIG)
 
 class RiskLevel(Enum):
     """Risk level enumeration based on background colors"""
@@ -38,12 +40,9 @@ class RiskLevel(Enum):
 class RiskManager:
     """Manages position risk based on market regime background color"""
     
-    # Risk percentage mapping based on background color
+    # Risk percentage mapping based on background color — sourced from config.py
     RISK_PERCENTAGES = {
-        RiskLevel.RED: 0.0,      # No new positions
-        RiskLevel.ORANGE: 0.1,   # 0.1% risk per position
-        RiskLevel.YELLOW: 0.3,   # 0.3% risk per position
-        RiskLevel.GREEN: 0.5     # 0.5% risk per position
+        RiskLevel(color): pct for color, pct in RISK_PERCENTAGES_CONFIG.items()
     }
     
     def __init__(self):
@@ -178,9 +177,6 @@ def can_enter_positions_for_color(background_color: str) -> bool:
     return risk_manager.can_enter_positions(background_color)
 
 
-# === Constants ===
-DRY_RUN = True  # Set to False to submit actual orders
-EARNINGS_PROFIT_THRESHOLD_ATR = 8.0  # ATR profit needed to hold through earnings
 
 def check_earnings_proximity(positions, trading_client, data_client, dry_run=True):
     """

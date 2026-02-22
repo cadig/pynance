@@ -15,9 +15,7 @@ from alpaca.data.timeframe import TimeFrame
 from alpaca.trading.requests import StopOrderRequest, GetOrdersRequest
 from alpaca.trading.enums import OrderSide, TimeInForce, QueryOrderStatus
 
-# === Constants ===
-ATR_PERIOD = 20
-STOP_LOSS_ATR_MULT = 4.0
+from config import ATR_PERIOD, STOP_LOSS_ATR_MULT
 
 def get_alpaca_variables(whichAccount: str):
     """Get Alpaca API credentials from config file"""

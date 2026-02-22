@@ -19,19 +19,11 @@ from RiskManager import RiskManager
 from alpaca_utils import get_alpaca_variables, initialize_alpaca_api, fetch_bars, calculate_atr, ATR_PERIOD
 from risk_utils import calculate_risk_metrics, check_missing_stop_loss_orders, add_stop_loss_order, reconcile_position_qty, STOP_LOSS_ATR_MULT
 from finnhub.earnings import is_earnings_at_least_days_away
-
-# === CONFIG ===
-MAX_POSITIONS = 40
-MAX_POSITIONS_PER_DAY = 4  # Maximum new positions to enter per day
-LONG_MA_PERIOD = 50
-SHORT_MA_PERIOD = 10
-EXTENDED_ATR_EXIT_MULT = 14
-EXTENSION_MULT = 2.5
-LIMIT_PRICE_ATR_MULT = 0.3  # ATR multiplier for limit price in stop-limit orders
-TRAILING_STOP_MIN_MOVE = 0.5  # Minimum ATR move required to update trailing stop
-RED_REGIME_STOP_ATR_MULT = 2.0  # Tighter stop multiplier when regime is red
-EXCLUDE_TICKERS = ['RUM']  # List of tickers to exclude from universe
-DRY_RUN = True  # Set to False to submit actual orders
+from config import (DRY_RUN, MAX_POSITIONS, MAX_POSITIONS_PER_DAY,
+                    LONG_MA_PERIOD, SHORT_MA_PERIOD, EXTENDED_ATR_EXIT_MULT,
+                    EXTENSION_MULT, LIMIT_PRICE_ATR_MULT, TRAILING_STOP_MIN_MOVE,
+                    RED_REGIME_STOP_ATR_MULT, EXCLUDE_TICKERS,
+                    VIX_ENTRY_THRESHOLD, EARNINGS_MIN_DAYS_AWAY)
 
 
 def get_regime_based_risk():
@@ -65,8 +57,8 @@ def get_regime_based_risk():
         vix_close = regime_detector.get_vix_close()
         if vix_close is not None:
             print(f"VIX Close: {vix_close:.2f}")
-            if vix_close > 25:
-                print("WARNING: VIX above 25 - no new entries allowed due to high volatility")
+            if vix_close > VIX_ENTRY_THRESHOLD:
+                print(f"WARNING: VIX above {VIX_ENTRY_THRESHOLD} - no new entries allowed due to high volatility")
             else:
                 print("VIX below 25 - volatility levels acceptable for new entries")
         else:
@@ -555,9 +547,9 @@ def main():
         # Check VIX threshold
         vix_close = regime_detector.get_vix_close()
         if vix_close is not None:
-            vix_ok = vix_close <= 25
+            vix_ok = vix_close <= VIX_ENTRY_THRESHOLD
             if not vix_ok:
-                print(f"VIX is {vix_close:.2f} (above 25) - no new positions allowed due to high volatility.")
+                print(f"VIX is {vix_close:.2f} (above {VIX_ENTRY_THRESHOLD}) - no new positions allowed due to high volatility.")
         else:
             print("VIX data not available - proceeding with caution")
 
@@ -714,7 +706,7 @@ def main():
 
             if should_enter(bars):
                 # Check if earnings are at least 8 days away
-                if is_earnings_at_least_days_away(ticker, min_days=8):
+                if is_earnings_at_least_days_away(ticker, min_days=EARNINGS_MIN_DAYS_AWAY):
                     latest = bars.iloc[-1]
                     entry_candidates.append((ticker, latest['close'], latest['ATR'], latest['high']))
                 else:

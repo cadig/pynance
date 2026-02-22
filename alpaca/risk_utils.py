@@ -8,8 +8,7 @@ import pandas as pd
 from alpaca.trading.requests import StopOrderRequest, GetOrdersRequest
 from alpaca.trading.enums import OrderSide, TimeInForce, QueryOrderStatus
 
-# === Constants ===
-STOP_LOSS_ATR_MULT = 4.0
+from config import STOP_LOSS_ATR_MULT
 
 def calculate_risk_metrics(entry_price, stop_price, qty, account_value=None):
     """

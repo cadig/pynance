@@ -30,7 +30,7 @@ A stock passes the entry filter when:
 3. Price is **not extended** — the gap between price and the 50-day SMA must be less than 2.5 ATRs
 4. **Earnings are at least 8 days away** (avoids binary event risk)
 
-Orders are placed as **stop-limit buys** — the stop (trigger) price is the current day's high, and the limit price is slightly above that (0.1 ATR). This means the stock must break above today's high to trigger a fill, confirming upward momentum.
+Orders are placed as **stop-limit buys** — the stop (trigger) price is the current day's high, and the limit price is slightly above that (0.3 ATR). This means the stock must break above today's high to trigger a fill, confirming upward momentum.
 
 Up to **4 new positions per day**, max **40 total positions**.
 
@@ -50,15 +50,20 @@ Stops trail upward: when price makes a new high and the new calculated stop is m
 
 ### Exit Rules
 
-Positions are sold via market order when either condition is met:
+Positions are sold via market order when any of these conditions are met:
 1. **Trend breakdown** — price closes below the 50-day SMA
 2. **Overextension** — price reaches 50-day SMA + 14 ATRs (takes profit on parabolic moves)
+3. **Earnings proximity** — if a stock reports earnings after today's close (AMC) or before tomorrow's open (BMO), the position is closed unless it has >= 8 ATR open profit. Positions with large open profits are held through earnings. This check runs in RiskManager.py on its more frequent schedule.
 
 Stop losses handle the downside exits independently via Alpaca's order system.
 
-### RiskManager.py (Stop Loss Monitor)
+In a **red regime**, trailing stops tighten from 4 ATR to 2 ATR to reduce exposure while conditions deteriorate.
 
-Runs on a more frequent schedule than the main trader. Its only job: scan all open positions, find any that are missing a stop loss order (e.g., if a stop was triggered and partially filled, or an order was manually cancelled), and place new stop loss orders for them. This is a safety net.
+### RiskManager.py (Stop Loss Monitor + Earnings Guard)
+
+Runs on a more frequent schedule than the main trader. Two jobs:
+1. **Earnings proximity check** — for each held position, fetches the next earnings date and reporting hour from Finnhub. If earnings are imminent (AMC today after 2pm ET, or BMO tomorrow), closes the position and cancels its stop orders — unless the position has >= 8 ATR open profit, in which case it's held through earnings.
+2. **Stop loss safety net** — scans all open positions, finds any missing a stop loss order (e.g., if a stop was triggered and partially filled, or an order was manually cancelled), and places new stop loss orders.
 
 ## Files
 
@@ -76,11 +81,13 @@ Runs on a more frequent schedule than the main trader. Its only job: scan all op
 | Parameter | Value | Description |
 |-----------|-------|-------------|
 | `ATR_PERIOD` | 20 | Days for ATR calculation |
-| `STOP_LOSS_ATR_MULT` | 4.0 | ATRs below price for stop loss |
+| `STOP_LOSS_ATR_MULT` | 4.0 | ATRs below price for stop loss (2.0 in red regime) |
 | `LONG_MA_PERIOD` | 50 | Moving average for trend filter |
 | `SHORT_MA_PERIOD` | 10 | Short MA for entry confirmation |
 | `EXTENSION_MULT` | 2.5 | Max ATRs above 50-day SMA to enter |
 | `EXTENDED_ATR_EXIT_MULT` | 14 | ATRs above 50-day SMA to exit (overextension) |
 | `MAX_POSITIONS` | 40 | Portfolio capacity |
 | `MAX_POSITIONS_PER_DAY` | 4 | Daily entry limit |
+| `EARNINGS_PROFIT_THRESHOLD_ATR` | 8.0 | ATR profit needed to hold through earnings |
+| `RED_REGIME_STOP_ATR_MULT` | 2.0 | Tighter stop multiplier in red regime |
 | `DRY_RUN` | True | Set to False to submit real orders |

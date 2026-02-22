@@ -137,11 +137,11 @@ Exits are all-or-nothing. No partial profit-taking at intermediate levels. Most 
 
 **Improvement:** Scale out at milestones (e.g., sell 1/3 at 5 ATR profit, trail the rest).
 
-### D. Earnings Blindspot on Held Positions
+### D. ~~Earnings Blindspot on Held Positions~~ DONE
 
-Earnings are checked at entry (8+ days away), but positions are never exited before earnings. A stock bought 20 days ago with earnings tomorrow gets held through the binary event.
+~~Earnings are checked at entry (8+ days away), but positions are never exited before earnings.~~
 
-**Improvement:** Check upcoming earnings on all held positions daily. Either exit before earnings or tighten stops significantly.
+**Resolution:** Added `check_earnings_proximity()` to `RiskManager.py` (runs more frequently than trendTrader). For each held position, fetches next earnings date + hour (bmo/amc) from Finnhub. If earnings are imminent (amc today after 2pm ET, or bmo tomorrow), positions are closed unless they have >= 8 ATR open profit. Also added `get_earnings_with_hour()` to `finnhub/earnings.py` and `cancel_stop_orders()` to `risk_utils.py`.
 
 ---
 

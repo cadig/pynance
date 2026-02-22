@@ -37,6 +37,11 @@ jobs:
           cp data-cache/*.csv data/ && \
           rm -rf data-cache/ || true
 
+    - name: Restore server health from gh-pages
+      run: |
+        git checkout origin/gh-pages -- server-health.json 2>/dev/null && \
+          mv server-health.json docs/server-health.json || true
+
     - name: Run analysis
       run: |
         python data/fetch_data.py

@@ -177,3 +177,11 @@ ui/*.json
 
 docs/allocation-results.json
 docs/spx-regime-results.json
+
+allocation/plan.md
+allocation/README.md
+allocation/DECISIONS.md
+CLAUDE.md
+
+monitoring/heartbeats/
+monitoring/server-health.json

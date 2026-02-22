@@ -187,6 +187,7 @@ fi
 # Define the cron jobs with adjusted times
 TREND_TRADER_CRON="55 ${TREND_TRADER_HOUR} * * 1-5 cd $PROJECT_ROOT && ./bash/run_alpaca_trend.sh"
 RISK_MANAGER_CRON="0 ${RISK_MANAGER_HOURS} * * 1-5 cd $PROJECT_ROOT && ./bash/run_risk_manager.sh"
+HEALTH_COLLECTOR_CRON="*/30 * * * * cd $PROJECT_ROOT && ./monitoring/collect_and_push.sh >> ../logs/health_collector.log 2>&1"
 
 # Function to check if a cron job exists
 cron_job_exists() {
@@ -280,6 +281,11 @@ add_cron_job_if_missing "$TREND_TRADER_CRON" "trendTrader"
 print_status "Setting up RiskManager cron job..."
 print_status "RiskManager will run every hour from ${RISK_MANAGER_START}:00 to ${RISK_MANAGER_END}:00 local time (equivalent to 9 AM - 4 PM EST)"
 add_cron_job_if_missing "$RISK_MANAGER_CRON" "RiskManager"
+
+# Add Health Collector cron job
+print_status "Setting up Health Collector cron job..."
+print_status "Health Collector will run every 30 minutes to push server status to gh-pages"
+add_cron_job_if_missing "$HEALTH_COLLECTOR_CRON" "HealthCollector"
 
 # Validate the cron jobs
 print_status "Validating cron jobs..."

@@ -3,11 +3,12 @@
 # Script to run RiskManager.py with proper environment activation
 # This script assumes the pynance-v2.0 environment is already set up
 
-set -e  # Exit on any error
-
 # Source common functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/common.sh"
+
+set -e  # Exit on any error
 
 # Check if we're in the right directory
 check_project_directory "alpaca/RiskManager.py"
@@ -45,12 +46,18 @@ cd alpaca
 
 # Run the script and capture output
 # Redirect both stdout and stderr to the log file and also display in real-time using tee
+set +e
 python RiskManager.py 2>&1 | tee "$LOG_FILE_ABS"
+SCRIPT_EXIT_CODE=${PIPESTATUS[0]}
+set -e
+
+# Report heartbeat
+"$PROJECT_ROOT/monitoring/report_heartbeat.sh" "alpaca" "risk_manager" "$SCRIPT_EXIT_CODE" "$LOG_FILE_ABS" || true
 
 # Check exit status
-if [ $? -eq 0 ]; then
+if [ $SCRIPT_EXIT_CODE -eq 0 ]; then
     print_success "RiskManager.py completed successfully!"
 else
-    print_error "RiskManager.py failed with exit code $?"
-    exit 1
+    print_error "RiskManager.py failed with exit code $SCRIPT_EXIT_CODE"
+    exit $SCRIPT_EXIT_CODE
 fi

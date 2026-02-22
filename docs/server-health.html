@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pynance - Server Health</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .nav-buttons {
+            margin-bottom: 20px;
+        }
+        .nav-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            margin-right: 8px;
+            transition: background-color 0.3s ease;
+        }
+        .nav-button:hover {
+            background-color: #0056b3;
+        }
+        .overall-status {
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .overall-status.healthy {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .overall-status.unhealthy {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .overall-status.unknown {
+            background-color: #e2e3e5;
+            color: #383d41;
+            border: 1px solid #d6d8db;
+        }
+        .server-info {
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+        .system-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .system-header {
+            padding: 15px 20px;
+            font-size: 1.1em;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .system-header.healthy {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .system-header.unhealthy {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .process-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .process-table th {
+            background-color: #f8f9fa;
+            padding: 10px 15px;
+            text-align: left;
+            font-size: 0.85em;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+        }
+        .process-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9em;
+        }
+        .process-table tr:last-child td {
+            border-bottom: none;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        .status-dot.ok { background-color: #28a745; }
+        .status-dot.error { background-color: #dc3545; }
+        .status-dot.stale { background-color: #ffc107; }
+        .status-dot.unknown { background-color: #6c757d; }
+        .status-label {
+            vertical-align: middle;
+        }
+        .status-label.ok { color: #155724; }
+        .status-label.error { color: #721c24; font-weight: bold; }
+        .status-label.stale { color: #856404; }
+        .status-label.unknown { color: #383d41; }
+        .time-ago {
+            color: #6c757d;
+            font-size: 0.85em;
+        }
+        .error-details {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 8px;
+            font-family: monospace;
+            font-size: 0.8em;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
+            color: #721c24;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #6c757d;
+            font-size: 0.85em;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+        .refresh-note {
+            text-align: center;
+            color: #adb5bd;
+            font-size: 0.8em;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-buttons">
+            <button class="nav-button" onclick="window.location.href='index.html'">Regime Analysis</button>
+            <button class="nav-button" onclick="window.location.href='allocation.html'">Allocation Engine</button>
+        </div>
+
+        <h1>Server Health</h1>
+
+        <div id="content">
+            <div class="loading">Loading health data...</div>
+        </div>
+
+        <div class="footer">
+            <p>Auto-refreshes every 5 minutes</p>
+            <p>Generated by <a href="https://github.com/cadig/pynance">cadig/pynance</a></p>
+        </div>
+    </div>
+
+    <script>
+        function timeAgo(dateStr) {
+            if (!dateStr) return 'never';
+            const now = new Date();
+            const then = new Date(dateStr);
+            const diffMs = now - then;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            if (diffMins < 1) return 'just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ${diffMins % 60}m ago`;
+            return `${diffDays}d ${diffHours % 24}h ago`;
+        }
+
+        function formatTime(dateStr) {
+            if (!dateStr) return '-';
+            const d = new Date(dateStr);
+            return d.toLocaleString('en-US', {
+                month: 'short', day: 'numeric',
+                hour: 'numeric', minute: '2-digit',
+                timeZoneName: 'short'
+            });
+        }
+
+        function statusLabel(status) {
+            const labels = {
+                'ok': 'OK',
+                'error': 'Error',
+                'stale': 'Stale',
+                'unknown': 'No Data'
+            };
+            return labels[status] || status;
+        }
+
+        function renderHealth(data) {
+            const content = document.getElementById('content');
+
+            // Overall status banner
+            const overallClass = data.all_healthy ? 'healthy' : 'unhealthy';
+            const overallText = data.all_healthy ? 'All Systems Healthy' : 'Issues Detected';
+
+            let html = `
+                <div class="overall-status ${overallClass}">${overallText}</div>
+                <div class="server-info">
+                    Server: <strong>${data.server}</strong> &mdash;
+                    Last collected: ${formatTime(data.collected_at)}
+                    <span class="time-ago">(${timeAgo(data.collected_at)})</span>
+                </div>
+            `;
+
+            // Check if collection itself is stale (> 1 hour old)
+            const collectedAt = new Date(data.collected_at);
+            const collectionAge = (new Date() - collectedAt) / 3600000;
+            if (collectionAge > 1) {
+                html += `
+                    <div class="overall-status unhealthy" style="font-size: 0.9em; padding: 12px; margin-bottom: 20px;">
+                        Collection is ${Math.floor(collectionAge)}h old &mdash; the server may be offline
+                    </div>
+                `;
+            }
+
+            // System cards
+            for (const [sysId, sys] of Object.entries(data.systems)) {
+                const sysClass = sys.healthy ? 'healthy' : 'unhealthy';
+                const sysStatus = sys.healthy ? 'Healthy' : 'Issues';
+
+                html += `
+                    <div class="system-card">
+                        <div class="system-header ${sysClass}">
+                            <span>${sys.label}</span>
+                            <span>${sysStatus}</span>
+                        </div>
+                        <table class="process-table">
+                            <thead>
+                                <tr>
+                                    <th>Process</th>
+                                    <th>Status</th>
+                                    <th>Last Run</th>
+                                    <th>Schedule</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                for (const [procId, proc] of Object.entries(sys.processes)) {
+                    const status = proc.status;
+                    html += `
+                        <tr>
+                            <td>${proc.label}</td>
+                            <td>
+                                <span class="status-dot ${status}"></span>
+                                <span class="status-label ${status}">${statusLabel(status)}</span>
+                            </td>
+                            <td>
+                                ${formatTime(proc.last_run)}
+                                <br><span class="time-ago">${timeAgo(proc.last_run)}</span>
+                            </td>
+                            <td>${proc.schedule}</td>
+                        </tr>
+                    `;
+
+                    if (proc.last_error && status === 'error') {
+                        html += `
+                            <tr>
+                                <td colspan="4">
+                                    <div class="error-details">${proc.last_error}</div>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                }
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            content.innerHTML = html;
+        }
+
+        function loadHealth() {
+            fetch('server-health.json')
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    return r.json();
+                })
+                .then(data => renderHealth(data))
+                .catch(err => {
+                    document.getElementById('content').innerHTML = `
+                        <div class="overall-status unknown">
+                            No health data available
+                        </div>
+                        <div class="server-info">
+                            The server health monitor has not reported yet, or the server may be offline.
+                        </div>
+                    `;
+                });
+        }
+
+        // Load immediately, then refresh every 5 minutes
+        loadHealth();
+        setInterval(loadHealth, 5 * 60 * 1000);
+    </script>
+</body>
+</html>

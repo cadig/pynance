@@ -1,0 +1,22 @@
+{
+  "server_name": "algo-trading-1",
+  "systems": {
+    "alpaca": {
+      "label": "Alpaca Trend Trading",
+      "processes": {
+        "trend_trader": {
+          "label": "Trend Trader",
+          "schedule": "Weekdays 8:55 AM EST",
+          "stale_after_hours": 25,
+          "weekdays_only": true
+        },
+        "risk_manager": {
+          "label": "Risk Manager",
+          "schedule": "Weekdays hourly 9AM-4PM EST",
+          "stale_after_hours": 2,
+          "weekdays_only": true
+        }
+      }
+    }
+  }
+}

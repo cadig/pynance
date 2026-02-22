@@ -17,7 +17,7 @@ from finviz.finvizScanner import scan_multiple_criteria
 from RegimeDetector import RegimeDetector
 from RiskManager import RiskManager
 from alpaca_utils import get_alpaca_variables, initialize_alpaca_api, fetch_bars, calculate_atr, ATR_PERIOD
-from risk_utils import calculate_risk_metrics, check_missing_stop_loss_orders, add_stop_loss_order, STOP_LOSS_ATR_MULT
+from risk_utils import calculate_risk_metrics, check_missing_stop_loss_orders, add_stop_loss_order, reconcile_position_qty, STOP_LOSS_ATR_MULT
 from finnhub.earnings import is_earnings_at_least_days_away
 
 # === CONFIG ===
@@ -672,7 +672,11 @@ def main():
     # Add missing stop loss orders
     if missing_stops:
         print(f"\n=== Adding Missing Stop Loss Orders ({len(missing_stops)} positions) ===")
-        for symbol, qty, stop_price, current_price in missing_stops:
+        for symbol, expected_qty, stop_price, current_price in missing_stops:
+            # Reconcile live quantity before placing stop (handles partial fills)
+            qty = reconcile_position_qty(symbol, expected_qty, trading_client)
+            if qty <= 0:
+                continue
             add_stop_loss_order(symbol, qty, stop_price, current_price, account_value, trading_client, DRY_RUN)
             
             # Update position tracker with initial R multiple

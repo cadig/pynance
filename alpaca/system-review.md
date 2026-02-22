@@ -151,11 +151,11 @@ Exits are all-or-nothing. No partial profit-taking at intermediate levels. Most 
 
 Entry orders are `TimeInForce.DAY` stop-limit buys. If the buy fills near market close, the stop loss order might not be placed before system shutdown. The position is unprotected overnight until the next RiskManager run.
 
-### B. RiskManager Partial Fill Risk
+### B. ~~RiskManager Partial Fill Risk~~ DONE
 
-If a stop triggers and partially fills, then RiskManager runs and re-adds a stop based on the original quantity before the position is fully closed, the stop size is wrong.
+~~If a stop triggers and partially fills, then RiskManager runs and re-adds a stop based on the original quantity before the position is fully closed, the stop size is wrong.~~
 
-**Improvement:** Reconcile actual open quantity from Alpaca before placing any stop order. Confirm `position.qty` matches expectations.
+**Resolution:** Added `reconcile_position_qty()` to `risk_utils.py`. Before placing any stop order, both `RiskManager.py` and `trendTrader.py` now re-fetch the live position quantity from Alpaca. If quantity differs from expected (partial fill), a warning is logged and the actual quantity is used. If the position no longer exists (fully closed), the stop is skipped.
 
 ### C. Gap Risk (Acknowledged)
 

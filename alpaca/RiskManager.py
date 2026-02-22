@@ -25,7 +25,7 @@ sys.path.append('..')
 
 # Import shared utilities
 from alpaca_utils import get_alpaca_variables, initialize_alpaca_api, fetch_bars, calculate_atr, ATR_PERIOD
-from risk_utils import calculate_risk_metrics, check_missing_stop_loss_orders, add_stop_loss_order, cancel_stop_orders, STOP_LOSS_ATR_MULT
+from risk_utils import calculate_risk_metrics, check_missing_stop_loss_orders, add_stop_loss_order, cancel_stop_orders, reconcile_position_qty, STOP_LOSS_ATR_MULT
 from finnhub.earnings import get_earnings_with_hour
 
 class RiskLevel(Enum):
@@ -372,8 +372,12 @@ def ensure_all_positions_have_stop_losses():
             
             # Calculate stop price
             stop_price = round(current_price - (STOP_LOSS_ATR_MULT * atr_value), 2)
-            qty = int(float(position.qty))
-            
+
+            # Reconcile live quantity before placing stop (handles partial fills)
+            qty = reconcile_position_qty(symbol, float(position.qty), trading_client)
+            if qty <= 0:
+                continue
+
             # Add stop loss order
             success = add_stop_loss_order(
                 symbol, qty, stop_price, current_price, account_value, trading_client, DRY_RUN

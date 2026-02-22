@@ -85,6 +85,24 @@ def cancel_stop_orders(symbol, trading_client, dry_run=True):
         return 0
 
 
+def reconcile_position_qty(symbol, expected_qty, trading_client):
+    """
+    Re-fetch live position quantity from Alpaca and reconcile against expected.
+    Returns the actual quantity, or 0 if position no longer exists.
+    Logs a warning if actual differs from expected (partial fill scenario).
+    """
+    try:
+        position = trading_client.get_open_position(symbol)
+        actual_qty = int(float(position.qty))
+        if actual_qty != int(expected_qty):
+            print(f"WARNING: {symbol} quantity mismatch — expected {int(expected_qty)}, actual {actual_qty} (partial fill?)")
+        return actual_qty
+    except Exception:
+        # Position no longer exists (fully closed)
+        print(f"WARNING: {symbol} position no longer exists — skipping stop order")
+        return 0
+
+
 def add_stop_loss_order(symbol, qty, stop_price, current_price=None, account_value=None, trading_client=None, dry_run=True):
     """Add a stop loss order for an existing position"""
     if dry_run:

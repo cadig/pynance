@@ -913,13 +913,19 @@
             const dt = new Date(dtStr);
             const now = new Date();
             const hoursOld = (now - dt) / (1000 * 60 * 60);
-            const isStale = hoursOld > 24;
+            const dayNow = now.getDay(); // 0=Sun, 6=Sat
+            const hourNow = now.getHours();
+            // Data from Friday is expected to be stale on weekends and Monday before market close (~4pm ET pipeline)
+            const isWeekend = dayNow === 0 || dayNow === 6;
+            const isMondayPreRun = dayNow === 1 && hourNow < 20; // pipeline runs after close
+            const expectedStale = isWeekend || isMondayPreRun;
+            const isStale = hoursOld > 24 && !expectedStale;
             const cls = isStale ? 'stale' : 'fresh';
             const label = dt.toLocaleString('en-US', {
                 month: 'short', day: 'numeric', year: 'numeric',
                 hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
             });
-            const age = isStale ? ' (' + Math.floor(hoursOld) + 'h ago)' : '';
+            const age = hoursOld > 24 ? ' (' + Math.floor(hoursOld) + 'h ago)' : '';
             container.innerHTML = '<div class="data-freshness ' + cls + '">Data as of: ' + label + age + '</div>';
         }
 

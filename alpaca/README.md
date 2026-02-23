@@ -6,7 +6,7 @@ Automated long-only equity trend-following system that trades via the Alpaca API
 
 ### Market Gatekeeping (4 checks before any new entry)
 
-1. **Market regime** — Fetches the pynance regime signal (green/yellow/orange/red background color) from GitHub Pages. Red regime = no new entries. Other regimes set how much risk per trade (green 0.5%, yellow 0.3%, orange 0.1%).
+1. **Market regime** — Fetches the pynance regime signal (green/yellow/orange/red background color) from GitHub Pages. Red regime = no new entries. Other regimes control how many new entries per day (green 4, yellow 3, orange 1).
 2. **VIX check** — If VIX closes above 25, all new entries are blocked regardless of regime color.
 3. **SPY trend** — SPY must be above its 50-day moving average for any new entries.
 4. **Universe breadth** — After scanning the universe, the system counts what percentage of scanned stocks are above their 50-day SMA. If this falls below 40%, new entries are blocked. This catches environments where the index holds up but individual growth stocks are breaking down — a leading signal that the system's edge is thinning.
@@ -33,15 +33,11 @@ A stock passes the entry filter when:
 
 Orders are placed as **stop-limit buys** — the stop (trigger) price is the current day's high, and the limit price is slightly above that (0.3 ATR). This means the stock must break above today's high to trigger a fill, confirming upward momentum.
 
-Up to **4 new positions per day**, max **40 total positions**.
+The number of new entries per day is controlled by the market regime: **green 4, yellow 3, orange 1, red 0**. Max **40 total positions**.
 
 ### Position Sizing
 
-Each position is sized so that the dollar risk (entry price minus stop loss) equals a fixed percentage of the account value. That percentage comes from the regime color:
-- Green: 0.5% risk per trade
-- Yellow: 0.3%
-- Orange: 0.1%
-- Red: 0% (no entries)
+Every position is sized identically: the dollar risk (entry price minus stop loss) equals **0.4% of account value**. Regime color does not affect position size — it controls entry pace (how many new positions per day) instead. This ensures every trade gets a full-sized allocation regardless of when it was entered.
 
 ### Stop Losses (ATR-Based Trailing Stops)
 
@@ -87,8 +83,9 @@ Runs on a more frequent schedule than the main trader. Two jobs:
 | `SHORT_MA_PERIOD` | 10 | Short MA for entry confirmation |
 | `EXTENSION_MULT` | 2.5 | Max ATRs above 50-day SMA to enter |
 | `EXTENDED_ATR_EXIT_MULT` | 14 | ATRs above 50-day SMA to exit (overextension) |
+| `RISK_PER_TRADE` | 0.4 | Fixed % of account risked per trade (all regimes) |
 | `MAX_POSITIONS` | 40 | Portfolio capacity |
-| `MAX_POSITIONS_PER_DAY` | 4 | Daily entry limit |
+| `MAX_ENTRIES_BY_REGIME` | green:4, yellow:3, orange:1, red:0 | Daily entry limit by regime |
 | `EARNINGS_PROFIT_THRESHOLD_ATR` | 8.0 | ATR profit needed to hold through earnings |
 | `RED_REGIME_STOP_ATR_MULT` | 2.0 | Tighter stop multiplier in red regime |
 | `UNIVERSE_BREADTH_THRESHOLD` | 0.40 | Min % of universe above 50MA to allow entries |

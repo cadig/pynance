@@ -24,26 +24,27 @@ from config import (DRY_RUN, MAX_POSITIONS, MAX_POSITIONS_PER_DAY,
                     EXTENSION_MULT, LIMIT_PRICE_ATR_MULT, TRAILING_STOP_MIN_MOVE,
                     RED_REGIME_STOP_ATR_MULT, EXCLUDE_TICKERS,
                     VIX_ENTRY_THRESHOLD, EARNINGS_MIN_DAYS_AWAY,
-                    UNIVERSE_BREADTH_THRESHOLD)
+                    UNIVERSE_BREADTH_THRESHOLD, RISK_PER_TRADE, MAX_ENTRIES_BY_REGIME)
 
 
 def get_regime_based_risk(regime_detector, risk_manager):
     """
-    Get risk percentage based on current market regime background color.
+    Log market regime analysis and return entry pace for current regime.
 
     Args:
         regime_detector: RegimeDetector instance (already fetched regime data)
         risk_manager: RiskManager instance
 
     Returns:
-        float: Risk percentage as decimal (e.g., 0.2 for 0.2%)
+        float: Risk percentage per trade (flat, from RISK_PER_TRADE)
     """
     background_color = regime_detector.get_background_color()
-    risk_percentage = risk_manager.get_risk_percentage(background_color)
+    max_entries = MAX_ENTRIES_BY_REGIME.get(background_color, 1)
 
     print(f"=== Market Regime Analysis ===")
     print(f"Background Color: {background_color}")
-    print(f"Risk Percentage: {risk_percentage:.1f}%")
+    print(f"Risk Per Trade: {RISK_PER_TRADE:.1f}% (flat)")
+    print(f"Max Entries Today: {max_entries}")
     print(f"Can Enter Positions: {risk_manager.can_enter_positions(background_color)}")
     print(f"Above 200MA: {regime_detector.is_above_200ma()}")
     print(f"Combined MM Signals: {regime_detector.get_combined_mm_signals()}")
@@ -59,7 +60,7 @@ def get_regime_based_risk(regime_detector, risk_manager):
     else:
         print("VIX Close: Not available")
 
-    return risk_percentage
+    return RISK_PER_TRADE
 
 
 def load_universe_tickers():
@@ -753,12 +754,13 @@ def main():
         print("Skipping entry candidate scanning.")
 
     available_slots = MAX_POSITIONS - len(held_symbols)
-    daily_entry_limit = min(available_slots, MAX_POSITIONS_PER_DAY)
+    regime_entry_limit = MAX_ENTRIES_BY_REGIME.get(background_color, 1) if background_color else 1
+    daily_entry_limit = min(available_slots, regime_entry_limit)
 
     if daily_entry_limit > 0 and can_enter_new_positions:
         to_enter = entry_candidates[:daily_entry_limit]
-        # Calculate risk per position as percentage of account value
-        risk_per_position = account_value * (percent_risk / 100)
+        # Calculate risk per position as flat percentage of account value
+        risk_per_position = account_value * (RISK_PER_TRADE / 100)
 
         order_counter = 0
         for symbol, price, atr_value, current_high in to_enter:
@@ -778,7 +780,7 @@ def main():
         elif available_slots <= 0:
             print("Max positions reached. No new trades placed.")
         else:
-            print(f"Daily entry limit reached ({MAX_POSITIONS_PER_DAY} positions). No new trades placed.")
+            print(f"Daily entry limit reached ({regime_entry_limit} positions for {background_color} regime). No new trades placed.")
 
     # === Print CSV of tickers for entries ===
     if daily_entry_limit > 0 and can_enter_new_positions and to_enter:
@@ -830,7 +832,7 @@ def main():
     
     # Calculate risk for new entries
     if daily_entry_limit > 0 and can_enter_new_positions and to_enter:
-        risk_per_position = account_value * (percent_risk / 100)
+        risk_per_position = account_value * (RISK_PER_TRADE / 100)
         for symbol, price, atr_value, current_high in to_enter:
             # Calculate risk per share (entry price - stop loss price)
             stop_price = round(price - (STOP_LOSS_ATR_MULT * atr_value), 2)

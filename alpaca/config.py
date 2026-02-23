@@ -11,13 +11,26 @@ Mirrors the pattern used in allocation/config.py.
 DRY_RUN = True  # Set to False to submit actual orders
 
 # ---------------------------------------------------------------------------
-# Risk per position (% of account value risked per trade, by regime)
+# Risk per position (flat % of account value risked per trade)
 # ---------------------------------------------------------------------------
+RISK_PER_TRADE = 0.4  # 0.4% of account risked per trade, regardless of regime
+
+# Legacy risk percentages — kept for RiskManager backward compatibility
 RISK_PERCENTAGES = {
-    'red':    0.0,   # No new positions
-    'orange': 0.1,   # 0.1% risk per position
-    'yellow': 0.3,   # 0.3% risk per position
-    'green':  0.5,   # 0.5% risk per position
+    'red':    0.0,
+    'orange': RISK_PER_TRADE,
+    'yellow': RISK_PER_TRADE,
+    'green':  RISK_PER_TRADE,
+}
+
+# ---------------------------------------------------------------------------
+# Regime-based entry pace (how many new entries per day by regime color)
+# ---------------------------------------------------------------------------
+MAX_ENTRIES_BY_REGIME = {
+    'red':    0,   # No entries
+    'orange': 1,   # Cautious — 1 entry per day
+    'yellow': 3,   # Moderate — 3 entries per day
+    'green':  4,   # Full pace — 4 entries per day
 }
 
 # ---------------------------------------------------------------------------

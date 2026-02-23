@@ -28,7 +28,8 @@ from alpaca_utils import get_alpaca_variables, initialize_alpaca_api, fetch_bars
 from risk_utils import calculate_risk_metrics, check_missing_stop_loss_orders, add_stop_loss_order, cancel_stop_orders, reconcile_position_qty, STOP_LOSS_ATR_MULT
 from finnhub.earnings import get_earnings_with_hour
 from config import (DRY_RUN, EARNINGS_PROFIT_THRESHOLD_ATR,
-                    RISK_PERCENTAGES as RISK_PERCENTAGES_CONFIG)
+                    RISK_PERCENTAGES as RISK_PERCENTAGES_CONFIG,
+                    MAX_ENTRIES_BY_REGIME)
 
 class RiskLevel(Enum):
     """Risk level enumeration based on background colors"""
@@ -149,6 +150,10 @@ class RiskManager:
             'can_enter_positions': can_enter,
             'risk_level': RiskLevel(background_color.lower()).name
         }
+
+    def get_max_entries_per_day(self, background_color: str) -> int:
+        """Return daily entry limit based on regime color."""
+        return MAX_ENTRIES_BY_REGIME.get(background_color.lower(), 1)
 
 def get_risk_percentage_for_color(background_color: str) -> float:
     """

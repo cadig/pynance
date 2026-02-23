@@ -34,6 +34,13 @@ MAX_ENTRIES_BY_REGIME = {
 }
 
 # ---------------------------------------------------------------------------
+# Pyramiding (adding to winners)
+# ---------------------------------------------------------------------------
+PYRAMID_R_THRESHOLD = 3.0      # Add to position after 3R profit
+PYRAMID_SIZE_FRACTION = 0.5    # Add 50% of original qty
+PYRAMID_MAX_ADDS = 1           # Maximum pyramid adds per position
+
+# ---------------------------------------------------------------------------
 # ATR & stop loss
 # ---------------------------------------------------------------------------
 ATR_PERIOD = 20

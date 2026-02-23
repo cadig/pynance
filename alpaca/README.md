@@ -39,6 +39,17 @@ The number of new entries per day is controlled by the market regime: **green 4,
 
 Every position is sized identically: the dollar risk (entry price minus stop loss) equals **0.4% of account value**. Regime color does not affect position size — it controls entry pace (how many new positions per day) instead. This ensures every trade gets a full-sized allocation regardless of when it was entered.
 
+### Pyramiding (Adding to Winners)
+
+When an existing position reaches **3R profit** (3 times the initial risk per share), the system adds **50% of the original share count** via market order. This scales up winning trades that have proven themselves.
+
+Conditions to pyramid:
+- Position has reached 3R open profit
+- Stock still passes the entry trend filter (above 50MA, 10MA > 50MA, not overextended)
+- Maximum **1 pyramid add** per position
+
+After adding shares, the stop loss order is immediately replaced to cover the full position (original + pyramid shares) at the current trailing stop level.
+
 ### Stop Losses (ATR-Based Trailing Stops)
 
 Every position gets a stop loss order at **entry price minus 4 ATRs** (20-day ATR).
@@ -86,6 +97,9 @@ Runs on a more frequent schedule than the main trader. Two jobs:
 | `RISK_PER_TRADE` | 0.4 | Fixed % of account risked per trade (all regimes) |
 | `MAX_POSITIONS` | 40 | Portfolio capacity |
 | `MAX_ENTRIES_BY_REGIME` | green:4, yellow:3, orange:1, red:0 | Daily entry limit by regime |
+| `PYRAMID_R_THRESHOLD` | 3.0 | R-multiple profit to trigger pyramid add |
+| `PYRAMID_SIZE_FRACTION` | 0.5 | Fraction of original qty to add when pyramiding |
+| `PYRAMID_MAX_ADDS` | 1 | Maximum pyramid adds per position |
 | `EARNINGS_PROFIT_THRESHOLD_ATR` | 8.0 | ATR profit needed to hold through earnings |
 | `RED_REGIME_STOP_ATR_MULT` | 2.0 | Tighter stop multiplier in red regime |
 | `UNIVERSE_BREADTH_THRESHOLD` | 0.40 | Min % of universe above 50MA to allow entries |

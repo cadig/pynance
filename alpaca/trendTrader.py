@@ -24,7 +24,8 @@ from config import (DRY_RUN, MAX_POSITIONS, MAX_POSITIONS_PER_DAY,
                     EXTENSION_MULT, LIMIT_PRICE_ATR_MULT, TRAILING_STOP_MIN_MOVE,
                     RED_REGIME_STOP_ATR_MULT, EXCLUDE_TICKERS,
                     VIX_ENTRY_THRESHOLD, EARNINGS_MIN_DAYS_AWAY,
-                    UNIVERSE_BREADTH_THRESHOLD, RISK_PER_TRADE, MAX_ENTRIES_BY_REGIME)
+                    UNIVERSE_BREADTH_THRESHOLD, RISK_PER_TRADE, MAX_ENTRIES_BY_REGIME,
+                    PYRAMID_R_THRESHOLD, PYRAMID_SIZE_FRACTION, PYRAMID_MAX_ADDS)
 
 
 def get_regime_based_risk(regime_detector, risk_manager):
@@ -127,6 +128,118 @@ def should_exit_extended(df):
     # Exit if price >= 50-day MA + EXTENDED_ATR_EXIT_MULT ATRs
     return latest_close >= (sma_long + (EXTENDED_ATR_EXIT_MULT * atr_value))
 
+def backfill_initial_r_multiples(position_tracker):
+    """Backfill initial_r_multiple for legacy positions that have it as None.
+    Uses current ATR * STOP_LOSS_ATR_MULT as approximation."""
+    backfilled = 0
+    for symbol, info in position_tracker.items():
+        if info.get('initial_r_multiple') is not None:
+            continue
+        try:
+            bars = fetch_bars(symbol, data_client)
+            if bars.empty:
+                continue
+            bars = calculate_atr(bars)
+            atr_value = bars['ATR'].iloc[-1]
+            if pd.isna(atr_value):
+                continue
+            info['initial_r_multiple'] = round(STOP_LOSS_ATR_MULT * atr_value, 2)
+            backfilled += 1
+            print(f"Backfilled {symbol} initial_r_multiple: {info['initial_r_multiple']:.2f} (estimated from current ATR)")
+        except Exception as e:
+            print(f"Error backfilling initial_r_multiple for {symbol}: {e}")
+    return backfilled
+
+
+def check_pyramid_candidates(live_data, position_tracker, account_value):
+    """
+    Scan held positions for R-multiple pyramid opportunities.
+
+    A position qualifies when:
+    1. pyramid_count < PYRAMID_MAX_ADDS
+    2. initial_r_multiple is set and > 0
+    3. Current profit >= PYRAMID_R_THRESHOLD * initial_r_multiple
+    4. Stock still passes trend filter (should_enter)
+
+    For qualifying positions: add PYRAMID_SIZE_FRACTION * original_qty shares
+    via market order, then replace stop loss for the full new quantity.
+    """
+    pyramid_count = 0
+
+    for symbol, info in list(position_tracker.items()):
+        if info.get('pyramid_count', 0) >= PYRAMID_MAX_ADDS:
+            continue
+
+        initial_r = info.get('initial_r_multiple')
+        if initial_r is None or initial_r <= 0:
+            continue
+
+        # Check if position still exists in live data
+        if symbol not in live_data['positions']:
+            continue
+
+        try:
+            bars = fetch_bars(symbol, data_client)
+            if bars.empty:
+                continue
+            bars = calculate_atr(bars)
+            current_price = bars['close'].iloc[-1]
+            atr_value = bars['ATR'].iloc[-1]
+            entry_price = info['entry_price']
+
+            # Calculate R-multiple profit
+            r_profit = (current_price - entry_price) / initial_r
+            if r_profit < PYRAMID_R_THRESHOLD:
+                continue
+
+            # Verify trend is still intact
+            if not should_enter(bars):
+                print(f"  {symbol}: {r_profit:.1f}R profit but trend filter fails — skipping pyramid")
+                continue
+
+            original_qty = info.get('original_qty', info['qty'])
+            add_qty = max(1, int(original_qty * PYRAMID_SIZE_FRACTION))
+            current_stop = info.get('current_stop')
+            new_total_qty = int(float(live_data['positions'][symbol].qty)) + add_qty
+
+            if DRY_RUN:
+                print(f"[DRY RUN] PYRAMID {symbol}: {r_profit:.1f}R profit, would add {add_qty} shares (50% of {original_qty} original), new total={new_total_qty}")
+            else:
+                # Submit market buy for additional shares
+                order_data = MarketOrderRequest(
+                    symbol=symbol,
+                    qty=add_qty,
+                    side=OrderSide.BUY,
+                    time_in_force=TimeInForce.DAY,
+                    position_intent=PositionIntent.BUY_TO_OPEN
+                )
+                try:
+                    order = trading_client.submit_order(order_data)
+                    print(f"PYRAMID {symbol}: {r_profit:.1f}R profit, added {add_qty} shares (order {order.id}), new total={new_total_qty}")
+                except Exception as e:
+                    print(f"PYRAMID order failed for {symbol}: {e}")
+                    continue
+
+                # Replace stop loss for full position qty
+                if current_stop is not None:
+                    cancel_stop_orders_for_symbol(symbol, live_data.get('stop_orders'))
+                    add_stop_loss_order(symbol, new_total_qty, current_stop, current_price, account_value, trading_client, DRY_RUN)
+                    print(f"Replaced stop for {symbol}: qty={new_total_qty}, stop={current_stop:.2f}")
+
+            # Update tracker
+            info['pyramid_count'] = info.get('pyramid_count', 0) + 1
+            info['qty'] = new_total_qty
+            pyramid_count += 1
+
+        except Exception as e:
+            print(f"Error checking pyramid for {symbol}: {e}")
+
+    if pyramid_count > 0:
+        save_position_tracker(position_tracker)
+
+    return pyramid_count
+
+
 def spy_above_long_ma():
     try:
         spy = fetch_bars('SPY', data_client, 60)
@@ -140,12 +253,23 @@ def spy_above_long_ma():
 
 # === Position Tracking Functions ===
 def load_position_tracker():
-    """Load position tracking data from JSON file"""
+    """Load position tracking data from JSON file, migrating legacy entries."""
     try:
         with open('position_tracker.json', 'r') as f:
-            return json.load(f)
+            data = json.load(f)
     except FileNotFoundError:
         return {}
+
+    # Migrate legacy entries that lack pyramid fields
+    for symbol, info in data.items():
+        if 'original_qty' not in info:
+            info['original_qty'] = info.get('qty', 0)
+        if 'pyramid_count' not in info:
+            info['pyramid_count'] = 0
+        if 'entry_regime' not in info:
+            info['entry_regime'] = 'unknown'
+
+    return data
 
 def save_position_tracker(data):
     """Save position tracking data to JSON file"""
@@ -204,7 +328,10 @@ def sync_with_alpaca_positions():
                     'current_stop': None,
                     'initial_r_multiple': None,  # Will be calculated when stop is set
                     'entry_date': datetime.now().isoformat(),
-                    'qty': float(position.qty)
+                    'qty': float(position.qty),
+                    'original_qty': float(position.qty),
+                    'pyramid_count': 0,
+                    'entry_regime': 'unknown',
                 }
                 print(f"Added new position to tracker: {position.symbol}")
         
@@ -295,13 +422,17 @@ def update_trailing_stops_with_live_data(live_data, position_tracker, background
 
                 # Update position tracker
                 if symbol not in position_tracker:
+                    pos_qty = float(live_data['positions'][symbol].qty)
                     position_tracker[symbol] = {
                         'entry_price': float(live_data['positions'][symbol].avg_entry_price),
                         'highest_price': current_price,  # Track current price as highest
                         'current_stop': new_stop,
                         'initial_r_multiple': None,
                         'entry_date': datetime.now().isoformat(),
-                        'qty': float(live_data['positions'][symbol].qty)
+                        'qty': pos_qty,
+                        'original_qty': pos_qty,
+                        'pyramid_count': 0,
+                        'entry_regime': 'unknown',
                     }
                 else:
                     # Update highest price to current price if it's higher
@@ -377,7 +508,7 @@ def update_trailing_stops(position_tracker):
     
     return updated_count
 
-def submit_order_with_stop_loss(symbol, qty, entry_price, atr_value, current_high, stop_loss_price, counter=None, account_value=None):
+def submit_order_with_stop_loss(symbol, qty, entry_price, atr_value, current_high, stop_loss_price, counter=None, account_value=None, entry_regime='unknown'):
     """Submit stop-limit order with stop loss order"""
     # Use current day's high as stop price (trigger for limit order)
     buy_stop_price = round(current_high, 2)
@@ -421,7 +552,10 @@ def submit_order_with_stop_loss(symbol, qty, entry_price, atr_value, current_hig
                 'current_stop': stop_loss_price,
                 'initial_r_multiple': initial_r_multiple,
                 'entry_date': datetime.now().isoformat(),
-                'qty': qty
+                'qty': qty,
+                'original_qty': qty,
+                'pyramid_count': 0,
+                'entry_regime': entry_regime,
             }
             save_position_tracker(tracking_data)
             print(f"Added {symbol} to position tracker with initial R multiple: {initial_r_multiple:.2f}")
@@ -695,6 +829,23 @@ def main():
     else:
         print("\n=== All positions have stop loss orders ===")
 
+    # === Backfill initial_r_multiple for legacy positions ===
+    backfilled = backfill_initial_r_multiples(position_tracker)
+    if backfilled > 0:
+        save_position_tracker(position_tracker)
+        print(f"Backfilled initial_r_multiple for {backfilled} position(s)")
+
+    # === Pyramid Check — Add to Winners ===
+    print("\n=== Checking Pyramid Opportunities ===")
+    if live_data is not None:
+        pyramids = check_pyramid_candidates(live_data, position_tracker, account_value)
+        if pyramids > 0:
+            print(f"Pyramided {pyramids} position(s)")
+        else:
+            print("No pyramid opportunities")
+    else:
+        print("Skipping pyramid check (no live data)")
+
     # === Entry Logic - Find new positions ===
     entry_candidates = []
     entry_counter = 0
@@ -773,7 +924,7 @@ def main():
             if risk_per_share > 0:
                 qty = int(risk_per_position // risk_per_share)
                 if qty > 0:
-                    submit_order_with_stop_loss(symbol, qty, price, atr_value, current_high, stop_loss_price, order_counter, account_value)
+                    submit_order_with_stop_loss(symbol, qty, price, atr_value, current_high, stop_loss_price, order_counter, account_value, entry_regime=background_color or 'unknown')
     else:
         if not can_enter_new_positions:
             print("Entry conditions not met - no new trades placed.")

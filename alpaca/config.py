@@ -67,6 +67,7 @@ EXTENSION_MULT = 2.5             # Max extension from 50MA (in ATRs) allowed at 
 EXTENDED_ATR_EXIT_MULT = 14      # ATR multiple above 50MA for overextension exit
 LIMIT_PRICE_ATR_MULT = 0.3      # ATR multiplier for limit price in stop-limit orders
 MA_BREAK_STOP_BUFFER_ATR = 0.5  # ATR buffer below candle low when tightening stop on 50MA break
+MA_EXIT_COOLDOWN_DAYS = 3       # Trading days to wait before re-entering a stock after 50MA exit
 VIX_ENTRY_THRESHOLD = 25         # VIX above this blocks new entries
 
 # ---------------------------------------------------------------------------

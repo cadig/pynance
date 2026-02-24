@@ -26,7 +26,7 @@ from config import (DRY_RUN, MAX_POSITIONS, MAX_POSITIONS_PER_DAY,
                     VIX_ENTRY_THRESHOLD, EARNINGS_MIN_DAYS_AWAY,
                     UNIVERSE_BREADTH_THRESHOLD, RISK_PER_TRADE, MAX_ENTRIES_BY_REGIME,
                     PYRAMID_R_THRESHOLD, PYRAMID_SIZE_FRACTION, PYRAMID_MAX_ADDS,
-                    MA_BREAK_STOP_BUFFER_ATR)
+                    MA_BREAK_STOP_BUFFER_ATR, MA_EXIT_COOLDOWN_DAYS)
 
 
 def get_regime_based_risk(regime_detector, risk_manager):
@@ -154,6 +154,7 @@ def tighten_stop_on_ma_break(symbol, bars, live_data, position_tracker):
     # Update position tracker
     if symbol in position_tracker:
         position_tracker[symbol]['current_stop'] = tightened_stop
+        position_tracker[symbol]['ma_break_tightened'] = True
 
     print(f"  {symbol}: stop tightened to ${tightened_stop:.2f} (candle low ${candle_low:.2f} - {MA_BREAK_STOP_BUFFER_ATR} ATR)")
     return True
@@ -298,12 +299,36 @@ def load_position_tracker():
             info['pyramid_count'] = 0
         if 'entry_regime' not in info:
             info['entry_regime'] = 'unknown'
+        if 'ma_break_tightened' not in info:
+            info['ma_break_tightened'] = False
 
     return data
 
 def save_position_tracker(data):
     """Save position tracking data to JSON file"""
     with open('position_tracker.json', 'w') as f:
+        json.dump(data, f, indent=2)
+
+def load_cooldown_tracker():
+    """Load cooldown tracker, pruning expired entries."""
+    try:
+        with open('cooldown_tracker.json', 'r') as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return {}
+
+    today = datetime.now().date()
+    pruned = {}
+    for symbol, info in data.items():
+        exit_date = datetime.strptime(info['exit_date'], '%Y-%m-%d').date()
+        # Keep only entries within cooldown window (trading days approximated as calendar days)
+        if (today - exit_date).days <= MA_EXIT_COOLDOWN_DAYS:
+            pruned[symbol] = info
+    return pruned
+
+def save_cooldown_tracker(data):
+    """Save cooldown tracker to JSON file"""
+    with open('cooldown_tracker.json', 'w') as f:
         json.dump(data, f, indent=2)
 
 def fetch_live_alpaca_data():
@@ -345,8 +370,21 @@ def sync_with_alpaca_positions():
         alpaca_positions = trading_client.get_all_positions()
         tracking_data = load_position_tracker()
         
-        # Remove positions that no longer exist
+        # Record cooldowns for positions removed via 50MA stop tightening
         alpaca_symbols = {p.symbol for p in alpaca_positions}
+        removed_symbols = set(tracking_data.keys()) - alpaca_symbols
+        if removed_symbols:
+            cooldown = load_cooldown_tracker()
+            for symbol in removed_symbols:
+                if tracking_data[symbol].get('ma_break_tightened', False):
+                    cooldown[symbol] = {
+                        'exit_date': datetime.now().strftime('%Y-%m-%d'),
+                        'reason': 'ma_break_stop'
+                    }
+                    print(f"Added {symbol} to cooldown tracker (50MA stop exit)")
+            save_cooldown_tracker(cooldown)
+
+        # Remove positions that no longer exist
         tracking_data = {k: v for k, v in tracking_data.items() if k in alpaca_symbols}
         
         # Add new positions
@@ -892,8 +930,15 @@ def main():
         trend_healthy_count = 0
         scanned_count = 0
 
+        # Load cooldown tracker once before the scan loop
+        cooldown = load_cooldown_tracker()
+
         for ticker in tickers:
             if ticker in held_symbols:
+                continue
+
+            if ticker in cooldown:
+                print(f"Skipping {ticker} — in cooldown until {cooldown[ticker]['exit_date']} + {MA_EXIT_COOLDOWN_DAYS} days")
                 continue
 
             entry_counter += 1

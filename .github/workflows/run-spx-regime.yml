@@ -45,7 +45,7 @@ jobs:
     - name: Run analysis
       run: |
         python data/fetch_data.py
-        python research/combined-research.py
+        python -m regime
         python allocation/allocation_engine.py
       env:
         TRADINGVIEW_USERNAME: ${{ secrets.TRADINGVIEW_USERNAME }}

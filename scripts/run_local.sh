@@ -69,7 +69,7 @@ if [ "$ALLOC_ONLY" = false ]; then
     fi
 
     echo "==> Stage 2: Regime detection..."
-    python research/combined-research.py
+    python -m regime
 fi
 
 echo "==> Stage 3: Allocation engine..."

@@ -25,7 +25,8 @@ from config import (DRY_RUN, MAX_POSITIONS, MAX_POSITIONS_PER_DAY,
                     RED_REGIME_STOP_ATR_MULT, EXCLUDE_TICKERS,
                     VIX_ENTRY_THRESHOLD, EARNINGS_MIN_DAYS_AWAY,
                     UNIVERSE_BREADTH_THRESHOLD, RISK_PER_TRADE, MAX_ENTRIES_BY_REGIME,
-                    PYRAMID_R_THRESHOLD, PYRAMID_SIZE_FRACTION, PYRAMID_MAX_ADDS)
+                    PYRAMID_R_THRESHOLD, PYRAMID_SIZE_FRACTION, PYRAMID_MAX_ADDS,
+                    MA_BREAK_STOP_BUFFER_ATR)
 
 
 def get_regime_based_risk(regime_detector, risk_manager):
@@ -127,6 +128,35 @@ def should_exit_extended(df):
     
     # Exit if price >= 50-day MA + EXTENDED_ATR_EXIT_MULT ATRs
     return latest_close >= (sma_long + (EXTENDED_ATR_EXIT_MULT * atr_value))
+
+def tighten_stop_on_ma_break(symbol, bars, live_data, position_tracker):
+    """Tighten stop to candle low - 0.5 ATR on a 50MA close-below, instead of immediate exit.
+    Returns True if stop was tightened, False if skipped."""
+    candle_low = bars['low'].iloc[-1]
+    atr_value = bars['ATR'].iloc[-1]
+    tightened_stop = round(candle_low - (MA_BREAK_STOP_BUFFER_ATR * atr_value), 2)
+
+    current_stop, _ = get_current_stop_from_live_data(symbol, live_data, position_tracker)
+    if current_stop is not None and tightened_stop <= current_stop:
+        print(f"  {symbol}: existing stop ${current_stop:.2f} already tighter than ${tightened_stop:.2f}, skipping")
+        return False
+
+    # Cancel all existing stop orders for this symbol
+    cancel_stop_orders_for_symbol(symbol, live_data.get('stop_orders'))
+
+    # Place new tightened stop using live Alpaca qty (includes pyramid adds)
+    qty = int(float(live_data['positions'][symbol].qty))
+    current_price = bars['close'].iloc[-1]
+    account_value = float(live_data['account'].portfolio_value) if live_data.get('account') else 0
+    add_stop_loss_order(symbol, qty, tightened_stop, current_price=current_price,
+                        account_value=account_value, trading_client=trading_client, dry_run=DRY_RUN)
+
+    # Update position tracker
+    if symbol in position_tracker:
+        position_tracker[symbol]['current_stop'] = tightened_stop
+
+    print(f"  {symbol}: stop tightened to ${tightened_stop:.2f} (candle low ${candle_low:.2f} - {MA_BREAK_STOP_BUFFER_ATR} ATR)")
+    return True
 
 def backfill_initial_r_multiples(position_tracker):
     """Backfill initial_r_multiple for legacy positions that have it as None.
@@ -761,14 +791,16 @@ def main():
         bars = calculate_atr(bars)
 
         if should_exit(bars):
-            print(f"Exit signal for {symbol}: price below long MA {LONG_MA_PERIOD}")
-            if close_position(symbol, qty, exit_counter, stop_orders):
-                closed_positions.append(symbol)
+            print(f"50MA break for {symbol}: tightening stop to candle low")
+            tighten_stop_on_ma_break(symbol, bars, live_data, position_tracker)
         elif should_exit_extended(bars):
             print(f"Exit signal for {symbol}: EXTENDED: price >= 50-day MA + 10 ATRs")
             if close_position(symbol, qty, exit_counter, stop_orders):
                 closed_positions.append(symbol)
     
+    # Persist any stop tightening from 50MA breaks
+    save_position_tracker(position_tracker)
+
     # === Update Trailing Stops ===
     print("\n=== Updating Trailing Stops ===")
     if live_data is not None:
